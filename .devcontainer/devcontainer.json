@@ -5,6 +5,7 @@
     "context": ".."
   },
   "mounts": [
+    "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached",
     "source=orion-ccache,target=/ccache,type=volume",
     "source=orion-deps,target=/opt/deps,type=volume",
     "source=orion-vscode-server,target=/root/.vscode-server,type=volume",
