@@ -1,0 +1,52 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "configure",
+      "type": "shell",
+      "command": "cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "cmake --build build",
+      "group": { "kind": "build", "isDefault": true },
+      "dependsOn": "configure",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "format-clang",
+      "type": "shell",
+      "command": "cmake --build build --target format-clang",
+      "group": "none",
+      "dependsOn": "configure",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "format-cmake",
+      "type": "shell",
+      "command": "cmake --build build --target format-cmake",
+      "group": "none",
+      "dependsOn": "configure",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "tidy",
+      "type": "shell",
+      "command": "cmake --build build --target tidy",
+      "group": "none",
+      "dependsOn": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "docs",
+      "type": "shell",
+      "command": "cmake --build build --target docs",
+      "group": "none",
+      "dependsOn": "configure",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    }
+  ]
+}
