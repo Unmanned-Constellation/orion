@@ -1,0 +1,27 @@
+# Prerequisites
+*.d
+
+# Compiled Object files, libraries, and binaries
+*.o
+*.obj
+*.tar
+*.so
+*.a
+*.lib
+
+# Output binaries
+build/
+bin/
+
+# IDE and Editor specific configurations
+.vscode/
+*.swp
+*.swo
+
+# Local Developer/Container Caches
+.ccache/
+.dependency_cache/
+
+# OS generated files
+.DS_Store
+Thumbs.db
