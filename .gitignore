@@ -14,7 +14,7 @@ build/
 bin/
 
 # IDE and Editor specific configurations
-.vscode/
+.vscode/settings.json
 *.swp
 *.swo
 
@@ -22,6 +22,13 @@ bin/
 .ccache/
 .dependency_cache/
 
+# Generated documentation and config
+build/docs/
+build/Doxyfile
+
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Claude
+.claude/

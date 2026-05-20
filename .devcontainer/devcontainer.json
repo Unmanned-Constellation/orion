@@ -1,0 +1,31 @@
+{
+  "name": "Orion Dev",
+  "build": {
+    "dockerfile": "../docker/Dockerfile.devel",
+    "context": ".."
+  },
+"mounts": [
+    "source=orion-ccache,target=/ccache,type=volume",
+    "source=orion-deps,target=/opt/deps,type=volume",
+    "source=orion-vscode-server,target=/root/.vscode-server,type=volume",
+    "source=orion-claude-profile,target=/root/.claude,type=volume",
+    "source=orion-cmake-tools,target=/root/.local/share/CMakeTools,type=volume",
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.cmake-tools",
+        "zxh404.vscode-proto3",
+        "anthropic.claude-code"
+      ],
+      "settings": {
+        "cmake.buildDirectory": "${workspaceFolder}/build",
+        "cmake.generator": "Ninja",
+        "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+        "security.workspace.trust.enabled": false
+      }
+    }
+  },
+  "postCreateCommand": "pre-commit install && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug"
+}
