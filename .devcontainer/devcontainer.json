@@ -4,13 +4,12 @@
     "dockerfile": "../docker/Dockerfile.devel",
     "context": ".."
   },
-  "mounts": [
-    "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached",
+"mounts": [
     "source=orion-ccache,target=/ccache,type=volume",
     "source=orion-deps,target=/opt/deps,type=volume",
     "source=orion-vscode-server,target=/root/.vscode-server,type=volume",
     "source=orion-claude-profile,target=/root/.claude,type=volume",
-    "source=orion-cmake-tools,target=/root/.local/share/CMakeTools,type=volume"
+    "source=orion-cmake-tools,target=/root/.local/share/CMakeTools,type=volume",
   ],
   "customizations": {
     "vscode": {

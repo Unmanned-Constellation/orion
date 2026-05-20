@@ -29,3 +29,6 @@ build/Doxyfile
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Claude
+.claude/
