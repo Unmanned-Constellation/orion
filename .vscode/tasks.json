@@ -9,6 +9,13 @@
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
+      "label": "conan-reinstall",
+      "type": "shell",
+      "command": "conan remove '*' -c && bash .devcontainer/conan-install.sh",
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
       "label": "configure",
       "type": "shell",
       "command": "/usr/bin/cmake --preset conan-debug --no-warn-unused-cli",
