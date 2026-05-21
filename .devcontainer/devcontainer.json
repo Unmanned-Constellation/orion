@@ -1,7 +1,7 @@
 {
   "name": "Orion Dev",
   "build": {
-    "dockerfile": "../docker/Dockerfile.devel",
+    "dockerfile": "../docker/Dockerfile",
     "context": ".."
   },
   "features": {
@@ -13,8 +13,7 @@
     "source=${localEnv:HOME}/.cache/orion-deps,target=/opt/deps,type=bind,consistency=cached",
     "source=orion-vscode-server,target=/root/.vscode-server,type=volume",
     "source=orion-cmake-tools,target=/root/.local/share/CMakeTools,type=volume",
-    "source=orion-claude-profile,target=/root/.claude,type=volume",
-    "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind"
+    "source=orion-claude-profile,target=/root/.claude,type=volume"
   ],
   "containerEnv": {
     "CLAUDE_CONFIG_DIR": "/root/.claude",
