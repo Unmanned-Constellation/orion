@@ -1,3 +1,17 @@
+function(orion_suppress_dep_warnings)
+    foreach(_target IN LISTS ARGN)
+        if(TARGET ${_target})
+            get_target_property(_incs ${_target} INTERFACE_INCLUDE_DIRECTORIES)
+            if(_incs)
+                set_property(
+                    TARGET ${_target}
+                    PROPERTY INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_incs}"
+                )
+            endif()
+        endif()
+    endforeach()
+endfunction()
+
 find_program(CLANG_FORMAT clang-format)
 if(CLANG_FORMAT)
     file(
@@ -5,7 +19,7 @@ if(CLANG_FORMAT)
         ${CMAKE_SOURCE_DIR}/*.cpp
         ${CMAKE_SOURCE_DIR}/*.hpp
     )
-    list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "/_deps/|/build/")
+    list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "/build/")
     add_custom_target(
         format-clang
         COMMAND ${CLANG_FORMAT} -i ${ALL_SOURCE_FILES}
@@ -47,7 +61,7 @@ if(GERSEMI)
         ${CMAKE_SOURCE_DIR}/CMakeLists.txt
         ${CMAKE_SOURCE_DIR}/*.cmake
     )
-    list(FILTER ALL_CMAKE_FILES EXCLUDE REGEX "/_deps/|/build/")
+    list(FILTER ALL_CMAKE_FILES EXCLUDE REGEX "/build/")
     add_custom_target(
         format-cmake
         COMMAND ${GERSEMI} -i ${ALL_CMAKE_FILES}

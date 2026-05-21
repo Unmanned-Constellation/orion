@@ -1,107 +1,45 @@
-# ==========================================
-# Stage 1: Compile Heavy External Dependencies
-# ==========================================
-FROM nvcr.io/nvidia/deepstream:7.1-gc-triton-devel AS deps-builder
-
-ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    curl \
-    ca-certificates \
-    build-essential \
-    ninja-build \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install modern CMake required to build downstream dependencies via Ninja
-ARG CMAKE_VERSION=3.31.7
-RUN curl -fsSL "https://cmake.org/files/v${CMAKE_VERSION%.*}/cmake-${CMAKE_VERSION}-linux-x86_64.sh" \
-        -o /tmp/cmake-install.sh \
-    && chmod +x /tmp/cmake-install.sh \
-    && /tmp/cmake-install.sh --prefix=/usr/local --skip-license \
-    && rm /tmp/cmake-install.sh
-
-# Build Protobuf from source to fix Debug target export bugs in older versions
-ARG PROTOBUF_VERSION=3.21.12
-RUN git clone --depth 1 --branch v${PROTOBUF_VERSION} --recurse-submodules \
-        https://github.com/protocolbuffers/protobuf.git /tmp/protobuf-src \
-    && cmake -S /tmp/protobuf-src -B /tmp/protobuf-build -G Ninja \
-             -DCMAKE_BUILD_TYPE=Release \
-             -DCMAKE_INSTALL_PREFIX=/install \
-             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-             -Dprotobuf_BUILD_TESTS=OFF \
-    && cmake --build /tmp/protobuf-build --parallel $(nproc) \
-    && cmake --install /tmp/protobuf-build
-
-# ==========================================
-# Stage 2: Final Development Image
-# ==========================================
 FROM nvcr.io/nvidia/deepstream:7.1-gc-triton-devel
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Drop the broken Intel RealSense apt source (GPG key expired in base image)
-# and bootstrap the tools needed to register external repositories.
-# Merged into one layer: the rm must precede apt-get update or it causes a
-# fatal E: error on builds with no cached apt lists.
+# Drop the broken Intel RealSense apt source (GPG key expired in base image),
+# install curl/ca-certificates, then register the LLVM 18 and Kitware (cmake)
+# apt repositories.
 RUN rm -f /etc/apt/sources.list.d/archive_uri-https_librealsense_intel_com_debian_apt-repo-jammy.list \
     && apt-get update && apt-get install -y --no-install-recommends \
         curl \
         ca-certificates \
-        gnupg \
-    && rm -rf /var/lib/apt/lists/*
-
-# Register LLVM 18 and NodeSource repositories in a single layer so that
-# NodeSource's internal apt-get update sees the LLVM source already in place.
-RUN curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+        gpg \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
         | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
     && echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
         > /etc/apt/sources.list.d/llvm-18.list \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    && curl -fsSL https://apt.kitware.com/keys/kitware-archive-latest.asc \
+        | gpg --dearmor - \
+        | tee /usr/share/keyrings/kitware-archive-keyring.gpg > /dev/null \
+    && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main" \
+        > /etc/apt/sources.list.d/kitware.list
 
 # --- Dev toolchain: system packages, Python linters, clang alternatives ---
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    cmake \
     ccache \
     ninja-build \
     git \
-    pkg-config \
     python3-pip \
     clang-format-18 \
     clang-tidy-18 \
     doxygen \
-    nodejs \
     && rm -rf /var/lib/apt/lists/* \
-    && pip3 install --no-cache-dir pre-commit==4.6.0 gersemi==0.27.5 \
+    && pip3 install --no-cache-dir pre-commit==4.6.0 gersemi==0.27.5 conan==2.28.1 \
     && rm -rf /root/.cache/pip \
     && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100 \
     && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-18 100 \
     && update-alternatives --install /usr/bin/run-clang-tidy run-clang-tidy /usr/bin/run-clang-tidy-18 100
 
-# --- Build toolchain: Protobuf binaries and CMake ---
-COPY --from=deps-builder /install/ /usr/local/
-RUN ldconfig
-
-# Installed from cmake.org — the base image ships an older cmake via apt (/usr/bin)
-# and pip (/root/.local/bin); remove both so /usr/local/bin always wins.
-ARG CMAKE_VERSION=3.31.7
-RUN curl -fsSL "https://cmake.org/files/v${CMAKE_VERSION%.*}/cmake-${CMAKE_VERSION}-linux-x86_64.sh" \
-        -o /tmp/cmake-install.sh \
-    && chmod +x /tmp/cmake-install.sh \
-    && /tmp/cmake-install.sh --prefix=/usr/local --skip-license \
-    && rm /tmp/cmake-install.sh \
-    && rm -f /root/.local/bin/cmake /usr/bin/cmake
-
-# --- Rust ---
-# Required by zenoh-c when pulled in via CMake FetchContent.
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
-
-# --- Claude Code CLI ---
-RUN npm install -g @anthropic-ai/claude-code \
-    && npm cache clean --force
-
-# --- Runtime environment ---
 # /usr/lib/ccache first so compiler wrappers intercept calls before system binaries.
-# /usr/local/bin before system paths so the cmake.org build wins over apt's cmake.
-ENV PATH="/usr/lib/ccache:/usr/local/bin:/root/.cargo/bin:${PATH}" \
+ENV PATH="/usr/lib/ccache:/usr/local/bin:${PATH}" \
     CCACHE_DIR=/ccache
 
 WORKDIR /workspace
