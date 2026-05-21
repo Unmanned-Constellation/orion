@@ -29,14 +29,12 @@ endif()
 
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
-    configure_file(
-        ${CMAKE_SOURCE_DIR}/Doxyfile.in
-        ${CMAKE_BINARY_DIR}/Doxyfile
-        @ONLY
-    )
     add_custom_target(
         docs
-        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory
+            ${CMAKE_SOURCE_DIR}/docs/_build/doxygen
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_SOURCE_DIR}/docs/Doxyfile
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running Doxygen"
     )
@@ -48,7 +46,7 @@ if(RUN_CLANG_TIDY)
         tidy
         COMMAND
             ${RUN_CLANG_TIDY} -p ${CMAKE_BINARY_DIR}
-            "^${CMAKE_SOURCE_DIR}/(libs|proto)/.*\\.cpp$"
+            "^${CMAKE_SOURCE_DIR}/(?!build|conan|cmake|docs|scripts).*\\.cpp$"
         COMMENT "Running clang-tidy"
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )

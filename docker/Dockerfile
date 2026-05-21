@@ -49,6 +49,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # /usr/lib/ccache first so compiler wrappers intercept calls before system binaries.
 ENV PATH="/usr/lib/ccache:/usr/local/bin:${PATH}" \
-    CCACHE_DIR=/ccache
+    CCACHE_DIR=/ccache \
+    CCACHE_BASEDIR=/workspace \
+    CCACHE_SLOPPINESS=pch_defines,time_macros
 
 WORKDIR /workspace
