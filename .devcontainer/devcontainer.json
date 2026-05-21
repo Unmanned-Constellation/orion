@@ -4,13 +4,21 @@
     "dockerfile": "../docker/Dockerfile.devel",
     "context": ".."
   },
-"mounts": [
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+  "mounts": [
     "source=orion-ccache,target=/ccache,type=volume",
     "source=orion-deps,target=/opt/deps,type=volume",
     "source=orion-vscode-server,target=/root/.vscode-server,type=volume",
-    "source=orion-claude-profile,target=/root/.claude,type=volume",
     "source=orion-cmake-tools,target=/root/.local/share/CMakeTools,type=volume",
+    "source=orion-claude-profile,target=/root/.claude,type=volume",
+    "source=${localEnv:HOME}/.config/starship.toml,target=/root/.config/starship.toml,type=bind,readonly"
   ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/root/.claude",
+    "CONAN_HOME": "/opt/deps/conan"
+  },
   "customizations": {
     "vscode": {
       "extensions": [
@@ -27,5 +35,5 @@
       }
     }
   },
-  "postCreateCommand": "pre-commit install && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug"
+  "postCreateCommand": "pre-commit install && conan profile detect --force && conan export conan/recipes/zenoh-c && conan export conan/recipes/zenoh-cpp && conan install . --output-folder=build --build=missing -s build_type=Debug && cmake --preset conan-debug --no-warn-unused-cli"
 }
