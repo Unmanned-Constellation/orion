@@ -9,18 +9,40 @@
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
-      "label": "configure",
+      "label": "conan-reinstall",
       "type": "shell",
-      "command": "/usr/bin/cmake --preset conan-debug --no-warn-unused-cli",
-      "group": "build",
+      "command": "conan remove '*' -c && bash .devcontainer/conan-install.sh",
+      "group": "none",
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
-      "label": "build",
+      "label": "configure (debug)",
       "type": "shell",
-      "command": "/usr/bin/cmake --build --preset conan-debug",
-      "group": { "kind": "build", "isDefault": true },
-      "dependsOn": "configure",
+      "command": "/usr/bin/cmake --preset debug --no-warn-unused-cli",
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "configure (release)",
+      "type": "shell",
+      "command": "/usr/bin/cmake --preset release --no-warn-unused-cli",
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "build (debug)",
+      "type": "shell",
+      "command": "/usr/bin/cmake --build --preset debug",
+      "group": { "kind": "build" },
+      "dependsOn": "configure (debug)",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "build (release)",
+      "type": "shell",
+      "command": "/usr/bin/cmake --build --preset release",
+      "group": { "kind": "build" },
+      "dependsOn": "configure (release)",
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
@@ -28,7 +50,7 @@
       "type": "shell",
       "command": "/usr/bin/cmake --build build --target format-clang",
       "group": "none",
-      "dependsOn": "configure",
+      "dependsOn": "configure (debug)",
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
@@ -36,7 +58,7 @@
       "type": "shell",
       "command": "/usr/bin/cmake --build build --target format-cmake",
       "group": "none",
-      "dependsOn": "configure",
+      "dependsOn": "configure (debug)",
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
@@ -44,7 +66,7 @@
       "type": "shell",
       "command": "/usr/bin/cmake --build build --target tidy",
       "group": "none",
-      "dependsOn": "build",
+      "dependsOn": "build (debug)",
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
@@ -52,7 +74,7 @@
       "type": "shell",
       "command": "/usr/bin/cmake --build build --target docs",
       "group": "none",
-      "dependsOn": "configure",
+      "dependsOn": "configure (debug)",
       "presentation": { "reveal": "always", "panel": "shared" }
     }
   ]
