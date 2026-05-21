@@ -10,7 +10,7 @@
   "initializeCommand": "mkdir -p ${localEnv:HOME}/.cache/orion-ccache ${localEnv:HOME}/.cache/orion-deps && touch ${localEnv:HOME}/.gitconfig",
   "mounts": [
     "source=${localEnv:HOME}/.cache/orion-ccache,target=/ccache,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.cache/orion-deps,target=/opt/deps,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.cache/orion-deps,target=/root/.conan2/p,type=bind,consistency=cached",
     "source=orion-vscode-server,target=/root/.vscode-server,type=volume",
     "source=orion-cmake-tools,target=/root/.local/share/CMakeTools,type=volume",
     "source=orion-claude-profile,target=/root/.claude,type=volume",
@@ -21,8 +21,7 @@
     "SSH_AUTH_SOCK": "${localEnv:SSH_AUTH_SOCK}"
   },
   "containerEnv": {
-    "CLAUDE_CONFIG_DIR": "/root/.claude",
-    "CONAN_HOME": "/opt/deps/conan"
+    "CLAUDE_CONFIG_DIR": "/root/.claude"
   },
   "customizations": {
     "vscode": {
@@ -30,11 +29,23 @@
         "ms-vscode.cpptools-extension-pack",
         "ms-vscode.cmake-tools",
         "zxh404.vscode-proto3",
+        "xaver.clang-format",
         "anthropic.claude-code"
       ],
       "settings": {
         "cmake.cmakePath": "/usr/bin/cmake",
-        "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json"
+        "C_Cpp.default.compileCommands": "${workspaceFolder}/build/Debug/compile_commands.json",
+        "C_Cpp.default.cppStandard": "c++20",
+        "editor.formatOnSave": true,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4,
+        "editor.detectIndentation": false,
+        "[cpp]": {
+          "editor.tabSize": 3,
+          "editor.defaultFormatter": "xaver.clang-format"
+        },
+        "clang-format.executable": "clang-format-18",
+        "files.insertFinalNewline": true
       }
     }
   },
