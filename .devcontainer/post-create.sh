@@ -11,9 +11,9 @@ conan export conan/recipes/zenoh-cpp
 # from previous container instances that pointed to a different CONAN_HOME.
 rm -rf build/
 
-conan install . --output-folder=build --build=missing -s build_type=Debug
 conan install . --output-folder=build --build=missing -s build_type=Release
-/usr/bin/cmake --preset conan-debug --no-warn-unused-cli
+conan install . --output-folder=build --build=missing -s build_type=Debug
+/usr/bin/cmake --preset debug --no-warn-unused-cli
 
 
 

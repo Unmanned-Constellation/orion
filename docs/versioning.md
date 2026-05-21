@@ -32,10 +32,10 @@ At configure time, CMake runs `git describe --tags --abbrev=0` to find the neare
 
 ## During development (no tag yet)
 
-If no tag exists on the current branch, CMake defaults to `0.1.0` and prints:
+If no tag exists on the current branch, CMake defaults to `0.0.0` and prints:
 
 ```
--- No version tag found — defaulting to 0.1.0
+-- No version tag found — defaulting to 0.0.0
 ```
 
 This is expected on feature branches or a fresh clone before any release has been tagged.

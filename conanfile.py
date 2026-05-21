@@ -14,5 +14,6 @@ class OrionConan(ConanFile):
     def generate(self):
         tc = CMakeToolchain(self)
         tc.generator = "Ninja"
+        tc.variables["CMAKE_MAP_IMPORTED_CONFIG_DEBUG"] = "Debug;Release;"
         tc.generate()
         CMakeDeps(self).generate()
