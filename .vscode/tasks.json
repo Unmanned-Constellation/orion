@@ -2,16 +2,23 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "conan-install",
+      "type": "shell",
+      "command": "conan export conan/recipes/zenoh-c && conan export conan/recipes/zenoh-cpp && conan install . --output-folder=build --build=missing -s build_type=Debug",
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
       "label": "configure",
       "type": "shell",
-      "command": "cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug",
+      "command": "cmake --preset conan-debug --no-warn-unused-cli",
       "group": "build",
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
       "label": "build",
       "type": "shell",
-      "command": "cmake --build build",
+      "command": "cmake --build --preset conan-debug",
       "group": { "kind": "build", "isDefault": true },
       "dependsOn": "configure",
       "presentation": { "reveal": "always", "panel": "shared" }

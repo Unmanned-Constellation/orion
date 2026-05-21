@@ -20,11 +20,13 @@ bin/
 
 # Local Developer/Container Caches
 .ccache/
-.dependency_cache/
 
 # Generated documentation and config
 build/docs/
 build/Doxyfile
+
+# Conan generated
+CMakeUserPresets.json
 
 # OS generated files
 .DS_Store
