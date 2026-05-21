@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         clang-format-18 \
         clang-tidy-18 \
         doxygen \
+        openssh-client \
     && rm -rf /var/lib/apt/lists/* \
     && pip3 install --no-cache-dir pre-commit==4.6.0 gersemi==0.27.5 conan==2.28.1 \
     && rm -rf /root/.cache/pip \

@@ -13,7 +13,7 @@ rm -rf build/
 
 conan install . --output-folder=build --build=missing -s build_type=Release
 conan install . --output-folder=build --build=missing -s build_type=Debug
-/usr/bin/cmake --preset conan-debug --no-warn-unused-cli
+/usr/bin/cmake --preset debug --no-warn-unused-cli
 
 
 
