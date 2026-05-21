@@ -34,3 +34,6 @@ Thumbs.db
 
 # Claude
 .claude/
+
+# Dev container generated lock file
+.devcontainer/devcontainer-lock.json

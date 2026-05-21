@@ -7,13 +7,14 @@
   "features": {
     "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
   },
+  "initializeCommand": "mkdir -p ${localEnv:HOME}/.cache/orion-ccache ${localEnv:HOME}/.cache/orion-deps",
   "mounts": [
-    "source=orion-ccache,target=/ccache,type=volume",
-    "source=orion-deps,target=/opt/deps,type=volume",
+    "source=${localEnv:HOME}/.cache/orion-ccache,target=/ccache,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.cache/orion-deps,target=/opt/deps,type=bind,consistency=cached",
     "source=orion-vscode-server,target=/root/.vscode-server,type=volume",
     "source=orion-cmake-tools,target=/root/.local/share/CMakeTools,type=volume",
     "source=orion-claude-profile,target=/root/.claude,type=volume",
-    "source=${localEnv:HOME}/.config/starship.toml,target=/root/.config/starship.toml,type=bind,readonly"
+    "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind"
   ],
   "containerEnv": {
     "CLAUDE_CONFIG_DIR": "/root/.claude",
@@ -28,12 +29,10 @@
         "anthropic.claude-code"
       ],
       "settings": {
-        "cmake.buildDirectory": "${workspaceFolder}/build",
-        "cmake.generator": "Ninja",
-        "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
-        "security.workspace.trust.enabled": false
+        "cmake.cmakePath": "/usr/bin/cmake",
+        "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json"
       }
     }
   },
-  "postCreateCommand": "pre-commit install && conan profile detect --force && conan export conan/recipes/zenoh-c && conan export conan/recipes/zenoh-cpp && conan install . --output-folder=build --build=missing -s build_type=Debug && cmake --preset conan-debug --no-warn-unused-cli"
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
 }

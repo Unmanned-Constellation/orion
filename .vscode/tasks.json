@@ -4,21 +4,21 @@
     {
       "label": "conan-install",
       "type": "shell",
-      "command": "conan export conan/recipes/zenoh-c && conan export conan/recipes/zenoh-cpp && conan install . --output-folder=build --build=missing -s build_type=Debug",
+      "command": "bash .devcontainer/conan-install.sh",
       "group": "none",
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
       "label": "configure",
       "type": "shell",
-      "command": "cmake --preset conan-debug --no-warn-unused-cli",
+      "command": "/usr/bin/cmake --preset conan-debug --no-warn-unused-cli",
       "group": "build",
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
       "label": "build",
       "type": "shell",
-      "command": "cmake --build --preset conan-debug",
+      "command": "/usr/bin/cmake --build --preset conan-debug",
       "group": { "kind": "build", "isDefault": true },
       "dependsOn": "configure",
       "presentation": { "reveal": "always", "panel": "shared" }
@@ -26,7 +26,7 @@
     {
       "label": "format-clang",
       "type": "shell",
-      "command": "cmake --build build --target format-clang",
+      "command": "/usr/bin/cmake --build build --target format-clang",
       "group": "none",
       "dependsOn": "configure",
       "presentation": { "reveal": "always", "panel": "shared" }
@@ -34,7 +34,7 @@
     {
       "label": "format-cmake",
       "type": "shell",
-      "command": "cmake --build build --target format-cmake",
+      "command": "/usr/bin/cmake --build build --target format-cmake",
       "group": "none",
       "dependsOn": "configure",
       "presentation": { "reveal": "always", "panel": "shared" }
@@ -42,7 +42,7 @@
     {
       "label": "tidy",
       "type": "shell",
-      "command": "cmake --build build --target tidy",
+      "command": "/usr/bin/cmake --build build --target tidy",
       "group": "none",
       "dependsOn": "build",
       "presentation": { "reveal": "always", "panel": "shared" }
@@ -50,7 +50,7 @@
     {
       "label": "docs",
       "type": "shell",
-      "command": "cmake --build build --target docs",
+      "command": "/usr/bin/cmake --build build --target docs",
       "group": "none",
       "dependsOn": "configure",
       "presentation": { "reveal": "always", "panel": "shared" }
