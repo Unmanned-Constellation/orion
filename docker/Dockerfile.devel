@@ -3,16 +3,23 @@ FROM nvcr.io/nvidia/deepstream:7.1-gc-triton-devel
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Drop the broken Intel RealSense apt source (GPG key expired in base image),
-# install curl/ca-certificates, then register the LLVM 18 repository.
+# install curl/ca-certificates, then register the LLVM 18 and Kitware (cmake)
+# apt repositories.
 RUN rm -f /etc/apt/sources.list.d/archive_uri-https_librealsense_intel_com_debian_apt-repo-jammy.list \
     && apt-get update && apt-get install -y --no-install-recommends \
         curl \
         ca-certificates \
+        gpg \
     && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
         | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
     && echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
-        > /etc/apt/sources.list.d/llvm-18.list
+        > /etc/apt/sources.list.d/llvm-18.list \
+    && curl -fsSL https://apt.kitware.com/keys/kitware-archive-latest.asc \
+        | gpg --dearmor - \
+        | tee /usr/share/keyrings/kitware-archive-keyring.gpg > /dev/null \
+    && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main" \
+        > /etc/apt/sources.list.d/kitware.list
 
 # --- Dev toolchain: system packages, Python linters, clang alternatives ---
 RUN apt-get update && apt-get install -y --no-install-recommends \
