@@ -48,7 +48,7 @@
     {
       "label": "format-clang",
       "type": "shell",
-      "command": "/usr/bin/cmake --build build --target format-clang",
+      "command": "/usr/bin/cmake --build build/Debug --target format-clang",
       "group": "none",
       "dependsOn": "configure (debug)",
       "presentation": { "reveal": "always", "panel": "shared" }
@@ -56,7 +56,7 @@
     {
       "label": "format-cmake",
       "type": "shell",
-      "command": "/usr/bin/cmake --build build --target format-cmake",
+      "command": "/usr/bin/cmake --build build/Debug --target format-cmake",
       "group": "none",
       "dependsOn": "configure (debug)",
       "presentation": { "reveal": "always", "panel": "shared" }
@@ -64,7 +64,7 @@
     {
       "label": "tidy",
       "type": "shell",
-      "command": "/usr/bin/cmake --build build --target tidy",
+      "command": "/usr/bin/cmake --build build/Debug --target tidy",
       "group": "none",
       "dependsOn": "build (debug)",
       "presentation": { "reveal": "always", "panel": "shared" }
@@ -72,7 +72,7 @@
     {
       "label": "docs",
       "type": "shell",
-      "command": "/usr/bin/cmake --build build --target docs",
+      "command": "/usr/bin/cmake --build build/Debug --target docs",
       "group": "none",
       "dependsOn": "configure (debug)",
       "presentation": { "reveal": "always", "panel": "shared" }
