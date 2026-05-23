@@ -1,5 +1,5 @@
 name: Setup C++ builder
-description: Installs LLVM 18, Conan, exports local recipes, and installs dependencies.
+description: Installs LLVM 18, Conan, ccache, exports local recipes, and installs dependencies.
 
 inputs:
   conan-profile:
@@ -10,7 +10,7 @@ inputs:
     required: false
     default: ""
   cache-key-prefix:
-    description: Prefix for the Conan package cache key
+    description: Prefix for the Conan package and ccache keys
     required: false
     default: conan
 
@@ -25,7 +25,29 @@ runs:
         echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
           | sudo tee /etc/apt/sources.list.d/llvm.list
         sudo apt-get update -qq
-        sudo apt-get install -y clang-18 cmake ninja-build ${{ inputs.extra-packages }}
+        sudo apt-get install -y clang-18 cmake ninja-build ccache ${{ inputs.extra-packages }}
+
+    - name: Configure ccache
+      shell: bash
+      run: |
+        ccache --set-config=max_size=1G
+        ccache --set-config=compression=true
+        echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
+        echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
+
+    - name: Cache ccache
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/ccache
+        key: ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.sha }}
+        restore-keys: ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-
+
+    - name: Cache pip
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/pip
+        key: pip-${{ runner.os }}-conan
+        restore-keys: pip-${{ runner.os }}-
 
     - name: Install Conan
       shell: bash
