@@ -67,6 +67,65 @@ DeepStream APIs are only present in the L4T base image. Per [ADR-0002](adr/0002-
 all hardware-dependent code sits behind an abstract interface. The DeepStream adapter is never
 compiled or linked in the x86 dev environment — only the stub implementation is used there.
 
+## Cross-compiling from x86 to ARM64
+
+The `cross-arm64` CMake preset and its companion toolchain file
+(`cmake/toolchains/aarch64-linux-gnu.cmake`) allow an x86 machine to produce ARM64 binaries
+without needing a Jetson in front of you. This is what the CI job uses to verify that ARM64
+builds do not break silently.
+
+### Prerequisites
+
+```bash
+# GCC cross package provides the aarch64-linux-gnu sysroot headers and linker
+apt-get install -y gcc-aarch64-linux-gnu
+```
+
+### Conan install (cross)
+
+Cross-compilation requires a two-profile Conan install that distinguishes the *build* machine
+(x86, runs the compiler) from the *host* machine (ARM64, runs the resulting binary):
+
+```bash
+conan install . \
+  --build=missing \
+  --profile:build=conan/profiles/x86_64/debug \
+  --profile:host=conan/profiles/arm64/debug \
+  --output-folder=build/CrossArm64 \
+  --lockfile=conan.lock
+```
+
+The `--output-folder` flag bypasses `cmake_layout()` and places the generated
+`conan_toolchain.cmake` directly in `build/CrossArm64/`, where the preset expects it.
+
+### Build
+
+```bash
+cmake --preset cross-arm64
+cmake --build --preset cross-arm64
+```
+
+There is no `ctest` step — the resulting binaries target `aarch64-linux-gnu` and cannot execute
+on x86.
+
+### Toolchain file
+
+`cmake/toolchains/aarch64-linux-gnu.cmake` sets:
+- `CMAKE_C_COMPILER_TARGET` and `CMAKE_CXX_COMPILER_TARGET` to `aarch64-linux-gnu` — tells
+  clang-18 which target triple to emit code for
+- `CMAKE_SYSROOT` to `/usr/aarch64-linux-gnu` — the cross sysroot from `gcc-aarch64-linux-gnu`
+- `CMAKE_FIND_ROOT_PATH_MODE_*` — restricts `find_*` calls to the sysroot only
+- Then `include()`s Conan's generated toolchain for package paths and compiler flags
+
+The CMake preset sets `CMAKE_SYSTEM_NAME=Linux` and `CMAKE_SYSTEM_PROCESSOR=aarch64` via
+`cacheVariables`, which prevents CMake from trying to run compiler detection tests natively.
+
+### CI
+
+The **Cross-compile (ARM64)** CI job installs `gcc-aarch64-linux-gnu`, runs the two-profile
+Conan install with a separate cache bucket (`conan-arm64-*`), and builds. ARM64 packages are
+cached independently from x86 packages to avoid key collisions.
+
 ## Static linking constraint
 
 `protobuf` and `abseil` must remain statically linked (`shared=False`, which is the Conan default).

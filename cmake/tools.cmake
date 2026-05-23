@@ -81,3 +81,44 @@ if(GERSEMI)
         VERBATIM
     )
 endif()
+
+if(ORION_SANITIZE)
+    add_compile_options(
+        -fsanitize=address,undefined
+        -fno-sanitize-recover=all
+        -fno-omit-frame-pointer
+    )
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
+if(ORION_TSAN)
+    add_compile_options(-fsanitize=thread -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=thread)
+endif()
+
+if(ORION_COVERAGE)
+    add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+    add_link_options(-fprofile-instr-generate)
+
+    find_program(LLVM_PROFDATA llvm-profdata-18 HINTS /usr/bin)
+    find_program(LLVM_COV llvm-cov-18 HINTS /usr/bin)
+    if(LLVM_PROFDATA AND LLVM_COV)
+        add_custom_target(
+            coverage-report
+            COMMAND
+                /bin/bash -c
+                "${LLVM_PROFDATA} merge -sparse ${CMAKE_BINARY_DIR}/cov-*.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata"
+            COMMAND
+                ${LLVM_COV} report "${CMAKE_BINARY_DIR}/tests/orion_tests"
+                "-instr-profile=${CMAKE_BINARY_DIR}/coverage.profdata"
+                "--ignore-filename-regex=(build/|/_deps/)"
+            COMMENT "Generating LLVM coverage report"
+            VERBATIM
+        )
+    endif()
+endif()
+
+if(ORION_FUZZING)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address)
+endif()

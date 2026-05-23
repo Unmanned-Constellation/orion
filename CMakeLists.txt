@@ -27,6 +27,19 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 add_compile_options(-fdiagnostics-color=always -fpic)
 
+option(
+    ORION_SANITIZE
+    "Build with AddressSanitizer + UndefinedBehaviorSanitizer"
+    OFF
+)
+option(ORION_TSAN "Build with ThreadSanitizer" OFF)
+option(
+    ORION_COVERAGE
+    "Build with LLVM source-based coverage instrumentation"
+    OFF
+)
+option(ORION_FUZZING "Build libFuzzer fuzz targets (implies ASan)" OFF)
+
 find_program(CCACHE ccache)
 if(CCACHE)
     set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE})
