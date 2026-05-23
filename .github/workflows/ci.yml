@@ -62,41 +62,10 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install toolchain
-        run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
-            | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-18 clang-tidy-18 cmake ninja-build
-
-      - name: Install Conan
-        run: pip install conan
-
-      - name: Cache Conan packages
-        uses: actions/cache@v5
+      - uses: ./.github/actions/setup-builder
         with:
-          path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ hashFiles('conan.lock') }}
-          restore-keys: conan-${{ runner.os }}-
-
-      - name: Configure Conan profile
-        run: conan profile detect --force
-
-      - name: Export custom recipes
-        run: |
-          conan export conan/recipes/zenoh-c
-          conan export conan/recipes/zenoh-cpp
-
-      - name: Install dependencies
-        run: |
-          conan install . \
-            --build=missing \
-            --profile=conan/profiles/x86_64/debug \
-            --lockfile=conan.lock \
-            -c tools.system.package_manager:mode=check
+          conan-profile: conan/profiles/x86_64/debug
+          extra-packages: clang-tidy-18
 
       - name: Configure
         run: cmake --preset debug --no-warn-unused-cli
@@ -121,41 +90,9 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install toolchain
-        run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
-            | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-18 cmake ninja-build
-
-      - name: Install Conan
-        run: pip install conan
-
-      - name: Cache Conan packages
-        uses: actions/cache@v5
+      - uses: ./.github/actions/setup-builder
         with:
-          path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ hashFiles('conan.lock') }}
-          restore-keys: conan-${{ runner.os }}-
-
-      - name: Configure Conan profile
-        run: conan profile detect --force
-
-      - name: Export custom recipes
-        run: |
-          conan export conan/recipes/zenoh-c
-          conan export conan/recipes/zenoh-cpp
-
-      - name: Install dependencies
-        run: |
-          conan install . \
-            --build=missing \
-            --profile=conan/profiles/x86_64/release \
-            --lockfile=conan.lock \
-            -c tools.system.package_manager:mode=check
+          conan-profile: conan/profiles/x86_64/release
 
       - name: Configure
         run: cmake --preset release --no-warn-unused-cli
@@ -175,41 +112,10 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install toolchain
-        run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
-            | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-18 cmake ninja-build libclang-rt-18-dev
-
-      - name: Install Conan
-        run: pip install conan
-
-      - name: Cache Conan packages
-        uses: actions/cache@v5
+      - uses: ./.github/actions/setup-builder
         with:
-          path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ hashFiles('conan.lock') }}
-          restore-keys: conan-${{ runner.os }}-
-
-      - name: Configure Conan profile
-        run: conan profile detect --force
-
-      - name: Export custom recipes
-        run: |
-          conan export conan/recipes/zenoh-c
-          conan export conan/recipes/zenoh-cpp
-
-      - name: Install dependencies
-        run: |
-          conan install . \
-            --build=missing \
-            --profile=conan/profiles/x86_64/debug \
-            --lockfile=conan.lock \
-            -c tools.system.package_manager:mode=check
+          conan-profile: conan/profiles/x86_64/debug
+          extra-packages: libclang-rt-18-dev
 
       - name: Configure
         run: cmake --preset sanitize --no-warn-unused-cli
@@ -229,41 +135,10 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install toolchain
-        run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
-            | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-18 cmake ninja-build libclang-rt-18-dev
-
-      - name: Install Conan
-        run: pip install conan
-
-      - name: Cache Conan packages
-        uses: actions/cache@v5
+      - uses: ./.github/actions/setup-builder
         with:
-          path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ hashFiles('conan.lock') }}
-          restore-keys: conan-${{ runner.os }}-
-
-      - name: Configure Conan profile
-        run: conan profile detect --force
-
-      - name: Export custom recipes
-        run: |
-          conan export conan/recipes/zenoh-c
-          conan export conan/recipes/zenoh-cpp
-
-      - name: Install dependencies
-        run: |
-          conan install . \
-            --build=missing \
-            --profile=conan/profiles/x86_64/debug \
-            --lockfile=conan.lock \
-            -c tools.system.package_manager:mode=check
+          conan-profile: conan/profiles/x86_64/debug
+          extra-packages: libclang-rt-18-dev
 
       - name: Configure
         run: cmake --preset tsan --no-warn-unused-cli
@@ -283,41 +158,10 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install toolchain
-        run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
-            | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-18 cmake ninja-build libclang-rt-18-dev llvm-18
-
-      - name: Install Conan
-        run: pip install conan
-
-      - name: Cache Conan packages
-        uses: actions/cache@v5
+      - uses: ./.github/actions/setup-builder
         with:
-          path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ hashFiles('conan.lock') }}
-          restore-keys: conan-${{ runner.os }}-
-
-      - name: Configure Conan profile
-        run: conan profile detect --force
-
-      - name: Export custom recipes
-        run: |
-          conan export conan/recipes/zenoh-c
-          conan export conan/recipes/zenoh-cpp
-
-      - name: Install dependencies
-        run: |
-          conan install . \
-            --build=missing \
-            --profile=conan/profiles/x86_64/debug \
-            --lockfile=conan.lock \
-            -c tools.system.package_manager:mode=check
+          conan-profile: conan/profiles/x86_64/debug
+          extra-packages: libclang-rt-18-dev llvm-18
 
       - name: Configure
         run: cmake --preset coverage --no-warn-unused-cli
@@ -348,8 +192,6 @@ jobs:
 
       - name: Enforce minimum coverage
         run: |
-          # Extract the third percentage value on the TOTAL line (= line coverage).
-          # Branch coverage may be "-" so $NF is unreliable.
           COVERAGE=$(awk '/^TOTAL/ {
             n=0; for(i=1;i<=NF;i++) if($i~/[0-9]%$/) { n++; if(n==3) { gsub(/%/,"",$i); print $i; break } }
           }' /tmp/coverage-summary.txt)
@@ -359,58 +201,28 @@ jobs:
             exit 1
           fi
 
-  # ── Cross-compile for ARM64 ───────────────────────────────────────────────
-  cross-arm64:
-    name: Cross-compile (ARM64)
-    runs-on: ubuntu-22.04
+  # ── Native ARM64 build + test ─────────────────────────────────────────────
+  build-arm64:
+    name: Build and test (ARM64)
+    runs-on: ubuntu-22.04-arm
     env:
       CC: clang-18
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install toolchain
-        run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
-            | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-18 cmake ninja-build gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
-
-      - name: Install Conan
-        run: pip install conan
-
-      - name: Cache Conan packages (arm64)
-        uses: actions/cache@v5
+      - uses: ./.github/actions/setup-builder
         with:
-          path: ~/.conan2/p
-          key: conan-arm64-${{ runner.os }}-${{ hashFiles('conan.lock') }}
-          restore-keys: conan-arm64-${{ runner.os }}-
-
-      - name: Configure Conan profile
-        run: conan profile detect --force
-
-      - name: Export custom recipes
-        run: |
-          conan export conan/recipes/zenoh-c
-          conan export conan/recipes/zenoh-cpp
-
-      - name: Install dependencies (cross)
-        run: |
-          conan install . \
-            --build=missing \
-            --profile:build=conan/profiles/x86_64/debug \
-            --profile:host=conan/profiles/arm64/debug \
-            --output-folder=build/CrossArm64 \
-            --lockfile=conan.lock \
-            -c tools.system.package_manager:mode=check
+          conan-profile: conan/profiles/arm64/debug
+          cache-key-prefix: conan-arm64
 
       - name: Configure
-        run: cmake --preset cross-arm64 --no-warn-unused-cli
+        run: cmake --preset debug --no-warn-unused-cli
 
       - name: Build
-        run: cmake --build --preset cross-arm64
+        run: cmake --build --preset debug
+
+      - name: Test
+        run: ctest --preset debug
 
   # ── libFuzzer smoke test ──────────────────────────────────────────────────
   fuzz:
@@ -421,41 +233,10 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install toolchain
-        run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
-            | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-18 cmake ninja-build libclang-rt-18-dev
-
-      - name: Install Conan
-        run: pip install conan
-
-      - name: Cache Conan packages
-        uses: actions/cache@v5
+      - uses: ./.github/actions/setup-builder
         with:
-          path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ hashFiles('conan.lock') }}
-          restore-keys: conan-${{ runner.os }}-
-
-      - name: Configure Conan profile
-        run: conan profile detect --force
-
-      - name: Export custom recipes
-        run: |
-          conan export conan/recipes/zenoh-c
-          conan export conan/recipes/zenoh-cpp
-
-      - name: Install dependencies
-        run: |
-          conan install . \
-            --build=missing \
-            --profile=conan/profiles/x86_64/debug \
-            --lockfile=conan.lock \
-            -c tools.system.package_manager:mode=check
+          conan-profile: conan/profiles/x86_64/debug
+          extra-packages: libclang-rt-18-dev
 
       - name: Configure
         run: cmake --preset fuzz --no-warn-unused-cli
