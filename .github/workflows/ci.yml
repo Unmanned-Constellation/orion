@@ -85,7 +85,10 @@ jobs:
       - name: Build
         run: cmake --build --preset debug
 
+      - name: Test
+        run: ctest --preset debug
+
       - name: Lint
         run: |
           run-clang-tidy-18 -p build/Debug \
-            "^${GITHUB_WORKSPACE}/(libs|proto)/"
+            "^${GITHUB_WORKSPACE}/(libs|proto|tests)/"

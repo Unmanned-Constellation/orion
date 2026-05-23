@@ -14,7 +14,7 @@ this job is fast and fails early.
 
 | Check | Tool | Command |
 |---|---|---|
-| C++ formatting | clang-format-18 | `--dry-run --Werror` on all `*.cpp` and `*.hpp` in `libs/` and `proto/` |
+| C++ formatting | clang-format-18 | `--dry-run --Werror` on all `*.cpp` and `*.hpp` in `libs/`, `proto/`, and `tests/` |
 | CMake formatting | gersemi | `--check .` on all `CMakeLists.txt` and `*.cmake` files |
 
 Neither check auto-fixes. If this job fails, run the **Format: C++** and **Format: CMake** VS Code
@@ -39,7 +39,8 @@ injects for `compiler.libcxx=libstdc++11`, so without this the abseil build fail
 | Install dependencies | `conan install` with the `x86_64/debug` profile, `--lockfile=conan.lock`, and `-c tools.system.package_manager:mode=check` |
 | Configure | `cmake --preset debug` |
 | Build | `cmake --build --preset debug` |
-| Lint | `run-clang-tidy-18` scoped to `libs/` and `proto/` |
+| Test | `ctest --preset debug` — all GoogleTest cases via CTest |
+| Lint | `run-clang-tidy-18` scoped to `libs/`, `proto/`, and `tests/` |
 
 ## Node.js runtime
 
@@ -61,6 +62,7 @@ Both jobs must pass before a PR can be merged:
 
 - Any C++ or CMake file that needs reformatting fails **Format**
 - A build error fails **Build and lint**
+- Any failing test fails **Build and lint**
 - Any clang-tidy finding fails **Build and lint**
 
 ## Relationship to pre-commit hooks

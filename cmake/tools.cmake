@@ -65,7 +65,7 @@ if(RUN_CLANG_TIDY)
         tidy
         COMMAND
             ${RUN_CLANG_TIDY} -p ${CMAKE_BINARY_DIR}
-            "^${CMAKE_SOURCE_DIR}/(libs|proto)/"
+            "^${CMAKE_SOURCE_DIR}/(libs|proto|tests)/"
         COMMENT "Running clang-tidy"
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         VERBATIM
