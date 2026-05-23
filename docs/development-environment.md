@@ -60,15 +60,18 @@ way to refresh the environment after changing `conanfile.py` or switching machin
 
 ## Pre-commit hooks
 
-Two hooks run on every `git commit`:
+Four hooks are configured in `.pre-commit-config.yaml`:
 
-| Hook | Tool | Flag | Effect |
+| Hook | Stage | Trigger | Effect |
 |---|---|---|---|
-| `clang-format` | clang-format-18 | `--dry-run --Werror` | Fails if any C++ file needs reformatting |
-| `gersemi` | gersemi | `--check` | Fails if any CMake file needs reformatting |
+| `clang-format` | `pre-commit` | Any `*.cpp` / `*.hpp` staged | Fails if any C++ file needs reformatting |
+| `gersemi` | `pre-commit` | Any `CMakeLists.txt` / `*.cmake` staged | Fails if any CMake file needs reformatting |
+| `conan-lockfile` | `pre-commit` | `conanfile.py` staged | Fails if a dependency line changed but `conan.lock` was not re-staged |
+| `commit-msg-format` | `commit-msg` | Every commit | Fails if the header exceeds 72 chars or the type is not in the allowed list |
 
-Neither hook auto-fixes. Use the **Format: C++** and **Format: CMake** VS Code tasks to fix
-before committing.
+The formatting hooks do not auto-fix. Use the **Format: C++** and **Format: CMake** VS Code tasks
+to fix before committing. The `commit-msg` hook requires `pre-commit install --hook-type commit-msg`
+to be run once (the devcontainer's `post-create.sh` does this automatically).
 
 ## Sanitizer and coverage tools
 
