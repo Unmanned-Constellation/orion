@@ -39,6 +39,7 @@ For first-time setup on a Jetson Orin Nano, see [docs/orin-setup.md](docs/orin-s
 
 - [Development environment](docs/development-environment.md) — devcontainer internals, volume
   mounts, VS Code tasks, pre-commit hooks
+- [CI/CD](docs/ci-cd.md) — GitHub Actions jobs, dependency caching, what blocks a merge
 - [Dependency management](docs/dependency-management.md) — Conan profiles, adding dependencies,
   lockfile workflow
 - [Building and testing](docs/building-and-testing.md) — CMake presets, proto codegen, formatting,
