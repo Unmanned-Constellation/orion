@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install clang-format-18
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
+            | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-format-18
+
+      - name: Install gersemi
+        run: pip install gersemi
+
+      - name: Check C++ formatting
+        run: |
+          find libs proto -type f \( -name '*.cpp' -o -name '*.hpp' \) \
+            | xargs -r clang-format-18 --dry-run --Werror
+
+      - name: Check CMake formatting
+        run: gersemi --check .
+
+  build:
+    name: Build and lint
+    runs-on: ubuntu-22.04
+    env:
+      CC: clang-18
+      CXX: clang++-18
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install toolchain
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
+            | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-18 clang-tidy-18 cmake ninja-build
+
+      - name: Install Conan
+        run: pip install conan
+
+      - name: Cache Conan packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.conan2/p
+          key: conan-${{ runner.os }}-${{ hashFiles('conan.lock') }}
+          restore-keys: conan-${{ runner.os }}-
+
+      - name: Configure Conan profile
+        run: conan profile detect --force
+
+      - name: Export custom recipes
+        run: |
+          conan export conan/recipes/zenoh-c
+          conan export conan/recipes/zenoh-cpp
+
+      - name: Install dependencies
+        run: |
+          conan install . \
+            --output-folder=build/Debug \
+            --build=missing \
+            --profile=conan/profiles/x86_64/debug \
+            --lockfile=conan.lock \
+            -c tools.system.package_manager:mode=check
+
+      - name: Configure
+        run: cmake --preset debug --no-warn-unused-cli
+
+      - name: Build
+        run: cmake --build --preset debug
+
+      - name: Lint
+        run: |
+          run-clang-tidy-18 -p build/Debug \
+            "^${GITHUB_WORKSPACE}/(libs|proto)/"

@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main" \
         > /etc/apt/sources.list.d/kitware.list
 
-# Dev toolchain: cmake, ninja, clang-18, ccache, doxygen, conan, pre-commit.
+# Dev toolchain: cmake, ninja, clang-18, ccache, doxygen, conan, pre-commit, protoc.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         cmake \
         ccache \
@@ -34,8 +34,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         clang-18 \
         clang-format-18 \
         clang-tidy-18 \
+        clangd-18 \
         doxygen \
         openssh-client \
+        protobuf-compiler \
     && rm -rf /var/lib/apt/lists/* \
     && pip3 install --no-cache-dir pre-commit==4.6.0 gersemi==0.27.5 conan==2.28.1 \
     && rm -rf /root/.cache/pip \
@@ -45,10 +47,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100 \
     && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100 \
     && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-18 100 \
-    && update-alternatives --install /usr/bin/run-clang-tidy run-clang-tidy /usr/bin/run-clang-tidy-18 100
+    && update-alternatives --install /usr/bin/run-clang-tidy run-clang-tidy /usr/bin/run-clang-tidy-18 100 \
+    && update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-18 100
 
 # /usr/lib/ccache first so compiler wrappers intercept calls before system binaries.
 ENV PATH="/usr/lib/ccache:/usr/local/bin:${PATH}" \
-    CCACHE_DIR=/ccache
+    CCACHE_DIR=/ccache \
+    CCACHE_BASEDIR=/workspace \
+    CCACHE_SLOPPINESS=pch_defines,time_macros
 
 WORKDIR /workspace

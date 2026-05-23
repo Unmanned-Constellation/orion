@@ -16,5 +16,5 @@ Use Zenoh as the sole transport layer for all microservice communication, both o
 ## Consequences
 - The Zenoh C++ API (`zenoh-cpp`) is the only IPC interface microservices use. No direct POSIX SHM or socket calls in application code.
 - A Zenoh Router process (configuration only, no application code) runs on the Jetson to bridge local SHM topics to the network.
-- The Rust toolchain must be present in the devcontainer to build `zenoh-cpp` from source via CMake FetchContent.
+- `zenoh-c` is consumed as a pre-built binary via a custom Conan recipe that downloads the official GitHub release archive. No Rust toolchain is required. `zenoh-cpp` is the header-only C++ wrapper, also managed by Conan.
 - Off-board consumers subscribe to the same Zenoh topics as on-board services — no separate bridge microservice required.
