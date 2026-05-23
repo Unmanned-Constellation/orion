@@ -33,7 +33,7 @@ injects for `compiler.libcxx=libstdc++11`, so without this the abseil build fail
 |---|---|
 | Install toolchain | clang-18, clang-tidy-18, cmake, ninja via LLVM apt |
 | Install Conan | `pip install conan` |
-| Restore cache | Restores `~/.conan2` from cache keyed on `conan.lock` hash |
+| Restore cache | Restores `~/.conan2/p` from cache keyed on `conan.lock` hash |
 | Configure Conan profile | `conan profile detect --force` — detects clang-18 via `CC`/`CXX` |
 | Export recipes | Exports custom `zenoh-c` and `zenoh-cpp` recipes into the local cache |
 | Install dependencies | `conan install` with the `x86_64/debug` profile, `--lockfile=conan.lock`, and `-c tools.system.package_manager:mode=check` |
@@ -41,9 +41,16 @@ injects for `compiler.libcxx=libstdc++11`, so without this the abseil build fail
 | Build | `cmake --build --preset debug` |
 | Lint | `run-clang-tidy-18` scoped to `libs/` and `proto/` |
 
+## Node.js runtime
+
+Both jobs set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` at the workflow level. This opts into the
+Node.js 24 runtime for GitHub Actions ahead of the mandatory transition (forced June 2026, Node.js
+20 removal September 2026). Once `actions/checkout` and `actions/cache` ship native Node.js 24
+versions, this variable can be removed and the actions pinned to those versions instead.
+
 ## Dependency caching
 
-The Conan package cache (`~/.conan2`) is cached in Actions using `conan.lock` as the cache key.
+The Conan package binaries (`~/.conan2/p`) are cached in Actions using `conan.lock` as the cache key.
 When the lockfile changes (i.e. when `conanfile.py` is updated and the lockfile is regenerated),
 the cache misses and all packages are reinstalled from scratch. On a warm cache hit, the install
 step is near-instant.
