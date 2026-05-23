@@ -36,11 +36,17 @@ Header max length: 72 characters.
 
 Full debug build plus clang-tidy static analysis.
 
+All setup steps (toolchain, ccache, pip, Conan) are consolidated into
+`.github/actions/setup-builder`. The full step sequence is:
+
 | Step | What happens |
 |---|---|
-| Install toolchain | clang-18, clang-tidy-18, cmake, ninja via LLVM apt |
+| Install toolchain | clang-18, clang-tidy-18, cmake, ninja, ccache via LLVM apt |
+| Configure ccache | Sets `CMAKE_C_COMPILER_LAUNCHER=ccache` and `CMAKE_CXX_COMPILER_LAUNCHER=ccache`; caps cache at 1 GB |
+| Restore ccache | `~/.cache/ccache` keyed on commit SHA, restores from most recent prior run |
+| Restore pip | `~/.cache/pip` keyed on OS — avoids re-downloading the Conan wheel |
 | Install Conan | `pip install conan` |
-| Restore cache | `~/.conan2/p` keyed on `conan.lock` hash |
+| Restore Conan packages | `~/.conan2/p` keyed on `conan.lock` hash |
 | Configure Conan profile | `conan profile detect --force` — detects clang-18 via `CC`/`CXX` |
 | Export recipes | Exports custom `zenoh-c` and `zenoh-cpp` recipes |
 | Install dependencies | `conan install --profile=x86_64/debug --lockfile=conan.lock` |
@@ -77,14 +83,12 @@ Builds and tests with `-fprofile-instr-generate -fcoverage-mapping`. After the t
 Raise the threshold in the **Enforce minimum coverage** step of the `coverage` job as the test
 suite grows.
 
-### Cross-compile (ARM64)
+### Build and test (ARM64)
 
-Cross-compiles for `aarch64-linux-gnu` using clang-18 and the sysroot from `gcc-aarch64-linux-gnu`.
-Uses a two-profile Conan install (`--profile:build=x86_64/debug --profile:host=arm64/debug`) with
-`--output-folder=build/CrossArm64`. No `ctest` step — the output binaries cannot run on the x86
-runner.
-
-ARM64 packages are cached separately under the key `conan-arm64-<os>-<lockfile-hash>`.
+Runs on a native `ubuntu-22.04-arm` runner. Uses `conan/profiles/arm64/debug` (single-profile
+install) and `cmake --preset debug`. Includes a full `ctest` step — native execution means tests
+actually run on ARM64. ARM64 Conan packages and ccache are cached separately under keys prefixed
+`conan-arm64-` and `ccache-conan-arm64-`.
 
 ### Fuzz (smoke test)
 
@@ -114,11 +118,19 @@ their Node.js 24 releases once they ship those versions.
 
 ## Dependency caching
 
-The Conan package binaries (`~/.conan2/p`) are cached in Actions using `conan.lock` as the key.
-When the lockfile changes, the cache misses and all packages reinstall from scratch.
+Three layers of caching are active on every job:
 
-The `sanitize`, `tsan`, `coverage`, and `fuzz` jobs share the same x86_64 cache bucket as the
-`build` job since they install identical packages from the same debug profile.
+| Cache | Path | Key |
+|---|---|---|
+| Conan packages | `~/.conan2/p` | `conan-<os>-<conan.lock hash>` |
+| ccache objects | `~/.cache/ccache` | `ccache-conan-<os>-<commit SHA>` |
+| pip wheel | `~/.cache/pip` | `pip-<os>-conan` |
+
+When `conan.lock` changes the Conan cache misses and all packages rebuild. The ccache always
+restores from the most recent prior entry and saves a new entry per commit, so only changed
+translation units recompile. The `sanitize`, `tsan`, `coverage`, and `fuzz` jobs share the same
+x86_64 Conan cache bucket as `build` since they install identical packages from the same debug
+profile.
 
 ## What blocks a merge
 
@@ -130,7 +142,7 @@ Every job must pass before a PR can be merged. In particular:
 - clang-tidy finding → **Build and lint (debug)** fails
 - Sanitizer crash or error → **Sanitize** or **Thread Sanitizer** fails
 - Coverage below 60% → **Coverage** fails
-- Cross-compile error → **Cross-compile (ARM64)** fails
+- ARM64 build or test failure → **Build and test (ARM64)** fails
 - Fuzzer crash → **Fuzz** fails
 
 ## Relationship to pre-commit hooks
