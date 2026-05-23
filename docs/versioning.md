@@ -12,7 +12,7 @@ Orion uses [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`
 
 The version is sourced entirely from git tags. There is no version number to edit in any file — the tag *is* the release.
 
-At configure time, CMake runs `git describe --tags --abbrev=0` to find the nearest tag and sets `PROJECT_VERSION` from it. This flows automatically into Doxygen and any other tooling that uses `@PROJECT_VERSION@`.
+At configure time, CMake runs `git describe --tags --abbrev=0` to find the nearest tag and sets `PROJECT_VERSION` from it. This flows automatically into Doxygen via the CMake `docs` target.
 
 ## Creating a release
 
@@ -27,7 +27,7 @@ At configure time, CMake runs `git describe --tags --abbrev=0` to find the neare
    ```
 4. Re-run CMake configure to pick up the new version:
    ```bash
-   cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+   cmake --preset=debug
    ```
 
 ## During development (no tag yet)
