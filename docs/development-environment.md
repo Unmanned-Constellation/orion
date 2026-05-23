@@ -50,8 +50,8 @@ conan profile detect --force         # generates default Conan profile for the h
 conan export conan/recipes/zenoh-c   # registers custom recipe
 conan export conan/recipes/zenoh-cpp # registers custom recipe
 rm -rf build/
-conan install . --output-folder=build --build=missing -s build_type=Release
-conan install . --output-folder=build --build=missing -s build_type=Debug
+conan install . --build=missing -s build_type=Release
+conan install . --build=missing -s build_type=Debug
 cmake --preset debug                 # configures the debug preset
 ```
 
