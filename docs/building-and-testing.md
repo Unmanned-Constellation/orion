@@ -74,14 +74,33 @@ Both formatters auto-fix in place. Run them before committing to satisfy the pre
 These tasks delegate to the `format-clang` and `format-cmake` CMake targets defined in
 `cmake/tools.cmake`.
 
+## Testing
+
+Tests use GoogleTest and are registered with CTest via `gtest_discover_tests`. CTest presets
+mirror the build presets.
+
+Run all tests:
+
+```bash
+cmake --build --preset debug
+ctest --preset debug
+```
+
+Or via VS Code: **CMake: Run Tests**.
+
+Test output is only printed on failure (`outputOnFailure: true` in `CMakePresets.json`).
+
 ## Linting
 
 **Lint: C++** runs `run-clang-tidy` via the `tidy` CMake target. The target constrains analysis
-to files under `libs/` and `proto/` using a path filter, which prevents clang-tidy from running on
-generated protobuf sources in `build/`.
+to files under `libs/`, `proto/`, and `tests/` using a path filter, which prevents clang-tidy
+from running on generated protobuf sources in `build/`.
 
 The compile database from the active build directory is used, so run a build before linting to
 ensure the database is current.
+
+See [coding-standards.md](coding-standards.md) for the full set of enforced checks and naming
+conventions.
 
 ## CI format checks
 

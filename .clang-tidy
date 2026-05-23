@@ -1,20 +1,98 @@
-Checks: "bugprone-*,clang-analyzer-*,cppcoreguidelines-*,modernize-*,misc-*,performance-*,readability-*,\
-         -modernize-use-trailing-return-type,\
-         -readability-magic-numbers,\
-         -cppcoreguidelines-avoid-magic-numbers"
+---
+# Orion — strict clang-tidy configuration
+#
+# Standards basis:
+#   C++ Core Guidelines  (cppcoreguidelines-*)
+#   High Integrity C++   (hicpp-*)  — maps to IEC 61508 / safety-critical embedded
+#   CERT C++             (cert-*)   — Carnegie Mellon security & reliability rules
+#   Clang static analyser (clang-analyzer-*)
+#
+# All active checks are errors. No warnings.
+
+Checks: >-
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  hicpp-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -hicpp-named-parameter,
+  -misc-non-private-member-variables-in-classes,
+  -modernize-use-trailing-return-type,
+  -readability-magic-numbers,
+  -readability-named-parameter
 
 WarningsAsErrors: "*"
 
-HeaderFilterRegex: "^((?!/_deps/).)*\\.hpp$"
+# Match our own headers; exclude Conan packages, build artefacts, and
+# protobuf-generated files (build/ contains .pb.h which we do not own).
+HeaderFilterRegex: '^((?!.*(/_deps/|/build/|\.conan2)).)*\.(hpp|h)$'
 
 CheckOptions:
+  # Complexity and size limits
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '15'
+  - key: readability-function-size.LineThreshold
+    value: '50'
+  - key: readability-function-size.StatementThreshold
+    value: '30'
+  - key: readability-function-size.BranchThreshold
+    value: '10'
+  - key: readability-function-size.NestingThreshold
+    value: '4'
+  - key: readability-function-size.ParameterThreshold
+    value: '4'
+
+  # Rule-of-five: allow omitting move operations when copy is explicitly deleted
+  - key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted
+    value: 'true'
+  - key: hicpp-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted
+    value: 'true'
+
+  - key: modernize-pass-by-value.IncludeStyle
+    value: 'llvm'
+
+  # Naming conventions
+  # Classes and structs: PascalCase
   - key: readability-identifier-naming.ClassCase
-    value: CamelCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.StructCase
+    value: 'CamelCase'
+  # Enums: PascalCase type, UPPER_CASE constants
+  - key: readability-identifier-naming.EnumCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.EnumConstantCase
+    value: 'UPPER_CASE'
+  # Functions and methods: camelBack
   - key: readability-identifier-naming.FunctionCase
-    value: camelBack
+    value: 'camelBack'
+  - key: readability-identifier-naming.MethodCase
+    value: 'camelBack'
+  # Variables and parameters: snake_case
   - key: readability-identifier-naming.VariableCase
-    value: lower_case
+    value: 'lower_case'
+  - key: readability-identifier-naming.ParameterCase
+    value: 'lower_case'
+  # Members: snake_case, private members get trailing underscore
   - key: readability-identifier-naming.MemberCase
-    value: lower_case
+    value: 'lower_case'
   - key: readability-identifier-naming.PrivateMemberSuffix
-    value: "_"
+    value: '_'
+  # Global constants: UPPER_CASE
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: 'UPPER_CASE'
+  - key: readability-identifier-naming.ConstantCase
+    value: 'UPPER_CASE'
+  # Namespaces and type aliases: snake_case / PascalCase respectively
+  - key: readability-identifier-naming.NamespaceCase
+    value: 'lower_case'
+  - key: readability-identifier-naming.TypeAliasCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.TypedefCase
+    value: 'CamelCase'
