@@ -8,3 +8,4 @@ compiler.version=18
 os=Linux
 [conf]
 tools.system.package_manager:mode = check
+tools.cmake.cmaketoolchain:extra_variables={"CMAKE_C_COMPILER_TARGET": "aarch64-linux-gnu", "CMAKE_CXX_COMPILER_TARGET": "aarch64-linux-gnu", "CMAKE_SYSROOT": "/usr/aarch64-linux-gnu"}
