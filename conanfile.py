@@ -5,11 +5,11 @@ from conan.tools.cmake import CMakeDeps, CMakeToolchain
 class OrionConan(ConanFile):
     name = "orion"
     settings = "os", "compiler", "build_type", "arch"
-    requires = (
-        "protobuf/6.33.5",
-        "zenoh-c/1.9.0",
-        "zenoh-cpp/1.9.0",
-    )
+    def requirements(self):
+        self.requires("protobuf/5.29.3")
+        self.requires("zenoh-c/1.9.0")
+        self.requires("zenoh-cpp/1.9.0")
+        self.requires("abseil/20240722.0", force=True)
 
     def generate(self):
         tc = CMakeToolchain(self)

@@ -2,80 +2,200 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "conan-install",
+      "label": "Conan: Install",
+      "detail": "Install deps from cache; wipes build/ and configures both presets",
       "type": "shell",
-      "command": "bash .devcontainer/conan-install.sh",
-      "group": "none",
-      "presentation": { "reveal": "always", "panel": "shared" }
+      "command": "bash scripts/environment/initialize_conan.sh",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     },
     {
-      "label": "conan-reinstall",
+      "label": "Conan: Install (Offline)",
+      "detail": "Install deps from local cache only — no downloads",
       "type": "shell",
-      "command": "conan remove '*' -c && bash .devcontainer/conan-install.sh",
-      "group": "none",
-      "presentation": { "reveal": "always", "panel": "shared" }
+      "command": "bash scripts/environment/initialize_conan.sh --no-remote",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     },
     {
-      "label": "configure (debug)",
+      "label": "Conan: Reinstall (Clean)",
+      "detail": "Purge entire Conan package cache then reinstall from scratch",
       "type": "shell",
-      "command": "/usr/bin/cmake --preset debug --no-warn-unused-cli",
-      "group": "none",
-      "presentation": { "reveal": "always", "panel": "shared" }
+      "command": "conan remove '*' -c && bash scripts/environment/initialize_conan.sh",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     },
     {
-      "label": "configure (release)",
+      "label": "Conan: Create Lockfile",
+      "detail": "Pin all dep versions to conan.lock — run after changing conanfile.py",
       "type": "shell",
-      "command": "/usr/bin/cmake --preset release --no-warn-unused-cli",
-      "group": "none",
-      "presentation": { "reveal": "always", "panel": "shared" }
+      "command": "bash -c 'case \"$(uname -m)\" in x86_64) ARCH=x86_64;; aarch64|arm64) ARCH=arm64;; *) echo \"Error: Unsupported architecture $(uname -m)\" >&2; exit 1;; esac && conan lock create . --profile=conan/profiles/${ARCH}/release --lockfile-out=conan.lock'",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     },
     {
-      "label": "build (debug)",
+      "label": "CMake: Configure",
+      "detail": "Run cmake --preset for the selected build type",
       "type": "shell",
-      "command": "/usr/bin/cmake --build --preset debug",
-      "group": { "kind": "build" },
-      "dependsOn": "configure (debug)",
-      "presentation": { "reveal": "always", "panel": "shared" }
+      "command": "/usr/bin/cmake --preset ${input:buildType} --no-warn-unused-cli",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     },
     {
-      "label": "build (release)",
+      "label": "CMake: Build All",
+      "detail": "Configure and build all targets for the selected build type",
       "type": "shell",
-      "command": "/usr/bin/cmake --build --preset release",
-      "group": { "kind": "build" },
-      "dependsOn": "configure (release)",
-      "presentation": { "reveal": "always", "panel": "shared" }
+      "command": "/usr/bin/cmake --preset ${input:buildType} --no-warn-unused-cli && /usr/bin/cmake --build --preset ${input:buildType}",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ]
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     },
     {
-      "label": "format-clang",
+      "label": "CMake: Build Target...",
+      "detail": "Configure then build a single named CMake target",
       "type": "shell",
-      "command": "/usr/bin/cmake --build build --target format-clang",
-      "group": "none",
-      "dependsOn": "configure (debug)",
-      "presentation": { "reveal": "always", "panel": "shared" }
+      "command": "/usr/bin/cmake --preset ${input:buildType} --no-warn-unused-cli && /usr/bin/cmake --build --preset ${input:buildType} --target ${input:cmakeTarget}",
+      "group": {
+        "kind": "build"
+      },
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ]
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     },
     {
-      "label": "format-cmake",
+      "label": "Format: C++",
+      "detail": "Auto-format all C++ source files with clang-format",
       "type": "shell",
-      "command": "/usr/bin/cmake --build build --target format-cmake",
-      "group": "none",
-      "dependsOn": "configure (debug)",
-      "presentation": { "reveal": "always", "panel": "shared" }
+      "command": "/usr/bin/cmake --build ${command:cmake.buildDirectory} --target format-clang",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     },
     {
-      "label": "tidy",
+      "label": "Format: CMake",
+      "detail": "Auto-format all CMakeLists.txt and .cmake files with gersemi",
       "type": "shell",
-      "command": "/usr/bin/cmake --build build --target tidy",
-      "group": "none",
-      "dependsOn": "build (debug)",
-      "presentation": { "reveal": "always", "panel": "shared" }
+      "command": "/usr/bin/cmake --build ${command:cmake.buildDirectory} --target format-cmake",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     },
     {
-      "label": "docs",
+      "label": "Lint: C++",
+      "detail": "Run clang-tidy static analysis on all project source",
       "type": "shell",
-      "command": "/usr/bin/cmake --build build --target docs",
-      "group": "none",
-      "dependsOn": "configure (debug)",
-      "presentation": { "reveal": "always", "panel": "shared" }
+      "command": "/usr/bin/cmake --build ${command:cmake.buildDirectory} --target tidy",
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ]
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Docs: Generate (Doxygen)",
+      "detail": "Generate Doxygen HTML documentation into docs/_build/doxygen",
+      "type": "shell",
+      "command": "/usr/bin/cmake --build ${command:cmake.buildDirectory} --target docs",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "CI: Check Format (C++)",
+      "detail": "Dry-run clang-format — fails if any file needs reformatting",
+      "type": "shell",
+      "command": "find libs proto -type f \\( -name '*.cpp' -o -name '*.hpp' \\) | xargs -r clang-format-18 --dry-run --Werror",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "CI: Check Format (CMake)",
+      "detail": "Dry-run gersemi — fails if any CMake file needs reformatting",
+      "type": "shell",
+      "command": "gersemi --check .",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "CI: Check All",
+      "detail": "Run all format checks in parallel",
+      "type": "shell",
+      "command": "echo 'All checks passed.'",
+      "dependsOn": [
+        "CI: Check Format (C++)",
+        "CI: Check Format (CMake)"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "buildType",
+      "type": "pickString",
+      "description": "Select a build type",
+      "options": [
+        "debug",
+        "release"
+      ],
+      "default": "debug"
+    },
+    {
+      "id": "cmakeTarget",
+      "type": "promptString",
+      "description": "CMake target to build",
+      "default": "all"
     }
   ]
 }

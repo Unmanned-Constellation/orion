@@ -2,20 +2,4 @@
 set -euo pipefail
 
 pre-commit install
-conan profile detect --force
-conan export conan/recipes/zenoh-c
-conan export conan/recipes/zenoh-cpp
-
-# Wipe any stale Conan-generated cmake files before reinstalling.
-# build/ lives on the host bind mount and can carry over cmake data files
-# from previous container instances that pointed to a different CONAN_HOME.
-rm -rf build/
-
-conan install . --output-folder=build --build=missing -s build_type=Release
-conan install . --output-folder=build --build=missing -s build_type=Debug
-/usr/bin/cmake --preset debug --no-warn-unused-cli
-
-
-
-
-
+bash scripts/environment/initialize_conan.sh

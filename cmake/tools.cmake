@@ -27,18 +27,35 @@ if(CLANG_FORMAT)
     )
 endif()
 
+find_package(Git)
+set(ORION_VERSION "dev")
+if(Git_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_TAG
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(GIT_TAG)
+        set(ORION_VERSION ${GIT_TAG})
+    endif()
+endif()
+
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
-    configure_file(
-        ${CMAKE_SOURCE_DIR}/Doxyfile.in
-        ${CMAKE_BINARY_DIR}/Doxyfile
-        @ONLY
-    )
     add_custom_target(
         docs
-        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
+        COMMAND
+            ${CMAKE_COMMAND} -E env "ORION_PROJECT_VERSION=${ORION_VERSION}"
+            ${CMAKE_COMMAND} -E make_directory
+            ${CMAKE_SOURCE_DIR}/docs/_build/doxygen
+        COMMAND
+            ${CMAKE_COMMAND} -E env "ORION_PROJECT_VERSION=${ORION_VERSION}"
+            ${DOXYGEN_EXECUTABLE} ${CMAKE_SOURCE_DIR}/docs/Doxyfile
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Running Doxygen"
+        COMMENT "Running Doxygen (Version: ${ORION_VERSION})"
+        VERBATIM
     )
 endif()
 
@@ -48,23 +65,19 @@ if(RUN_CLANG_TIDY)
         tidy
         COMMAND
             ${RUN_CLANG_TIDY} -p ${CMAKE_BINARY_DIR}
-            "^${CMAKE_SOURCE_DIR}/(libs|proto)/.*\\.cpp$"
+            "^${CMAKE_SOURCE_DIR}/(libs|proto)/"
         COMMENT "Running clang-tidy"
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        VERBATIM
     )
 endif()
 
 find_program(GERSEMI gersemi)
 if(GERSEMI)
-    file(
-        GLOB_RECURSE ALL_CMAKE_FILES
-        ${CMAKE_SOURCE_DIR}/CMakeLists.txt
-        ${CMAKE_SOURCE_DIR}/*.cmake
-    )
-    list(FILTER ALL_CMAKE_FILES EXCLUDE REGEX "/build/")
     add_custom_target(
         format-cmake
-        COMMAND ${GERSEMI} -i ${ALL_CMAKE_FILES}
+        COMMAND ${GERSEMI} --respect-ignore-files -i ${CMAKE_SOURCE_DIR}
         COMMENT "Running gersemi"
+        VERBATIM
     )
 endif()
