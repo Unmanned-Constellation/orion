@@ -22,6 +22,67 @@
                 "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
                 "CMAKE_BUILD_TYPE": "Debug"
             }
+        },
+        {
+            "name": "sanitize",
+            "displayName": "Sanitize (ASan + UBSan)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Sanitize",
+            "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ORION_SANITIZE": "ON"
+            }
+        },
+        {
+            "name": "tsan",
+            "displayName": "Thread Sanitizer",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/TSan",
+            "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ORION_TSAN": "ON"
+            }
+        },
+        {
+            "name": "coverage",
+            "displayName": "Coverage (LLVM source-based)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Coverage",
+            "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ORION_COVERAGE": "ON"
+            }
+        },
+        {
+            "name": "fuzz",
+            "displayName": "Fuzz (libFuzzer + ASan)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Fuzz",
+            "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ORION_FUZZING": "ON"
+            }
+        },
+        {
+            "name": "cross-arm64",
+            "displayName": "Cross-compile (ARM64)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/CrossArm64",
+            "toolchainFile": "${sourceDir}/cmake/toolchains/aarch64-linux-gnu.cmake",
+            "cacheVariables": {
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_SYSTEM_NAME": "Linux",
+                "CMAKE_SYSTEM_PROCESSOR": "aarch64"
+            }
         }
     ],
     "buildPresets": [
@@ -33,6 +94,31 @@
         {
             "name": "debug",
             "configurePreset": "debug",
+            "jobs": 8
+        },
+        {
+            "name": "sanitize",
+            "configurePreset": "sanitize",
+            "jobs": 8
+        },
+        {
+            "name": "tsan",
+            "configurePreset": "tsan",
+            "jobs": 8
+        },
+        {
+            "name": "coverage",
+            "configurePreset": "coverage",
+            "jobs": 8
+        },
+        {
+            "name": "fuzz",
+            "configurePreset": "fuzz",
+            "jobs": 8
+        },
+        {
+            "name": "cross-arm64",
+            "configurePreset": "cross-arm64",
             "jobs": 8
         }
     ],
@@ -46,6 +132,24 @@
             "name": "debug",
             "configurePreset": "debug",
             "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "sanitize",
+            "configurePreset": "sanitize",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "tsan",
+            "configurePreset": "tsan",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "coverage",
+            "configurePreset": "coverage",
+            "output": { "outputOnFailure": true },
+            "environment": {
+                "LLVM_PROFILE_FILE": "${sourceDir}/build/Coverage/cov-%p.profraw"
+            }
         }
     ]
 }

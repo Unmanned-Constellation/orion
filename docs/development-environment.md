@@ -45,19 +45,18 @@ identity as commits made on the host without any extra git config.
 `post-create.sh` runs once after the container is created:
 
 ```bash
-pre-commit install                   # installs git hooks into .git/hooks/
-conan profile detect --force         # generates default Conan profile for the host
-conan export conan/recipes/zenoh-c   # registers custom recipe
-conan export conan/recipes/zenoh-cpp # registers custom recipe
-rm -rf build/
-conan install . --build=missing -s build_type=Release
-conan install . --build=missing -s build_type=Debug
-cmake --preset debug                 # configures the debug preset
+pre-commit install
+bash scripts/environment/initialize_conan.sh
 ```
 
-The **Conan: Install** VS Code task runs `scripts/environment/initialize_conan.sh`, which does the
-same steps but also detects architecture and selects the matching Conan profile — see
-[dependency management](dependency-management.md) for a full walkthrough.
+`pre-commit install` registers the formatting hooks into `.git/hooks/` so they run on every
+`git commit`. `initialize_conan.sh` does the heavy lifting: it detects the host architecture,
+exports the custom Zenoh recipes, runs `conan install` for both the debug and release profiles,
+and configures both CMake presets. See [dependency management](dependency-management.md) for a
+full walkthrough of what that script does.
+
+The **Conan: Install** VS Code task re-runs `initialize_conan.sh` on demand and is the correct
+way to refresh the environment after changing `conanfile.py` or switching machines.
 
 ## Pre-commit hooks
 
@@ -70,6 +69,17 @@ Two hooks run on every `git commit`:
 
 Neither hook auto-fixes. Use the **Format: C++** and **Format: CMake** VS Code tasks to fix
 before committing.
+
+## Sanitizer and coverage tools
+
+`libclang-rt-18-dev` (ASan, UBSan, TSan, libFuzzer runtime libraries) and `llvm-18`
+(`llvm-profdata-18`, `llvm-cov-18`) are included in the devcontainer image. The sanitize,
+tsan, coverage, and fuzz CMake presets work without any manual package installation.
+
+`devcontainer.json` passes `--security-opt seccomp=unconfined` via `runArgs`. This removes the
+Docker seccomp restriction that would otherwise block ThreadSanitizer's `personality()` syscall,
+allowing `ctest --preset tsan` to run inside the container. On WSL2 with an older kernel this
+syscall may still fail at the kernel level — see [testing.md](testing.md) for details.
 
 ## clangd and IntelliSense
 
