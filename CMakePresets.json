@@ -2,8 +2,17 @@
     "version": 4,
     "configurePresets": [
         {
+            "name": "base",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_C_COMPILER_LAUNCHER": "$env{CMAKE_C_COMPILER_LAUNCHER}",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "$env{CMAKE_CXX_COMPILER_LAUNCHER}"
+            }
+        },
+        {
             "name": "release",
             "displayName": "Release",
+            "inherits": "base",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Release",
             "toolchainFile": "${sourceDir}/build/Release/generators/conan_toolchain.cmake",
@@ -15,6 +24,7 @@
         {
             "name": "debug",
             "displayName": "Debug",
+            "inherits": "base",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Debug",
             "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
@@ -26,6 +36,7 @@
         {
             "name": "sanitize",
             "displayName": "Sanitize (ASan + UBSan)",
+            "inherits": "base",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Sanitize",
             "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
@@ -38,6 +49,7 @@
         {
             "name": "tsan",
             "displayName": "Thread Sanitizer",
+            "inherits": "base",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/TSan",
             "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
@@ -50,6 +62,7 @@
         {
             "name": "coverage",
             "displayName": "Coverage (LLVM source-based)",
+            "inherits": "base",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Coverage",
             "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
@@ -62,6 +75,7 @@
         {
             "name": "fuzz",
             "displayName": "Fuzz (libFuzzer + ASan)",
+            "inherits": "base",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Fuzz",
             "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
