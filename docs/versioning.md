@@ -5,7 +5,7 @@ Orion uses [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`
 | Part    | When to increment                          | Example                     |
 |---------|--------------------------------------------|-----------------------------|
 | `PATCH` | Bug fix, no API change                     | `0.0.0` → `0.1.1`          |
-| `MINOR` | New feature, backwards compatible          | `0.0.0` → `0.0.0`          |
+| `MINOR` | New feature, backwards compatible          | `0.0.0` → `0.1.0`          |
 | `MAJOR` | Breaking change to a public API            | `0.x.x` → `1.0.0`          |
 
 ## How it works

@@ -27,7 +27,7 @@ If this job fails, run **Format: C++** and **Format: CMake** locally, then push 
 ### Commit messages
 
 Runs `wagoid/commitlint-github-action` against every commit in the push or PR using the rules in
-`.commitlintrc.yml`. Enforces [Conventional Commits](https://www.conventionalcommits.org):
+`commitlint.config.mjs`. Enforces [Conventional Commits](https://www.conventionalcommits.org):
 `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:`, `perf:`, `build:`, `revert:`.
 
 Header max length: 72 characters.
@@ -94,7 +94,7 @@ campaign locally:
 
 ```bash
 cmake --preset fuzz && cmake --build --preset fuzz
-./build/Fuzz/fuzz_topic -max_len=4096 -timeout=60 corpus/
+./build/Fuzz/tests/fuzz/fuzz_topic -max_len=4096 -timeout=60 corpus/
 ```
 
 ## Release workflow
