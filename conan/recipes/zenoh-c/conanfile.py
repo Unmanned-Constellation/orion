@@ -10,7 +10,7 @@ class ZenohCConan(ConanFile):
     package_type = "shared-library"
     settings = "os", "arch"
 
-    def source(self):
+    def build(self):
         # Map Conan's architecture strings to Zenoh's release naming convention
         arch_map = {
             "x86_64": "x86_64",
@@ -26,8 +26,8 @@ class ZenohCConan(ConanFile):
         get(self, url, strip_root=False)
 
     def package(self):
-        copy(self, "include/*", self.source_folder, self.package_folder)
-        copy(self, "lib/libzenohc.so*", self.source_folder, self.package_folder)
+        copy(self, "include/*", self.build_folder, self.package_folder)
+        copy(self, "lib/libzenohc.so*", self.build_folder, self.package_folder)
 
     def package_info(self):
         self.cpp_info.libs = ["zenohc"]
