@@ -26,6 +26,8 @@ echo "Changed lines:"
 echo "$dep_diff" | sed 's/^/  /'
 echo ""
 echo "Regenerate and stage the lockfile:"
+echo "  conan export conan/recipes/zenoh-c"
+echo "  conan export conan/recipes/zenoh-cpp"
 echo "  conan lock create . --profile=conan/profiles/x86_64/debug"
 echo "  git add conan.lock"
 exit 1
