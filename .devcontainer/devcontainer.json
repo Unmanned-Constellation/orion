@@ -14,6 +14,7 @@
     "source=orion-vscode-server,target=/root/.vscode-server,type=volume",
     "source=orion-cmake-tools,target=/root/.local/share/CMakeTools,type=volume",
     "source=orion-claude-profile,target=/root/.claude,type=volume",
+    "source=orion-agents-profile,target=/root/.agents,type=volume",
     "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,readonly"
   ],
   "remoteEnv": {
