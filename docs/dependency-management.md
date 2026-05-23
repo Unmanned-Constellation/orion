@@ -85,8 +85,8 @@ running install first against a missing or inconsistent lockfile will fail.
 2. Runs `conan profile detect --force` to (re)generate the default Conan profile for the host
 3. Exports both custom recipes: `conan export conan/recipes/zenoh-c` and `zenoh-cpp`
 4. Wipes `build/` entirely to ensure a clean slate
-5. Installs the **Release** profile: `conan install . --output-folder=build/Release --profile=conan/profiles/${ARCH}/release`
-6. Installs the **Debug** profile: `conan install . --output-folder=build/Debug --profile=conan/profiles/${ARCH}/debug`
+5. Installs the **Release** profile: `conan install . --profile=conan/profiles/${ARCH}/release`
+6. Installs the **Debug** profile: `conan install . --profile=conan/profiles/${ARCH}/debug`
 7. Configures both CMake presets: `cmake --preset release` and `cmake --preset debug`
 
 Steps 5 and 6 pass `--lockfile=conan.lock` when the lockfile exists.
