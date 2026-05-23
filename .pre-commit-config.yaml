@@ -4,13 +4,13 @@ repos:
       - id: clang-format
         name: clang-format
         entry: clang-format
-        args: [--dry-run, --Werror]
+        args: [-i]
         language: system
         types_or: [c++, c]
 
       - id: gersemi
         name: gersemi
         entry: gersemi
-        args: [--check]
+        args: [-i]
         language: system
         files: '(CMakeLists\.txt|\.cmake)$'
