@@ -41,6 +41,7 @@ jobs:
     name: Commit messages
     runs-on: ubuntu-22.04
     permissions:
+      contents: read
       pull-requests: read
     steps:
       - uses: actions/checkout@v6
@@ -375,7 +376,7 @@ jobs:
           echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
             | sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt-get update -qq
-          sudo apt-get install -y clang-18 cmake ninja-build gcc-aarch64-linux-gnu
+          sudo apt-get install -y clang-18 cmake ninja-build gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
 
       - name: Install Conan
         run: pip install conan
