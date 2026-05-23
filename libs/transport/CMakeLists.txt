@@ -8,4 +8,4 @@ target_link_libraries(
     PUBLIC orion_proto
 )
 
-target_compile_features(orion_transport PUBLIC cxx_std_17)
+target_compile_features(orion_transport PUBLIC cxx_std_20)

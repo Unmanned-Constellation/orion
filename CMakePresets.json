@@ -2,38 +2,50 @@
     "version": 4,
     "configurePresets": [
         {
-            "name": "debug",
-            "displayName": "Debug",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/Debug",
-            "toolchainFile": "${sourceDir}/build/Debug/conan_toolchain.cmake",
-            "cacheVariables": {
-                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
-                "CMAKE_BUILD_TYPE": "Debug"
-            }
-        },
-        {
             "name": "release",
             "displayName": "Release",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Release",
-            "toolchainFile": "${sourceDir}/build/Release/conan_toolchain.cmake",
+            "toolchainFile": "${sourceDir}/build/Release/generators/conan_toolchain.cmake",
             "cacheVariables": {
                 "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
                 "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Debug",
+            "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_BUILD_TYPE": "Debug"
             }
         }
     ],
     "buildPresets": [
         {
-            "name": "debug",
-            "configurePreset": "debug",
-            "jobs": 8
-        },
-        {
             "name": "release",
             "configurePreset": "release",
             "jobs": 8
+        },
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "jobs": 8
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "output": { "outputOnFailure": true }
         }
     ]
 }
