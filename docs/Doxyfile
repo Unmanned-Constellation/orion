@@ -1,5 +1,6 @@
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = Orion
+PROJECT_NUMBER         = $(ORION_PROJECT_VERSION)
 OUTPUT_DIRECTORY       = ./docs/_build/doxygen
 
 INPUT                  = ./libs ./proto

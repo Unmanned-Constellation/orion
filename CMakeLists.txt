@@ -37,11 +37,7 @@ include(cmake/tools.cmake)
 find_package(protobuf CONFIG REQUIRED)
 find_package(zenohcxx REQUIRED)
 
-orion_suppress_dep_warnings(
-    protobuf::libprotobuf
-    zenohc::lib
-    zenohcxx::zenohc
-)
+orion_suppress_dep_warnings(protobuf::libprotobuf zenohc::lib zenohcxx::zenohc)
 
 add_subdirectory(proto)
 add_subdirectory(libs/transport)
