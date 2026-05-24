@@ -5,14 +5,16 @@ OUTPUT_DIRECTORY       = ./docs/_build/doxygen
 
 INPUT                  = ./libs ./proto
 RECURSIVE              = YES
-FILE_PATTERNS          = *.hpp *.cpp
-EXCLUDE_PATTERNS       = */build/*
+FILE_PATTERNS          = *.hpp
+EXCLUDE_PATTERNS       = */build/* *_impl.hpp
 
 EXTRACT_ALL            = NO
 WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = YES
 WARN_AS_ERROR          = YES
 
-GENERATE_HTML          = YES
+GENERATE_HTML          = NO
+GENERATE_XML           = YES
 GENERATE_LATEX         = NO
 
 MARKDOWN_SUPPORT       = YES
