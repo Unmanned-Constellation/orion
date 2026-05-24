@@ -4,15 +4,15 @@ Orion uses [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`
 
 | Part    | When to increment                          | Example                     |
 |---------|--------------------------------------------|-----------------------------|
-| `PATCH` | Bug fix, no API change                     | `0.1.0` → `0.1.1`          |
-| `MINOR` | New feature, backwards compatible          | `0.1.0` → `0.2.0`          |
+| `PATCH` | Bug fix, no API change                     | `0.0.0` → `0.1.1`          |
+| `MINOR` | New feature, backwards compatible          | `0.0.0` → `0.1.0`          |
 | `MAJOR` | Breaking change to a public API            | `0.x.x` → `1.0.0`          |
 
 ## How it works
 
 The version is sourced entirely from git tags. There is no version number to edit in any file — the tag *is* the release.
 
-At configure time, CMake runs `git describe --tags --abbrev=0` twice — once in `CMakeLists.txt` to set `project(VERSION ...)`, and once in `cmake/tools.cmake` to set `ORION_VERSION`. The `docs` CMake target passes `ORION_VERSION` as the `ORION_PROJECT_VERSION` environment variable when invoking Doxygen. For a tag `v0.2.0`, Doxygen receives `v0.2.0` and the CMake project version is `0.2.0`.
+At configure time, CMake runs `git describe --tags --abbrev=0` twice — once in `CMakeLists.txt` to set `project(VERSION ...)`, and once in `cmake/tools.cmake` to set `ORION_VERSION`. The `docs` CMake target passes `ORION_VERSION` as the `ORION_PROJECT_VERSION` environment variable when invoking Doxygen. For a tag `v0.0.0`, Doxygen receives `v0.0.0` and the CMake project version is `0.0.0`.
 
 ## Creating a release
 
@@ -29,6 +29,43 @@ At configure time, CMake runs `git describe --tags --abbrev=0` twice — once in
    ```bash
    cmake --preset=debug
    ```
+
+Pushing the tag automatically triggers the **Release** workflow
+(`.github/workflows/changelog.yml`), which:
+
+1. Runs `git-cliff` with `cliff.toml` to generate a changelog for the new tag from all
+   conventional commits since the previous tag
+2. Creates a GitHub Release with the generated changelog as the release body
+
+The changelog is derived entirely from commit messages. This is why all commits must follow
+[Conventional Commits](https://www.conventionalcommits.org) — each `feat:` and `fix:` becomes
+a line in the release notes automatically.
+
+## CHANGELOG format
+
+`cliff.toml` groups commits into sections by type:
+
+| Commit type | Changelog section |
+|---|---|
+| `feat` | Features |
+| `fix` | Bug Fixes |
+| `perf` | Performance |
+| `refactor` | Refactoring |
+| `docs` | Documentation |
+| `test` | Testing |
+| `ci` | CI/CD |
+| `build` | Build System |
+| `chore` | Miscellaneous |
+| `style` | (skipped) |
+
+Scopes are rendered in bold: `**transport**: add subscriber reconnection`.
+
+To preview the changelog for the current state of `main` without creating a release:
+
+```bash
+pip install git-cliff  # or: cargo install git-cliff
+git-cliff --current --strip header
+```
 
 ## During development (no tag yet)
 

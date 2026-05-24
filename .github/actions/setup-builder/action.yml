@@ -1,0 +1,80 @@
+name: Setup C++ builder
+description: Installs LLVM 18, Conan, ccache, exports local recipes, and installs dependencies.
+
+inputs:
+  conan-profile:
+    description: Conan host profile path
+    required: true
+  extra-packages:
+    description: Space-separated extra apt packages (e.g. clang-tidy-18 llvm-18)
+    required: false
+    default: ""
+  cache-key-prefix:
+    description: Prefix for the Conan package and ccache keys
+    required: false
+    default: conan
+
+runs:
+  using: composite
+  steps:
+    - name: Install toolchain
+      shell: bash
+      run: |
+        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+          | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+        echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
+          | sudo tee /etc/apt/sources.list.d/llvm.list
+        sudo apt-get update -qq
+        sudo apt-get install -y clang-18 cmake ninja-build ccache ${{ inputs.extra-packages }}
+
+    - name: Configure ccache
+      shell: bash
+      run: |
+        ccache --set-config=max_size=1G
+        ccache --set-config=compression=true
+        echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
+        echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
+
+    - name: Cache ccache
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/ccache
+        key: ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.sha }}
+        restore-keys: ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-
+
+    - name: Cache pip
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/pip
+        key: pip-${{ runner.os }}-conan
+        restore-keys: pip-${{ runner.os }}-
+
+    - name: Install Conan
+      shell: bash
+      run: pip install conan
+
+    - name: Cache Conan packages
+      uses: actions/cache@v5
+      with:
+        path: ~/.conan2/p
+        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('conan.lock') }}
+        restore-keys: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
+
+    - name: Configure Conan profile
+      shell: bash
+      run: conan profile detect --force
+
+    - name: Export custom recipes
+      shell: bash
+      run: |
+        conan export conan/recipes/zenoh-c
+        conan export conan/recipes/zenoh-cpp
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        conan install . \
+          --build=missing \
+          --profile=${{ inputs.conan-profile }} \
+          --lockfile=conan.lock \
+          -c tools.system.package_manager:mode=check
