@@ -4,14 +4,45 @@ Continuous integration runs on GitHub Actions. Two workflows exist:
 
 | Workflow file | Triggers | Purpose |
 |---|---|---|
-| `.github/workflows/ci.yml` | Push to `main`, all PRs | Build, test, lint, sanitize, coverage, fuzz |
+| `.github/workflows/ci.yml` | Push to `main`, all PRs | Build, test, lint, sanitize, coverage, fuzz, docs, proto schema |
 | `.github/workflows/changelog.yml` | Push of `v*` tag | Generate CHANGELOG and create GitHub Release |
+
+## Custom actions
+
+### `.github/actions/setup-builder`
+
+Composite action used by every build job. It abstracts the shared setup steps so
+each job only needs to pass a Conan profile and an optional list of extra apt packages.
+
+**Inputs**
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `conan-profile` | yes | — | Path to the Conan host profile (e.g. `conan/profiles/x86_64/debug`) |
+| `extra-packages` | no | `""` | Space-separated extra apt packages installed alongside the base toolchain |
+| `cache-key-prefix` | no | `conan` | Prefix used for Conan package and ccache cache keys |
+
+**Steps (in order)**
+
+| Step | What it does |
+|---|---|
+| Install toolchain | Installs clang-18, cmake, ninja, ccache — plus any `extra-packages` — from the LLVM apt repository |
+| Configure ccache | Sets `CMAKE_C_COMPILER_LAUNCHER=ccache` / `CMAKE_CXX_COMPILER_LAUNCHER=ccache`; caps cache at 1 GB |
+| Cache ccache | `~/.cache/ccache` keyed on `<prefix>-<os>-<sha>`, restores from most recent prior run |
+| Cache pip | `~/.cache/pip` keyed on OS — avoids re-downloading the Conan wheel |
+| Install Conan | `pip install conan` |
+| Cache Conan packages | `~/.conan2/p` keyed on `<prefix>-<os>-<conan.lock hash>` |
+| Configure Conan profile | `conan profile detect --force` — picks up clang-18 via `CC`/`CXX` |
+| Register local recipes remote | Adds `conan/recipes/` as `orion-local` (priority 0, `local-recipes-index` type) |
+| Install dependencies | `conan install --profile=<conan-profile> --lockfile=conan.lock` |
 
 ## CI jobs
 
-All jobs run in parallel. Every job sets `CC=clang-18` and `CXX=clang++-18` so Conan and CMake
-use clang rather than the runner's default GCC — required because Conan injects `-stdlib=libstdc++`
-and GCC rejects that flag.
+The fast-check jobs (format, commitlint, proto, docs) run in parallel with each other. All
+build, test, sanitizer, coverage, and fuzz jobs depend on those four via `needs:` and only
+start after they all pass. Every job sets `CC=clang-18` and `CXX=clang++-18` so Conan and
+CMake use clang rather than the runner's default GCC — required because Conan injects
+`-stdlib=libstdc++` and GCC rejects that flag.
 
 ### Format
 
@@ -30,30 +61,51 @@ Runs `wagoid/commitlint-github-action` against every commit in the push or PR us
 `commitlint.config.mjs`. Enforces [Conventional Commits](https://www.conventionalcommits.org):
 `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:`, `perf:`, `build:`, `revert:`.
 
-Header max length: 72 characters.
+Header max length: 200 characters.
+
+### Proto schema
+
+Runs two `buf` checks against the `proto/` directory:
+
+| Step | Command | What it catches |
+|---|---|---|
+| Lint | `buf lint` | Style violations — package naming, field conventions, etc. |
+| Breaking changes | `buf breaking --against '.git#branch=main'` | Backward-incompatible schema changes (removed fields, renamed messages, etc.) |
+
+`buf` is downloaded directly from GitHub releases (v1.69.0) — no additional setup required.
+
+### Docs coverage
+
+Validates that all public C++ symbols are documented and that the Sphinx site
+builds without warnings. Runs in parallel with **Format**, **Commit messages**, and **Proto schema**
+— all downstream jobs gate on these via `needs: [format, commitlint, docs, proto]`.
+
+| Step | Command |
+|---|---|
+| Install Doxygen | `apt-get install doxygen` |
+| Install Sphinx deps | `pip install -r docs/requirements.txt` |
+| Run Doxygen | `doxygen docs/Doxyfile` — emits XML to `docs/_build/doxygen/xml/` |
+| Build Sphinx site | `sphinx-build -W -b html docs docs/_build/html` |
+
+`-W` promotes any Sphinx warning to an error. The Doxyfile sets
+`WARN_AS_ERROR = YES`, so an undocumented public symbol also fails the job.
+
+See [documentation.md](documentation.md) for what must be documented and how to
+write Doxygen comments.
 
 ### Build and lint (debug)
 
-Full debug build plus clang-tidy static analysis.
+Full debug build plus clang-tidy static analysis. Uses `.github/actions/setup-builder` with
+`conan-profile: conan/profiles/x86_64/debug` and `extra-packages: clang-tidy-18`.
 
-All setup steps (toolchain, ccache, pip, Conan) are consolidated into
-`.github/actions/setup-builder`. The full step sequence is:
+After setup:
 
-| Step | What happens |
+| Step | Command |
 |---|---|
-| Install toolchain | clang-18, clang-tidy-18, cmake, ninja, ccache via LLVM apt |
-| Configure ccache | Sets `CMAKE_C_COMPILER_LAUNCHER=ccache` and `CMAKE_CXX_COMPILER_LAUNCHER=ccache`; caps cache at 1 GB |
-| Restore ccache | `~/.cache/ccache` keyed on commit SHA, restores from most recent prior run |
-| Restore pip | `~/.cache/pip` keyed on OS — avoids re-downloading the Conan wheel |
-| Install Conan | `pip install conan` |
-| Restore Conan packages | `~/.conan2/p` keyed on `conan.lock` hash |
-| Configure Conan profile | `conan profile detect --force` — detects clang-18 via `CC`/`CXX` |
-| Export recipes | Exports custom `zenoh-c` and `zenoh-cpp` recipes |
-| Install dependencies | `conan install --profile=x86_64/debug --lockfile=conan.lock` |
 | Configure | `cmake --preset debug` |
 | Build | `cmake --build --preset debug` |
 | Test | `ctest --preset debug` |
-| Lint | `run-clang-tidy-18` scoped to `libs/`, `proto/`, `tests/` |
+| Lint | `run-clang-tidy-18 -p build/Debug` scoped to `libs/`, `proto/`, `tests/` |
 
 ### Build and test (release)
 
@@ -92,13 +144,20 @@ actually run on ARM64. ARM64 Conan packages and ccache are cached separately und
 
 ### Fuzz (smoke test)
 
-Builds the fuzz preset (`ORION_FUZZING=ON`, ASan enabled), then runs each fuzz target for 10 000
-iterations. Catches immediate crashes and memory errors in the fuzz targets. To run a longer
-campaign locally:
+Builds the fuzz preset (`ORION_FUZZING=ON`, ASan enabled), then runs each fuzz target for
+10 000 iterations. Catches immediate crashes and memory errors.
+
+| Target | Library under test | `max_len` |
+|---|---|---|
+| `fuzz_topic` | `orion_transport` (topic string parsing) | 4 096 |
+| `fuzz_envelope` | `orion_proto` (protobuf envelope deserialisation) | 65 536 |
+
+To run a longer campaign locally:
 
 ```bash
 cmake --preset fuzz && cmake --build --preset fuzz
-./build/Fuzz/tests/fuzz/fuzz_topic -max_len=4096 -timeout=60 corpus/
+./build/Fuzz/tests/fuzz/fuzz_topic   -max_len=4096  -timeout=60 corpus/
+./build/Fuzz/tests/fuzz/fuzz_envelope -max_len=65536 -timeout=60 corpus/
 ```
 
 ## Release workflow
@@ -138,6 +197,9 @@ Every job must pass before a PR can be merged. In particular:
 
 - Formatting error → **Format** fails
 - Non-conventional commit message → **Commit messages** fails
+- Undocumented public symbol or Sphinx warning → **Docs coverage** fails
+- Proto style violation → **Proto schema** (lint) fails
+- Backward-incompatible schema change → **Proto schema** (breaking) fails
 - Build or test failure → any of the build/test jobs fails
 - clang-tidy finding → **Build and lint (debug)** fails
 - Sanitizer crash or error → **Sanitize** or **Thread Sanitizer** fails
