@@ -3,7 +3,7 @@
   "tasks": [
     {
       "label": "Conan: Install",
-      "detail": "Install deps from cache; wipes build/ and configures both presets",
+      "detail": "Wipes build/, installs deps, configures both presets",
       "type": "shell",
       "command": "bash scripts/environment/initialize_conan.sh",
       "presentation": {
@@ -13,9 +13,19 @@
     },
     {
       "label": "Conan: Install (Offline)",
-      "detail": "Install deps from local cache only — no downloads",
+      "detail": "Wipes build/, installs deps from local cache only — no downloads",
       "type": "shell",
       "command": "bash scripts/environment/initialize_conan.sh --no-remote",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Conan: Sync Dependencies",
+      "detail": "Install deps and reconfigure CMake without wiping build/ — faster after conanfile.py changes",
+      "type": "shell",
+      "command": "bash scripts/environment/initialize_conan.sh --no-clean",
       "presentation": {
         "reveal": "always",
         "panel": "shared"
@@ -35,7 +45,7 @@
       "label": "Conan: Create Lockfile",
       "detail": "Pin all dep versions to conan.lock — run after changing conanfile.py",
       "type": "shell",
-      "command": "bash -c 'case \"$(uname -m)\" in x86_64) ARCH=x86_64;; aarch64|arm64) ARCH=arm64;; *) echo \"Error: Unsupported architecture $(uname -m)\" >&2; exit 1;; esac && conan lock create . --profile=conan/profiles/${ARCH}/release --lockfile-out=conan.lock'",
+      "command": "bash -c 'case \"$(uname -m)\" in x86_64) ARCH=x86_64;; aarch64|arm64) ARCH=arm64;; *) echo \"Error: Unsupported architecture $(uname -m)\" >&2; exit 1;; esac && LOCKFILE_ARG=$([ -f conan.lock ] && echo \"--lockfile=conan.lock\" || echo \"\") && conan lock create . --profile=conan/profiles/${ARCH}/release $LOCKFILE_ARG --lockfile-out=conan.lock'",
       "presentation": {
         "reveal": "always",
         "panel": "shared"
@@ -101,6 +111,21 @@
       }
     },
     {
+      "label": "CMake: Run Tests",
+      "detail": "Build then run all CTest tests for the selected build type",
+      "type": "shell",
+      "command": "/usr/bin/cmake --build --preset ${input:buildType} && /usr/bin/ctest --preset ${input:buildType}",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": "$gcc",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
       "label": "Lint: C++",
       "detail": "Run clang-tidy static analysis on all project source",
       "type": "shell",
@@ -112,10 +137,10 @@
       }
     },
     {
-      "label": "Docs: Generate (Doxygen)",
-      "detail": "Generate Doxygen HTML documentation into docs/_build/doxygen",
+      "label": "Docs: Build",
+      "detail": "Run Doxygen then Sphinx — HTML site written to docs/_build/html/",
       "type": "shell",
-      "command": "/usr/bin/cmake --build ${command:cmake.buildDirectory} --target docs",
+      "command": "/usr/bin/cmake --build ${command:cmake.buildDirectory} --target orion_docs",
       "presentation": {
         "reveal": "always",
         "panel": "shared"
@@ -125,7 +150,7 @@
       "label": "CI: Check Format (C++)",
       "detail": "Dry-run clang-format — fails if any file needs reformatting",
       "type": "shell",
-      "command": "find libs proto -type f \\( -name '*.cpp' -o -name '*.hpp' \\) | xargs -r clang-format-18 --dry-run --Werror",
+      "command": "find libs proto tests -type f \\( -name '*.cpp' -o -name '*.hpp' \\) | xargs -r clang-format-18 --dry-run --Werror",
       "group": "test",
       "presentation": {
         "reveal": "always",
