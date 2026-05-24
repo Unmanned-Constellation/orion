@@ -54,7 +54,7 @@ For first-time setup on a Jetson Orin Nano, see [docs/orin-setup.md](docs/orin-s
 
 All commits must follow [Conventional Commits](https://www.conventionalcommits.org). The
 allowed types are: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`, `build`,
-`revert`. Header max length is 72 characters. CI enforces this with commitlint on every PR.
+`revert`. Header max length is 200 characters. CI enforces this with commitlint on every PR.
 
 Examples:
 ```
@@ -81,4 +81,6 @@ test(transport): add fuzz target for topic key-expression parsing
 - [Versioning](docs/versioning.md) — git-tag-based semantic versioning, CHANGELOG generation
 - [Orin setup](docs/orin-setup.md) — one-time Jetson configuration after flashing JetPack
 - [Architecture decisions](docs/adr/) — ADR-0001 Zenoh transport, ADR-0002 DeepStream,
-  ADR-0003 multi-platform build strategy
+  ADR-0003 multi-platform build strategy, ADR-0004 transport abstraction layer,
+  ADR-0005 topic naming scheme, ADR-0006 edge network service (multi-protocol gateway),
+  ADR-0007 public API service
