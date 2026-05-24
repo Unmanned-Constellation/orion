@@ -1,0 +1,162 @@
+# Coding Standards
+
+Orion enforces strict coding standards from day one. The goal is a codebase where correctness
+is structurally guaranteed — not just a goal — so that when software moves physical hardware,
+defects are caught at compile time or by static analysis, not at runtime.
+
+## Standards basis
+
+The configuration draws from three established bodies of work:
+
+| Standard | Scope | Enforced via |
+|---|---|---|
+| [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines) | Modern C++ safety and idioms | `cppcoreguidelines-*` checks |
+| [High Integrity C++](https://www.perforce.com/resources/qac/high-integrity-cpp-coding-standard) | Functional safety (maps to IEC 61508) | `hicpp-*` checks |
+| [CERT C++](https://wiki.sei.cmu.edu/confluence/pages/viewpage.action?pageId=88046682) | Security and reliability | `cert-*` checks |
+
+All active checks are elevated to errors. There are no warnings — code either passes or it does
+not compile in CI.
+
+## Hard limits
+
+These are enforced mechanically by `.clang-tidy` and cannot be bypassed without modifying the
+configuration and explaining why in a PR.
+
+| Metric | Limit | Why |
+|---|---|---|
+| Function length | 50 statements | A function that scrolls off a single screen is doing too much |
+| Cognitive complexity | 15 | Penalises nested logic harder than line count; forces early returns and extracted helpers |
+| Nesting depth | 4 levels | Beyond 4, a reader must track too many conditions simultaneously |
+| Parameter count | 4 arguments | More than 4 arguments is a signal to introduce a struct |
+| Branch count | 10 per function | High branch counts indicate a function needs to be split or polymorphism applied |
+
+## Naming conventions
+
+Enforced by `readability-identifier-naming` checks. Violations are build errors.
+
+| Construct | Convention | Example |
+|---|---|---|
+| Class | `PascalCase` | `TransportNode` |
+| Struct | `PascalCase` | `FrameMetadata` |
+| Enum | `PascalCase` | `ConnectionState` |
+| Enum constant | `UPPER_CASE` | `CONNECTION_STATE_IDLE` |
+| Function / method | `camelBack` | `sendMessage()` |
+| Variable / parameter | `snake_case` | `frame_count` |
+| Private member | `snake_case_` | `session_` |
+| Public member | `snake_case` | `timestamp` |
+| Global constant | `UPPER_CASE` | `MAX_PAYLOAD_BYTES` |
+| Namespace | `snake_case` | `orion::transport` |
+| Type alias / typedef | `PascalCase` | `SubscriberCallback` |
+
+## C++20 mandates
+
+### No raw owning pointers
+
+`new` and `delete` are banned. Use `std::unique_ptr` for exclusive ownership. Raw pointers
+(`T*`) are permitted only as non-owning views — passing a pointer into a function that does not
+take ownership.
+
+```cpp
+// Correct
+auto node = std::make_unique<TransportNode>(config);
+
+// Wrong — raw owning pointer
+TransportNode* node = new TransportNode(config);
+```
+
+### `constexpr` by default for compile-time values
+
+If a value or pure function can be evaluated at compile time, it must be `constexpr`. Zero
+runtime cost.
+
+```cpp
+constexpr std::size_t MAX_PAYLOAD_BYTES = 65536;
+constexpr double degreesToRadians(double degrees) { return degrees * (M_PI / 180.0); }
+```
+
+### `const` by default
+
+Declare every variable `const` unless you actively need to mutate it. Mutability is the
+exception, not the default.
+
+### `[[nodiscard]]` on functions where ignoring the return value is a bug
+
+```cpp
+[[nodiscard]] bool initialise();
+[[nodiscard]] std::expected<Frame, Error> decode(std::span<const std::byte> data);
+```
+
+### No C-style casts
+
+Use `static_cast`, `reinterpret_cast`, or `std::bit_cast`. C-style casts silently bypass type
+safety.
+
+```cpp
+// Correct
+auto value = static_cast<float>(integer_count);
+
+// Wrong
+auto value = (float)integer_count;
+```
+
+### No recursion
+
+Recursive calls are not permitted. All execution paths must have a bounded, statically
+determinable stack footprint. Use iterative approaches or explicit stacks allocated during
+initialisation.
+
+### Struct over parameter lists
+
+Functions that require more than 4 arguments take a configuration struct instead.
+
+```cpp
+// Correct
+struct PublisherConfig {
+    std::string_view topic;
+    std::size_t      queue_depth;
+    bool             reliable;
+};
+void createPublisher(const PublisherConfig& config);
+
+// Wrong
+void createPublisher(std::string_view topic, std::size_t queue_depth, bool reliable);
+```
+
+## Enforcement
+
+### Compile time
+
+`.clang-tidy` is read automatically by clang-tidy during the lint step. All checks are
+configured as `WarningsAsErrors: "*"` — a single violation breaks the build.
+
+### CI
+
+The **Build and lint** job runs `run-clang-tidy-18` against `libs/`, `proto/`, and `tests/`
+after a full debug build. A PR cannot merge while any finding is outstanding.
+
+### Local
+
+Run the **Lint: C++** VS Code task or:
+
+```bash
+cmake --build --preset debug --target tidy
+```
+
+Ensure a build is current before linting — clang-tidy reads the compile database generated by
+CMake.
+
+### Pre-commit
+
+The pre-commit hooks enforce formatting (clang-format and gersemi) on every `git commit`.
+They do not run clang-tidy locally because tidy requires a built compile database. CI is the
+enforcement point for tidy.
+
+## Suppressing a check
+
+Suppressions in source code (`// NOLINT`) are permitted only when:
+
+1. The suppression targets a specific check by name: `// NOLINT(bugprone-use-after-move)`
+2. The line above the suppression contains a comment explaining why the suppression is necessary
+
+Blanket `// NOLINT` with no check name is not permitted. Unexplained suppressions will be
+rejected in code review.

@@ -19,10 +19,10 @@ conan export conan/recipes/zenoh-cpp
 
 rm -rf build/
 
-conan install . --output-folder=build/Release --build=missing \
+conan install . --build=missing \
     --profile=conan/profiles/${ARCH}/release ${LOCKFILE_ARG} "$@"
 
-conan install . --output-folder=build/Debug --build=missing \
+conan install . --build=missing \
     --profile=conan/profiles/${ARCH}/debug ${LOCKFILE_ARG} "$@"
 
 /usr/bin/cmake --preset release --no-warn-unused-cli

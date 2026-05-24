@@ -14,3 +14,16 @@ repos:
         args: [--check]
         language: system
         files: '(CMakeLists\.txt|\.cmake)$'
+
+      - id: conan-lockfile
+        name: conan lockfile up to date
+        entry: scripts/check_conan_lock.sh
+        language: script
+        files: '^conanfile\.py$'
+        pass_filenames: false
+
+      - id: commit-msg-format
+        name: commit message format
+        entry: scripts/check_commit_msg.sh
+        language: script
+        stages: [commit-msg]
