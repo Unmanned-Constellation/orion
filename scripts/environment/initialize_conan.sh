@@ -9,15 +9,26 @@ esac
 
 conan profile detect --force
 
+# Register vendored recipes as a local-recipes-index remote so Conan reads them
+# directly from the filesystem without a conan export step. Timestamp stability
+# in conan.lock is achieved by passing --lockfile as input to conan lock create
+# (see the Conan: Create Lockfile VS Code task).
+RECIPES_PATH="$(cd "$(dirname "$0")/../../conan" && pwd)"
+conan remote add orion-local "$RECIPES_PATH" -t local-recipes-index --index 0 -f
+
 LOCKFILE_ARG=""
 if [ -f conan.lock ]; then
     LOCKFILE_ARG="--lockfile=conan.lock"
 fi
 
-conan export conan/recipes/zenoh-c
-conan export conan/recipes/zenoh-cpp
-
-rm -rf build/
+# Wipe the build directory for a clean CMake and Conan graph. Pass --no-clean
+# to skip this when you only need to sync dependency changes without rebuilding
+# from scratch (e.g. updating conanfile.py without wanting a full rebuild).
+if [[ "${1:-}" != "--no-clean" ]]; then
+    rm -rf build/
+else
+    shift
+fi
 
 conan install . --build=missing \
     --profile=conan/profiles/${ARCH}/release ${LOCKFILE_ARG} "$@"
@@ -25,5 +36,5 @@ conan install . --build=missing \
 conan install . --build=missing \
     --profile=conan/profiles/${ARCH}/debug ${LOCKFILE_ARG} "$@"
 
-/usr/bin/cmake --preset release --no-warn-unused-cli
-/usr/bin/cmake --preset debug --no-warn-unused-cli
+cmake --preset release --no-warn-unused-cli
+cmake --preset debug --no-warn-unused-cli
