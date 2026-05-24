@@ -36,6 +36,27 @@ jobs:
       - name: Check CMake formatting
         run: gersemi --check .
 
+  # ── Proto schema linting ─────────────────────────────────────────────────
+  proto:
+    name: Proto schema
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install buf
+        run: |
+          curl -fsSL "https://github.com/bufbuild/buf/releases/download/v1.69.0/buf-Linux-$(uname -m)" \
+            -o /usr/local/bin/buf
+          chmod +x /usr/local/bin/buf
+
+      - name: Lint
+        run: buf lint
+
+      - name: Check for breaking changes
+        run: buf breaking --against '.git#branch=main'
+
   # ── Commit message linting ────────────────────────────────────────────────
   commitlint:
     name: Commit messages
@@ -53,10 +74,29 @@ jobs:
           failOnWarnings: false
           failOnErrors: true
 
+  # ── API documentation coverage ───────────────────────────────────────────
+  docs:
+    name: Docs coverage
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Doxygen
+        run: sudo apt-get install -y --no-install-recommends doxygen
+
+      - name: Install Sphinx dependencies
+        run: pip install -r docs/requirements.txt
+
+      - name: Run Doxygen
+        run: doxygen docs/Doxyfile
+
+      - name: Build Sphinx docs
+        run: LC_ALL=C.UTF-8 LANG=C.UTF-8 sphinx-build -W -b html docs docs/_build/html
+
   # ── Debug build + static analysis ────────────────────────────────────────
   build:
     name: Build and lint (debug)
-    needs: [format, commitlint]
+    needs: [format, commitlint, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -85,7 +125,7 @@ jobs:
   # ── Release build + test ──────────────────────────────────────────────────
   build-release:
     name: Build and test (release)
-    needs: [format, commitlint]
+    needs: [format, commitlint, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -108,7 +148,7 @@ jobs:
   # ── AddressSanitizer + UndefinedBehaviorSanitizer ─────────────────────────
   sanitize:
     name: Sanitize (ASan + UBSan)
-    needs: [format, commitlint]
+    needs: [format, commitlint, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -132,7 +172,7 @@ jobs:
   # ── ThreadSanitizer ───────────────────────────────────────────────────────
   tsan:
     name: Thread Sanitizer
-    needs: [format, commitlint]
+    needs: [format, commitlint, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -156,7 +196,7 @@ jobs:
   # ── Coverage ──────────────────────────────────────────────────────────────
   coverage:
     name: Coverage
-    needs: [format, commitlint]
+    needs: [format, commitlint, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -209,7 +249,7 @@ jobs:
   # ── Native ARM64 build + test ─────────────────────────────────────────────
   build-arm64:
     name: Build and test (ARM64)
-    needs: [format, commitlint]
+    needs: [format, commitlint, docs, proto]
     runs-on: ubuntu-22.04-arm
     env:
       CC: clang-18
@@ -233,7 +273,7 @@ jobs:
   # ── libFuzzer smoke test ──────────────────────────────────────────────────
   fuzz:
     name: Fuzz (smoke test)
-    needs: [format, commitlint]
+    needs: [format, commitlint, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -256,5 +296,10 @@ jobs:
           ./build/Fuzz/tests/fuzz/fuzz_topic \
             -runs=10000 \
             -max_len=4096 \
+            -timeout=10 \
+            2>&1
+          ./build/Fuzz/tests/fuzz/fuzz_envelope \
+            -runs=10000 \
+            -max_len=65536 \
             -timeout=10 \
             2>&1
