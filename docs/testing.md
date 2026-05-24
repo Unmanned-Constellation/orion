@@ -112,6 +112,8 @@ violation rather than continuing. This makes CI failures unambiguous.
 
 ## ThreadSanitizer
 
+(tsan-docker-limitation)=
+
 TSan detects data races between threads: two concurrent accesses to the same memory where at
 least one is a write and there is no synchronisation between them. It instruments the binary
 to track all memory accesses and lock operations at runtime.
