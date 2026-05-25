@@ -53,6 +53,7 @@ find_package(zenohcxx REQUIRED)
 orion_suppress_dep_warnings(protobuf::libprotobuf zenohc::lib zenohcxx::zenohc)
 
 add_subdirectory(proto)
+add_subdirectory(libs/clock)
 add_subdirectory(libs/transport)
 
 enable_testing()
