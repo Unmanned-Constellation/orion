@@ -8,15 +8,17 @@ Time abstraction library for the Orion autonomy platform.
 for all time queries and sleeping. Injecting the clock at construction rather than
 calling `std::chrono` directly makes periodic loops testable and simulation-safe:
 the same service code that runs at 100 Hz on hardware can be driven at arbitrary
-speed under a `ManualClock` in unit tests or under a future `SimClock` in
-hardware-in-the-loop runs.
+speed under a `ManualClock` in unit tests or under a `SimClock` in
+hardware-in-the-loop runs (see ADR-0009).
 
 The library is header-only (`orion_clock` is an `INTERFACE` CMake target) and has
 no runtime dependencies beyond the C++ standard library. The single header is at
 `libs/clock/include/orion/clock/clock.hpp`.
 
 The `orion_app` library (`PeriodicTimer`, `ShutdownLatch`) builds directly on top
-of `orion_clock` and is documented in the same section below.
+of `orion_clock` and is documented in the same section below. `PeriodicTimer` is
+superseded by `FrameScheduler` (ADR-0008) and will be removed in the same PR that
+introduces it.
 
 ---
 
@@ -36,7 +38,7 @@ agnostic about the time source: production code passes `WallClock`, tests pass
 If sleeping were done with `std::this_thread::sleep_for`, the loop would always
 sleep for wall time, defeating the point of injectable simulation clocks.
 `sleepUntil` lets `ManualClock` block the caller on a condition variable until
-simulated time advances, so a `PeriodicTimer` driving at 100 Hz under
+simulated time advances, so a `FrameScheduler` driving at 100 Hz under
 `ManualClock` runs exactly when the test says it should — not when the OS wakes
 it up.
 

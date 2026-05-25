@@ -3,3 +3,4 @@ breathe==4.36.0
 furo==2025.12.19
 myst-parser==4.0.1
 exhale==0.3.7
+sphinxcontrib-mermaid==1.0.0

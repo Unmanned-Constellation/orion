@@ -3,9 +3,10 @@ author = "Unmanned Constellation"
 
 # Added 'exhale' to the extensions
 extensions = [
-    "breathe", 
+    "breathe",
     "myst_parser",
-    "exhale"
+    "exhale",
+    "sphinxcontrib.mermaid",
 ]
 
 breathe_projects = {"orion": "_build/doxygen/xml"}

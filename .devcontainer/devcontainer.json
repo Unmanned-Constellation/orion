@@ -5,7 +5,8 @@
     "context": ".."
   },
   "features": {
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "initializeCommand": "mkdir -p ${localEnv:HOME}/.cache/orion-ccache ${localEnv:HOME}/.cache/orion-deps && touch ${localEnv:HOME}/.gitconfig",
   "mounts": [

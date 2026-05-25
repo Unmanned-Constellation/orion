@@ -8,6 +8,27 @@ Orion uses [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`
 | `MINOR` | New feature, backwards compatible          | `0.0.0` → `0.1.0`          |
 | `MAJOR` | Breaking change to a public API            | `0.x.x` → `1.0.0`          |
 
+## Release cadence — milestone-gated
+
+Releases are cut when a GitHub milestone closes. Each milestone maps to one
+`MINOR` version increment. Bug fixes between milestones get `PATCH` releases.
+
+| Milestone | Target version | Trigger |
+|---|---|---|
+| M1 — Core Runtime | `v0.1.0` | All M1 issues closed: `FrameScheduler`, `SimClock` Phase 1 |
+| M2 — Observability | `v0.2.0` | All M2 issues closed: `CrashHandler`, `LoggerFactory`, `HealthPublisher` |
+| M3 — Simulation | `v0.3.0` | All M3 issues closed: `ExternalClock` stub, `orion_sim_clock` target |
+| M4 — External Interfaces | `v0.4.0` | Edge network and public API services shipped |
+| First stable release | `v1.0.0` | Public API frozen, all services deployable to production hardware |
+
+**Pre-1.0 contract:** `MINOR` increments may include breaking changes to
+internal library APIs. The public API surface does not exist until `v1.0.0`.
+External integrators should not pin below `v1.0.0`.
+
+**`PATCH` releases:** Cut a patch release (`v0.1.1`, `v0.1.2`, ...) for bug
+fixes that should not wait for the next milestone. All `fix:` commits since the
+last tag appear in the changelog automatically.
+
 ## How it works
 
 The version is sourced entirely from git tags. There is no version number to edit in any file — the tag *is* the release.
