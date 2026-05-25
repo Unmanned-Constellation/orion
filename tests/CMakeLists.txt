@@ -1,11 +1,17 @@
 find_package(GTest REQUIRED CONFIG)
 include(GoogleTest)
 
-add_executable(orion_tests transport_test.cpp)
+add_executable(
+    orion_tests
+    clock_test.cpp
+    periodic_timer_test.cpp
+    shutdown_latch_test.cpp
+    transport_test.cpp
+)
 
 target_link_libraries(
     orion_tests
-    PRIVATE GTest::gmock_main orion_transport orion_proto
+    PRIVATE GTest::gmock_main orion_app orion_clock orion_transport orion_proto
 )
 
 target_compile_features(orion_tests PRIVATE cxx_std_20)

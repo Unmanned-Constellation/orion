@@ -28,6 +28,7 @@ class FakeClock final : public orion::clock::Clock
   public:
     explicit FakeClock(uint64_t fixed_ns) : fixed_ns_(fixed_ns) {}
     [[nodiscard]] uint64_t nowNs() const override { return fixed_ns_; }
+    void                   sleepUntil(uint64_t /*target_ns*/) override {}
 
   private:
     uint64_t fixed_ns_;
