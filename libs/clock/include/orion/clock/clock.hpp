@@ -13,14 +13,17 @@ namespace orion::clock
 class Clock
 {
   public:
+    /// @cond
     Clock()                        = default;
     Clock(const Clock&)            = default;
     Clock& operator=(const Clock&) = default;
     Clock(Clock&&)                 = default;
     Clock& operator=(Clock&&)      = default;
     virtual ~Clock()               = default;
+    /// @endcond
 
     /// Returns the current time as nanoseconds since the Unix epoch.
+    /// @return Nanoseconds since the Unix epoch.
     [[nodiscard]] virtual uint64_t nowNs() const = 0;
 };
 
