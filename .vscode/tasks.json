@@ -169,14 +169,39 @@
       }
     },
     {
+      "label": "CI: Proto Lint",
+      "detail": "Run buf lint — checks proto style and API rules",
+      "type": "shell",
+      "command": "buf lint",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "CI: Docs Check",
+      "detail": "Run Doxygen (undoc warnings as errors) then Sphinx — mirrors the CI docs job",
+      "type": "shell",
+      "command": "mkdir -p docs/_build/doxygen && doxygen docs/Doxyfile && LC_ALL=C.UTF-8 LANG=C.UTF-8 sphinx-build -W -b html docs docs/_build/html",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
       "label": "CI: Check All",
-      "detail": "Run all format checks in parallel",
+      "detail": "Run all fast CI checks in parallel (format, proto lint, docs)",
       "type": "shell",
       "command": "echo 'All checks passed.'",
       "dependsOn": [
         "CI: Check Format (C++)",
-        "CI: Check Format (CMake)"
+        "CI: Check Format (CMake)",
+        "CI: Proto Lint",
+        "CI: Docs Check"
       ],
+      "dependsOrder": "parallel",
       "group": {
         "kind": "test",
         "isDefault": true
