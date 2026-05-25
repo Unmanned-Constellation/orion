@@ -84,4 +84,4 @@ test(transport): add fuzz target for topic key-expression parsing
   ADR-0003 multi-platform build strategy, ADR-0004 transport abstraction layer,
   ADR-0005 topic naming scheme, ADR-0006 edge network service (multi-protocol gateway),
   ADR-0007 public API service, ADR-0008 rate-group executor, ADR-0009 sim clock,
-  ADR-0010 crash handler
+  ADR-0010 crash handler, ADR-0011 logging and health reporting
