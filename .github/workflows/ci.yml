@@ -58,7 +58,11 @@ jobs:
         run: |
           if git ls-remote --exit-code origin main 2>/dev/null; then
             git fetch origin main:main
-            buf breaking --against '.git#branch=main'
+            if git ls-tree -r main --name-only | grep -q '\.proto$'; then
+              buf breaking --against '.git#branch=main'
+            else
+              echo "No .proto files on main — skipping breaking-change check"
+            fi
           else
             echo "No main branch on remote — skipping breaking-change check"
           fi
