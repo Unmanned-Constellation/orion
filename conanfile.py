@@ -1,5 +1,6 @@
 from conan import ConanFile
 from conan.tools.cmake import CMakeDeps, CMakeToolchain, cmake_layout
+from conan.tools.env import VirtualBuildEnv
 
 
 class OrionConan(ConanFile):
@@ -13,6 +14,7 @@ class OrionConan(ConanFile):
         self.requires("abseil/20240722.0", force=True)
 
     def build_requirements(self):
+        self.tool_requires("protobuf/5.29.3")
         self.test_requires("gtest/1.17.0")
 
     def layout(self):
@@ -24,3 +26,4 @@ class OrionConan(ConanFile):
         tc.variables["CMAKE_MAP_IMPORTED_CONFIG_DEBUG"] = "Debug;Release;"
         tc.generate()
         CMakeDeps(self).generate()
+        VirtualBuildEnv(self).generate()

@@ -155,7 +155,10 @@
         {
             "name": "tsan",
             "configurePreset": "tsan",
-            "output": { "outputOnFailure": true }
+            "output": { "outputOnFailure": true },
+            "environment": {
+                "TSAN_OPTIONS": "suppressions=${sourceDir}/cmake/tsan_suppressions.txt"
+            }
         },
         {
             "name": "coverage",

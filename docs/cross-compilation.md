@@ -37,7 +37,7 @@ The ARM64 profiles set `arch=armv8`, which is Conan's identifier for the ARMv8-A
 
 ## Zenoh architecture mapping
 
-The `zenoh-c` custom recipe (`conan/recipes/zenoh-c/conanfile.py`) maps Conan arch identifiers to
+The `zenoh-c` custom recipe (`conan/recipes/zenoh-c/all/conanfile.py`) maps Conan arch identifiers to
 the filenames used by zenoh-c's GitHub Releases:
 
 | Conan `arch` | GitHub Release asset suffix |
@@ -122,9 +122,11 @@ The CMake preset sets `CMAKE_SYSTEM_NAME=Linux` and `CMAKE_SYSTEM_PROCESSOR=aarc
 
 ### CI
 
-The **Cross-compile (ARM64)** CI job installs `gcc-aarch64-linux-gnu`, runs the two-profile
-Conan install with a separate cache bucket (`conan-arm64-*`), and builds. ARM64 packages are
-cached independently from x86 packages to avoid key collisions.
+CI tests ARM64 natively on an `ubuntu-22.04-arm` runner using a single host profile
+(`conan/profiles/arm64/debug`) and the standard `debug` CMake preset. The native runner
+executes a full `ctest` step — no cross-compilation is involved. ARM64 Conan packages and
+ccache are cached separately under keys prefixed `conan-arm64-` to avoid key collisions with
+the x86 jobs. See [ci-cd.md](ci-cd.md) for the full job description.
 
 ## Static linking constraint
 
