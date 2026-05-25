@@ -19,12 +19,9 @@ Orion
 .. toctree::
    :maxdepth: 1
    :caption: Architecture Decision Records
+   :glob:
 
-   adr/0001-zenoh-as-transport
-   adr/0002-deepstream-over-raw-gstreamer
-   adr/0003-multi-platform-build-and-deploy
-   adr/0004-transport-abstraction
-   adr/0005-topic-naming-scheme
+   adr/*
 
 .. toctree::
    :maxdepth: 2

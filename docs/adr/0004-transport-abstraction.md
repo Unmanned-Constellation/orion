@@ -25,14 +25,15 @@ Key design choices:
 `Subscriber<T>::Callback = std::function<void(const T&, const MessageHeader&)>`. This gives
 compile-time type safety: it is impossible to publish the wrong message type on a topic.
 
-**Envelope is transport-internal.** Each published message is wrapped in an `orion::Envelope`
-(defined in `proto/orion/envelope.proto`) before transmission. The envelope carries a `Header`
-(published_at_ns, source_id) and a type_url for runtime type validation. Service authors never
-create or read envelopes; the transport stamps and validates them automatically.
+**Envelope is transport-internal.** Each published message is wrapped in an `orion::v1::Envelope`
+(defined in `proto/orion/v1/envelope.proto`) before transmission. The envelope carries a
+`orion::v1::Header` (published_at_ns, source_id) and a type_url for runtime type validation.
+Service authors never create or read envelopes; the transport stamps and validates them automatically.
 
-**Timestamp stamping.** `Publisher<T>::publish` stamps `published_at_ns` using
-`std::chrono::system_clock::now()`. Clock abstraction is deferred until simulation requirements
-are understood.
+**Timestamp stamping.** `Publisher<T>::publish` stamps `published_at_ns` by calling
+`clock_->nowNs()` on the `orion::clock::Clock` injected into the `Session` at construction.
+This makes the timestamp source swappable without touching service code (e.g. `WallClock` in
+production, a `SimClock` in simulation).
 
 **Subscriber receives `MessageHeader`.** The callback signature exposes `MessageHeader` (a
 plain struct with `published_at_ns` and `source_id`) so callers can read envelope metadata
@@ -45,8 +46,9 @@ and include domain-specific proto headers directly; they do not see `Envelope` o
 
 - All inter-service communication goes through `Session::advertise<T>` / `Session::subscribe<T>`.
 - Adding a new transport backend requires replacing `session_impl.cpp` only.
-- Simulation time coordination is an open design question; clock abstraction will be added when
-  HIL/SIL/Batch Simulation requirements are understood.
+- Simulation time coordination: clock injection is already implemented. `Session::create` accepts
+  a `std::shared_ptr<orion::clock::Clock>`; `WallClock` is the default. A `SimClock` that
+  subscribes to `orion/swarm/clock` is not yet implemented.
 - Request-reply (Zenoh queryables) is deferred; the abstraction is currently pub-sub only.
 - Domain timestamps (e.g., camera capture time) belong in the proto message fields, not in the
   transport header. `published_at_ns` records when the transport published the message.

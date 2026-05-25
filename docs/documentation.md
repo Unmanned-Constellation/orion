@@ -139,7 +139,7 @@ sphinx-build -W -b html docs docs/_build/html
 ```
 
 All downstream build, test, sanitizer, coverage, and fuzz jobs have `docs` as a
-prerequisite (`needs: [format, commitlint, docs]`). A docs failure blocks the
+prerequisite (`needs: [format, commitlint, docs, proto]`). A docs failure blocks the
 entire pipeline.
 
 What fails the docs job:
