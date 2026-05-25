@@ -55,7 +55,12 @@ jobs:
         run: buf lint
 
       - name: Check for breaking changes
-        run: buf breaking --against '.git#branch=main'
+        run: |
+          if git ls-remote --exit-code origin main 2>/dev/null; then
+            buf breaking --against '.git#branch=main'
+          else
+            echo "No main branch on remote — skipping breaking-change check"
+          fi
 
   # ── Commit message linting ────────────────────────────────────────────────
   commitlint:
@@ -88,7 +93,9 @@ jobs:
         run: pip install -r docs/requirements.txt
 
       - name: Run Doxygen
-        run: doxygen docs/Doxyfile
+        run: |
+          mkdir -p docs/_build/doxygen
+          doxygen docs/Doxyfile
 
       - name: Build Sphinx docs
         run: LC_ALL=C.UTF-8 LANG=C.UTF-8 sphinx-build -W -b html docs docs/_build/html
