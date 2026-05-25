@@ -40,6 +40,9 @@ jobs:
         # Fails the build if there are warnings (-W) to keep docs pristine
         run: sphinx-build -W -b html docs docs/_build/html
 
+      - name: Bypass Jekyll
+        run: touch docs/_build/html/.nojekyll
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
