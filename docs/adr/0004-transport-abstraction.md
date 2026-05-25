@@ -30,9 +30,9 @@ compile-time type safety: it is impossible to publish the wrong message type on 
 (published_at_ns, source_id) and a type_url for runtime type validation. Service authors never
 create or read envelopes; the transport stamps and validates them automatically.
 
-**Injectable clock.** `Session::create` accepts a `std::shared_ptr<Clock>`. In production,
-`WallClock` is used. In simulation, a `SimClock` (future work) reads from the sim time topic.
-No service code ever calls `std::chrono::system_clock::now()` directly.
+**Timestamp stamping.** `Publisher<T>::publish` stamps `published_at_ns` using
+`std::chrono::system_clock::now()`. Clock abstraction is deferred until simulation requirements
+are understood.
 
 **Subscriber receives `MessageHeader`.** The callback signature exposes `MessageHeader` (a
 plain struct with `published_at_ns` and `source_id`) so callers can read envelope metadata
@@ -45,8 +45,8 @@ and include domain-specific proto headers directly; they do not see `Envelope` o
 
 - All inter-service communication goes through `Session::advertise<T>` / `Session::subscribe<T>`.
 - Adding a new transport backend requires replacing `session_impl.cpp` only.
-- Simulation support (SimClock, Docker Compose profile for sim-time publisher) is deferred to
-  a follow-on phase; the Clock injection point is already in place.
+- Simulation time coordination is an open design question; clock abstraction will be added when
+  HIL/SIL/Batch Simulation requirements are understood.
 - Request-reply (Zenoh queryables) is deferred; the abstraction is currently pub-sub only.
 - Domain timestamps (e.g., camera capture time) belong in the proto message fields, not in the
   transport header. `published_at_ns` records when the transport published the message.
