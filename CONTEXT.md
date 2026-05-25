@@ -34,7 +34,7 @@ A lightweight Zenoh process running on the Jetson that bridges the local shared-
 The entry point to the transport layer. Created once per microservice at startup with a `SessionConfig` (vehicle ID, service name) and an injected `Clock`. Factory for `Publisher<T>` and `Subscriber<T>` instances.
 
 ## Publisher
-A typed handle returned by `Session::advertise<T>(topic)`. Calling `publish(msg)` serializes the message, stamps the `MessageHeader`, wraps it in an `Envelope`, and transmits it on the Zenoh Bus.
+A typed handle returned by `Session::advertise<T>(topic)`. Calling `publish(msg)` serializes the message, stamps an `orion::v1::Header` (via the injected `Clock`), wraps everything in an `orion::v1::Envelope`, and transmits it on the Zenoh Bus.
 
 ## Subscriber
 A lifetime handle returned by `Session::subscribe<T>(topic, callback)`. Holds the subscription active until destroyed. The callback receives the typed message and a `MessageHeader`.
