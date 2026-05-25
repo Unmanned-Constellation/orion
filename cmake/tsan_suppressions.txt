@@ -1,0 +1,20 @@
+# Races in Zenoh's internal TCP listener setup (libzenohc.so upstream bug).
+# During Session::open(), the main thread allocates listener state while Zenoh's
+# acceptor thread concurrently copies it before synchronization is established.
+race:zenoh_link_commons*
+
+# Races in Zenoh's Rust Arc drop vs ongoing background thread allocations.
+# The main thread frees Arc-ref-counted session state while Zenoh's networking
+# thread is still performing heap allocations backed by the same allocator pages.
+race:alloc::sync::Arc*drop_slow*
+
+# Races during Zenoh's Tokio runtime startup (libzenohc.so upstream bug).
+# spawn_abortable allocates and initialises a task-tracker future on the main
+# thread while the 'net-0' Tokio worker concurrently copies the same memory
+# before the happens-before edge from spawn to poll is established.
+race:zenoh::net::runtime::Runtime::spawn_abortable*
+
+# Race between Zenoh's UDP unicast socket creation (main thread, bind_ucast_port)
+# and the Tokio I/O driver sending on that socket (net-0 thread) before the
+# socket fd is fully handed off to the async runtime.
+race:zenoh::net::runtime::orchestrator*bind_ucast_port*

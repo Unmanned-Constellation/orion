@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package orion.v1;
+
+import "orion/v1/header.proto";
+
+message Envelope {
+  Header header   = 1;
+  bytes  payload  = 2;
+  string type_url = 3;
+}

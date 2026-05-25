@@ -15,6 +15,29 @@ The devcontainer is the only supported development environment. Everything below
 The full build toolchain (cmake, ninja, clang-18, conan, ccache) is installed identically on top
 of both bases. See [ADR-0003](adr/0003-multi-platform-build-and-deploy.md) for the rationale.
 
+## apt packages
+
+All packages are installed in a single `RUN` layer in `docker/Dockerfile`.
+
+| Package | Purpose |
+|---|---|
+| `cmake` | Build system — configures and drives the ninja build |
+| `make` | Required by some Conan-managed dependencies (e.g. zlib) that use the Unix Makefiles generator |
+| `ninja-build` | Fast parallel build backend used by all CMake presets |
+| `git` | Required by CMake's version detection (`git describe`) and by pre-commit |
+| `python3-pip` | Installs Conan, pre-commit, gersemi, and Sphinx deps |
+| `clang-18` | C++ compiler (`clang`, `clang++`) |
+| `clang-format-18` | Code formatter — enforced by pre-commit hook and CI |
+| `clang-tidy-18` | Static analyser — runs as part of the debug build in CI |
+| `clangd-18` | Language server powering VS Code IntelliSense |
+| `libclang-rt-18-dev` | Compiler-RT runtime libraries: ASan, UBSan, TSan, and libFuzzer |
+| `llvm-18` | LLVM tools used for coverage: `llvm-profdata`, `llvm-cov` |
+| `ccache` | Compiler cache — keeps incremental rebuilds fast across container rebuilds |
+| `doxygen` | Parses C++ doc comments and emits XML consumed by Sphinx/Breathe |
+| `openssh-client` | Allows SSH-based git operations (push, fetch) using the host's forwarded agent |
+
+`protoc` is intentionally absent — it is managed by Conan (`tool_requires("protobuf/5.29.3")`) to guarantee the compiler version matches the runtime library exactly. After `post-create.sh` runs, the Conan-managed `protoc` is symlinked to `/usr/local/bin/protoc` (already on `PATH` via the Dockerfile `ENV`) so the VS Code extension host and all terminals see it without relying on env var inheritance from `postCreateCommand`.
+
 ## Volume mounts
 
 Mounts keep expensive state outside the container so it survives rebuilds and image updates.
@@ -47,13 +70,18 @@ identity as commits made on the host without any extra git config.
 ```bash
 pre-commit install
 bash scripts/environment/initialize_conan.sh
+(. build/Release/generators/conanbuild.sh && ln -sf "$(which protoc)" /usr/local/bin/protoc)
 ```
 
 `pre-commit install` registers the formatting hooks into `.git/hooks/` so they run on every
 `git commit`. `initialize_conan.sh` does the heavy lifting: it detects the host architecture,
-exports the custom Zenoh recipes, runs `conan install` for both the debug and release profiles,
-and configures both CMake presets. See [dependency management](dependency-management.md) for a
-full walkthrough of what that script does.
+registers the vendored Zenoh recipes as a local remote, runs `conan install` for both the debug
+and release profiles, and configures both CMake presets. The final line sources `conanbuild.sh`
+in a subshell just long enough to resolve `protoc`'s path, then symlinks it to
+`/usr/local/bin/protoc` — a location already on `PATH` in the container. This is necessary
+because env vars exported inside `postCreateCommand` are not inherited by the VS Code server
+process. See [dependency management](dependency-management.md) for a full walkthrough of what
+`initialize_conan.sh` does.
 
 The **Conan: Install** VS Code task re-runs `initialize_conan.sh` on demand and is the correct
 way to refresh the environment after changing `conanfile.py` or switching machines.
@@ -67,7 +95,7 @@ Four hooks are configured in `.pre-commit-config.yaml`:
 | `clang-format` | `pre-commit` | Any `*.cpp` / `*.hpp` staged | Fails if any C++ file needs reformatting |
 | `gersemi` | `pre-commit` | Any `CMakeLists.txt` / `*.cmake` staged | Fails if any CMake file needs reformatting |
 | `conan-lockfile` | `pre-commit` | `conanfile.py` staged | Fails if a dependency line changed but `conan.lock` was not re-staged |
-| `commit-msg-format` | `commit-msg` | Every commit | Fails if the header exceeds 72 chars or the type is not in the allowed list |
+| `commit-msg-format` | `commit-msg` | Every commit | Fails if the header exceeds 200 chars or the type is not in the allowed list |
 
 The formatting hooks do not auto-fix. Use the **Format: C++** and **Format: CMake** VS Code tasks
 to fix before committing. The `commit-msg` hook requires `pre-commit install --hook-type commit-msg`
@@ -84,6 +112,19 @@ Docker seccomp restriction that would otherwise block ThreadSanitizer's `persona
 allowing `ctest --preset tsan` to run inside the container. On WSL2 with an older kernel this
 syscall may still fail at the kernel level — see [testing.md](testing.md) for details.
 
+## VS Code extensions
+
+All extensions are declared in `devcontainer.json` and installed automatically when the container is created.
+
+| Extension | ID | Purpose |
+|---|---|---|
+| clangd | `llvm-vs-code-extensions.vscode-clangd` | C++ IntelliSense, go-to-definition, inline diagnostics, and format-on-save via clang-format |
+| CodeLLDB | `vadimcn.vscode-lldb` | Native debugger — launch and attach to C++ binaries with full LLDB support |
+| CMake Tools | `ms-vscode.cmake-tools` | CMake integration — configure, build, and select presets from the status bar |
+| vscode-proto3 | `zxh404.vscode-proto3` | Syntax highlighting and formatting for `.proto` files |
+| Claude Code | `anthropic.claude-code` | AI coding assistant |
+| Live Server | `ritwickdey.LiveServer` | One-click local HTTP server for previewing the generated Sphinx docs site (`docs/_build/html/`) |
+
 ## clangd and IntelliSense
 
 clangd is configured in `devcontainer.json` to read
@@ -99,7 +140,8 @@ keyboard shortcut for the default build task.
 | Task | What it does |
 |---|---|
 | **Conan: Install** | Runs `initialize_conan.sh` — wipes `build/`, installs deps, configures both presets |
-| **Conan: Install (Offline)** | Same as above with `--no-remote`; no network access required |
+| **Conan: Sync Dependencies** | Same but passes `--no-clean` — syncs deps without wiping the Ninja build cache |
+| **Conan: Install (Offline)** | Same as **Conan: Install** with `--no-remote`; no network access required |
 | **Conan: Reinstall (Clean)** | Purges the entire local Conan cache, then reinstalls from scratch |
 | **Conan: Create Lockfile** | Regenerates `conan.lock` from the current `conanfile.py` |
 | **CMake: Configure** | Runs `cmake --preset <debug\|release>` |
@@ -108,7 +150,7 @@ keyboard shortcut for the default build task.
 | **Format: C++** | Runs clang-format in-place on all C++ source files |
 | **Format: CMake** | Runs gersemi in-place on all CMake files |
 | **Lint: C++** | Runs `run-clang-tidy` on `libs/` and `proto/` source |
-| **Docs: Generate (Doxygen)** | Generates HTML documentation into `docs/_build/doxygen/` |
+| **Docs: Build** | Runs Doxygen then Sphinx via the `docs` CMake target — HTML site written to `docs/_build/html/` |
 | **CI: Check Format (C++)** | Dry-run clang-format — fails if any file needs reformatting |
 | **CI: Check Format (CMake)** | Dry-run gersemi — fails if any CMake file needs reformatting |
 | **CI: Check All** | Runs both CI format checks in parallel |

@@ -33,8 +33,9 @@
         "llvm-vs-code-extensions.vscode-clangd",
         "vadimcn.vscode-lldb",
         "ms-vscode.cmake-tools",
-        "zxh404.vscode-proto3",
-        "anthropic.claude-code"
+        "bufbuild.vscode-buf",
+        "anthropic.claude-code",
+        "ritwickdey.LiveServer"
       ],
       "settings": {
         "cmake.cmakePath": "/usr/bin/cmake",

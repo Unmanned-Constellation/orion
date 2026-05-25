@@ -53,7 +53,33 @@ find_package(zenohcxx REQUIRED)
 orion_suppress_dep_warnings(protobuf::libprotobuf zenohc::lib zenohcxx::zenohc)
 
 add_subdirectory(proto)
+add_subdirectory(libs/clock)
+add_subdirectory(libs/app)
 add_subdirectory(libs/transport)
 
 enable_testing()
 add_subdirectory(tests)
+
+find_package(Doxygen QUIET)
+find_program(SPHINX_BUILD_EXECUTABLE sphinx-build)
+if(DOXYGEN_FOUND AND SPHINX_BUILD_EXECUTABLE)
+    add_custom_target(
+        orion_docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_SOURCE_DIR}/docs/Doxyfile
+        COMMAND
+            ${CMAKE_COMMAND} -E env LC_ALL=C.UTF-8 LANG=C.UTF-8
+            ${SPHINX_BUILD_EXECUTABLE} -b html ${CMAKE_SOURCE_DIR}/docs
+            ${CMAKE_SOURCE_DIR}/docs/_build/html
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Building Doxygen XML then Sphinx HTML documentation"
+        VERBATIM
+    )
+elseif(DOXYGEN_FOUND)
+    add_custom_target(
+        orion_docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_SOURCE_DIR}/docs/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Building Doxygen XML (sphinx-build not found, skipping HTML)"
+        VERBATIM
+    )
+endif()

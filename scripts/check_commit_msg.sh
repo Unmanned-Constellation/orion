@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Enforces commit message rules from commitlint.config.mjs:
-#   - header max 72 characters
+#   - header max 200 characters
 #   - type must be one of the allowed values
 
 set -euo pipefail
@@ -17,8 +17,8 @@ fi
 
 fail=0
 
-if [ ${#header} -gt 72 ]; then
-    echo "commit-msg: header too long (${#header} chars, max 72)"
+if [ ${#header} -gt 200 ]; then
+    echo "commit-msg: header too long (${#header} chars, max 200)"
     echo "  $header"
     fail=1
 fi

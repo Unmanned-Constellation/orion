@@ -207,15 +207,32 @@ tested natively instead; see [ci-cd.md](ci-cd.md).
 
 ## Generating documentation
 
-**Docs: Generate (Doxygen)** runs the `docs` CMake target, which:
+The documentation pipeline runs Doxygen then Sphinx. Doxygen parses the public
+headers and emits XML; Sphinx (via the Breathe extension) consumes that XML and
+renders the final HTML site.
 
-1. Creates `docs/_build/doxygen/` if it does not exist
-2. Passes `ORION_PROJECT_VERSION=<version>` as an environment variable to Doxygen — the value
-   was captured from `git describe --tags --abbrev=0` at CMake configure time
-3. Runs `doxygen docs/Doxyfile`
+**Docs: Build** runs the full pipeline:
 
-The output HTML is written to `docs/_build/doxygen/` (gitignored). The version string is embedded
-in the generated pages.
+1. Runs `doxygen docs/Doxyfile` — XML is written to `docs/_build/doxygen/xml/`
+2. Runs `sphinx-build -b html docs docs/_build/html`
 
-See [versioning.md](versioning.md) for how to tag a release so the correct version appears in the
-documentation.
+The final site is at `docs/_build/html/index.html` (gitignored).
+
+To run the pipeline manually from the command line:
+
+```bash
+doxygen docs/Doxyfile
+sphinx-build -W -b html docs docs/_build/html
+```
+
+Install the Python dependencies first if they are not already present:
+
+```bash
+pip install -r docs/requirements.txt
+```
+
+See [documentation.md](documentation.md) for the full pipeline reference,
+Doxygen comment style guide, and how to expose new symbols in the API reference.
+
+See [versioning.md](versioning.md) for how to tag a release so the correct
+version appears in the generated pages.
