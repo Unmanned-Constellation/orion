@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package orion.v1;
+
+message Header {
+  uint64 published_at_ns = 1;
+  string source_id       = 2;
+}
