@@ -57,9 +57,8 @@ jobs:
       - name: Check for breaking changes
         run: |
           if git ls-remote --exit-code origin main 2>/dev/null; then
-            git fetch origin main:main
-            if git ls-tree -r main --name-only | grep -q '\.proto$'; then
-              buf breaking --against '.git#branch=main'
+            if git ls-tree -r origin/main --name-only | grep -q '\.proto$'; then
+              buf breaking --against '.git#branch=origin/main'
             else
               echo "No .proto files on main — skipping breaking-change check"
             fi
