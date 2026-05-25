@@ -1,11 +1,12 @@
 # CI/CD
 
-Continuous integration runs on GitHub Actions. Two workflows exist:
+Continuous integration runs on GitHub Actions. Three workflows exist:
 
 | Workflow file | Triggers | Purpose |
 |---|---|---|
 | `.github/workflows/ci.yml` | Push to `main`, all PRs | Build, test, lint, sanitize, coverage, fuzz, docs, proto schema |
 | `.github/workflows/changelog.yml` | Push of `v*` tag | Generate CHANGELOG and create GitHub Release |
+| `.github/workflows/docs.yml` | Push to `main`, manual dispatch | Build Sphinx/Doxygen site and deploy to GitHub Pages |
 
 ## Custom actions
 
@@ -38,8 +39,8 @@ each job only needs to pass a Conan profile and an optional list of extra apt pa
 
 ## CI jobs
 
-The fast-check jobs (format, commitlint, proto, docs) run in parallel with each other. All
-build, test, sanitizer, coverage, and fuzz jobs depend on those four via `needs:` and only
+The fast-check jobs (format, proto, docs) run in parallel with each other. All
+build, test, sanitizer, coverage, and fuzz jobs depend on those three via `needs:` and only
 start after they all pass. Every job sets `CC=clang-18` and `CXX=clang++-18` so Conan and
 CMake use clang rather than the runner's default GCC — required because Conan injects
 `-stdlib=libstdc++` and GCC rejects that flag.
@@ -55,14 +56,6 @@ Checks all C++ and CMake files are correctly formatted. No build required — fa
 
 If this job fails, run **Format: C++** and **Format: CMake** locally, then push again.
 
-### Commit messages
-
-Runs `wagoid/commitlint-github-action` against every commit in the push or PR using the rules in
-`commitlint.config.mjs`. Enforces [Conventional Commits](https://www.conventionalcommits.org):
-`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:`, `perf:`, `build:`, `revert:`.
-
-Header max length: 200 characters.
-
 ### Proto schema
 
 Runs two `buf` checks against the `proto/` directory:
@@ -77,8 +70,8 @@ Runs two `buf` checks against the `proto/` directory:
 ### Docs coverage
 
 Validates that all public C++ symbols are documented and that the Sphinx site
-builds without warnings. Runs in parallel with **Format**, **Commit messages**, and **Proto schema**
-— all downstream jobs gate on these via `needs: [format, commitlint, docs, proto]`.
+builds without warnings. Runs in parallel with **Format** and **Proto schema**
+— all downstream jobs gate on these via `needs: [format, docs, proto]`.
 
 | Step | Command |
 |---|---|
@@ -196,7 +189,6 @@ profile.
 Every job must pass before a PR can be merged. In particular:
 
 - Formatting error → **Format** fails
-- Non-conventional commit message → **Commit messages** fails
 - Undocumented public symbol or Sphinx warning → **Docs coverage** fails
 - Proto style violation → **Proto schema** (lint) fails
 - Backward-incompatible schema change → **Proto schema** (breaking) fails
