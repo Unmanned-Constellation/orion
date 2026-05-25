@@ -12,11 +12,11 @@ namespace orion::transport
 template <typename T>
 void Publisher<T>::publish(const T& msg)
 {
-    orion::v1::Header hdr;
+    auto hdr = orion::v1::Header{};
     hdr.set_published_at_ns(clock_->nowNs());
     hdr.set_source_id(source_id_);
 
-    orion::v1::Envelope env;
+    auto env              = orion::v1::Envelope{};
     *env.mutable_header() = hdr;
     env.set_payload(msg.SerializeAsString());
     env.set_type_url(T::descriptor()->full_name());

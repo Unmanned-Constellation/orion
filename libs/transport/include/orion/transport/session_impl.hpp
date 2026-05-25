@@ -10,38 +10,39 @@ namespace orion::transport
 {
 
 template <typename T>
-Publisher<T> Session::advertise(std::string_view topic)
+auto Session::advertise(std::string_view topic) -> Publisher<T>
 {
     return Publisher<T>(makePublisherBackend(topic), clock_, source_id_);
 }
 
 template <typename T>
-Subscriber<T> Session::subscribe(std::string_view topic, typename Subscriber<T>::Callback callback)
+auto Session::subscribe(std::string_view                 topic,
+                        typename Subscriber<T>::Callback callback) -> Subscriber<T>
 {
-    const std::string expected_type = T::descriptor()->full_name();
+    auto expected_type = std::string{T::descriptor()->full_name()};
 
-    RawCallback raw = [cb       = std::move(callback),
-                       expected = std::move(expected_type)](std::string_view bytes) {
-        orion::v1::Envelope env;
-        if (!env.ParseFromArray(bytes.data(), static_cast<int>(bytes.size())))
-        {
-            return;
-        }
-        if (env.type_url() != expected)
-        {
-            return;
-        }
-        T msg;
-        if (!msg.ParseFromString(env.payload()))
-        {
-            return;
-        }
-        MessageHeader hdr{
-            .published_at_ns = env.header().published_at_ns(),
-            .source_id       = env.header().source_id(),
-        };
-        cb(msg, hdr);
-    };
+    auto raw = RawCallback{
+        [cb = std::move(callback), expected = std::move(expected_type)](std::string_view bytes) {
+            auto env = orion::v1::Envelope{};
+            if (!env.ParseFromArray(bytes.data(), static_cast<int>(bytes.size())))
+            {
+                return;
+            }
+            if (env.type_url() != expected)
+            {
+                return;
+            }
+            auto msg = T{};
+            if (!msg.ParseFromString(env.payload()))
+            {
+                return;
+            }
+            auto hdr = MessageHeader{
+                .published_at_ns = env.header().published_at_ns(),
+                .source_id       = env.header().source_id(),
+            };
+            cb(msg, hdr);
+        }};
 
     return Subscriber<T>(makeSubscriberBackend(topic, std::move(raw)));
 }

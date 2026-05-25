@@ -17,12 +17,12 @@ class SubscriberBackend
 {
   public:
     /// @cond
-    SubscriberBackend()                                    = default;
-    SubscriberBackend(const SubscriberBackend&)            = default;
-    SubscriberBackend& operator=(const SubscriberBackend&) = default;
-    SubscriberBackend(SubscriberBackend&&)                 = default;
-    SubscriberBackend& operator=(SubscriberBackend&&)      = default;
-    virtual ~SubscriberBackend()                           = default;
+    SubscriberBackend()                                            = default;
+    SubscriberBackend(const SubscriberBackend&)                    = default;
+    auto operator=(const SubscriberBackend&) -> SubscriberBackend& = default;
+    SubscriberBackend(SubscriberBackend&&)                         = default;
+    auto operator=(SubscriberBackend&&) -> SubscriberBackend&      = default;
+    virtual ~SubscriberBackend()                                   = default;
     /// @endcond
 };
 
@@ -43,11 +43,11 @@ class Subscriber
     {
     }
 
-    Subscriber(const Subscriber&)            = delete;
-    Subscriber& operator=(const Subscriber&) = delete;
-    Subscriber(Subscriber&&)                 = default;
-    Subscriber& operator=(Subscriber&&)      = default;
-    ~Subscriber()                            = default;
+    Subscriber(const Subscriber&)                    = delete;
+    auto operator=(const Subscriber&) -> Subscriber& = delete;
+    Subscriber(Subscriber&&)                         = default;
+    auto operator=(Subscriber&&) -> Subscriber&      = default;
+    ~Subscriber()                                    = default;
     /// @endcond
 
   private:

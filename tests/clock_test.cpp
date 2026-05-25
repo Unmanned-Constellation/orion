@@ -1,6 +1,9 @@
+#include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <stdexcept>
 #include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -14,74 +17,74 @@ using orion::clock::WallClock;
 
 TEST(WallClockTest, NowNsIsMonotonic)
 {
-    WallClock      clock;
-    const uint64_t first  = clock.nowNs();
-    const uint64_t second = clock.nowNs();
-    EXPECT_GE(second, first);
+    const WallClock CLOCK;
+    const uint64_t  FIRST  = CLOCK.nowNs();
+    const uint64_t  SECOND = CLOCK.nowNs();
+    EXPECT_GE(SECOND, FIRST);
 }
 
 TEST(WallClockTest, NowNsMatchesSystemClock)
 {
-    WallClock      clock;
-    const auto     before = std::chrono::system_clock::now();
-    const uint64_t now_ns = clock.nowNs();
-    const auto     after  = std::chrono::system_clock::now();
+    const WallClock CLOCK;
+    const auto      BEFORE = std::chrono::system_clock::now();
+    const uint64_t  NOW_NS = CLOCK.nowNs();
+    const auto      AFTER  = std::chrono::system_clock::now();
 
-    const auto before_ns = static_cast<uint64_t>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(before.time_since_epoch()).count());
-    const auto after_ns = static_cast<uint64_t>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(after.time_since_epoch()).count());
+    const auto BEFORE_NS = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(BEFORE.time_since_epoch()).count());
+    const auto AFTER_NS = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(AFTER.time_since_epoch()).count());
 
-    EXPECT_GE(now_ns, before_ns);
-    EXPECT_LE(now_ns, after_ns);
+    EXPECT_GE(NOW_NS, BEFORE_NS);
+    EXPECT_LE(NOW_NS, AFTER_NS);
 }
 
 TEST(WallClockTest, SleepUntilPastTargetReturnsImmediately)
 {
     WallClock      clock;
-    const uint64_t past_ns = clock.nowNs() - 1'000'000; // 1 ms in the past
-    const auto     start   = std::chrono::steady_clock::now();
-    clock.sleepUntil(past_ns);
-    const auto elapsed = std::chrono::steady_clock::now() - start;
-    EXPECT_LT(elapsed, 5ms);
+    const uint64_t PAST_NS = clock.nowNs() - 1'000'000; // 1 ms in the past
+    const auto     START   = std::chrono::steady_clock::now();
+    clock.sleepUntil(PAST_NS);
+    const auto ELAPSED = std::chrono::steady_clock::now() - START;
+    EXPECT_LT(ELAPSED, 5ms);
 }
 
 TEST(WallClockTest, SleepUntilFutureTargetWakesAtOrAfterTarget)
 {
     WallClock      clock;
-    const uint64_t target_ns = clock.nowNs() + 20'000'000; // 20 ms ahead
-    clock.sleepUntil(target_ns);
-    EXPECT_GE(clock.nowNs(), target_ns);
+    const uint64_t TARGET_NS = clock.nowNs() + 20'000'000; // 20 ms ahead
+    clock.sleepUntil(TARGET_NS);
+    EXPECT_GE(clock.nowNs(), TARGET_NS);
 }
 
 // --- ManualClock ---
 
 TEST(ManualClockTest, InitialNowNsMatchesConstructorArg)
 {
-    ManualClock clock(42'000);
-    EXPECT_EQ(clock.nowNs(), 42'000u);
+    const ManualClock CLOCK(42'000);
+    EXPECT_EQ(CLOCK.nowNs(), 42'000U);
 }
 
 TEST(ManualClockTest, DefaultInitialTimeIsZero)
 {
-    ManualClock clock;
-    EXPECT_EQ(clock.nowNs(), 0u);
+    const ManualClock CLOCK;
+    EXPECT_EQ(CLOCK.nowNs(), 0U);
 }
 
 TEST(ManualClockTest, AdvanceIncrementsTime)
 {
     ManualClock clock(1'000);
     clock.advance(500);
-    EXPECT_EQ(clock.nowNs(), 1'500u);
+    EXPECT_EQ(clock.nowNs(), 1'500U);
     clock.advance(500);
-    EXPECT_EQ(clock.nowNs(), 2'000u);
+    EXPECT_EQ(clock.nowNs(), 2'000U);
 }
 
 TEST(ManualClockTest, SetNowOverridesTime)
 {
     ManualClock clock(1'000);
     clock.setNow(9'999);
-    EXPECT_EQ(clock.nowNs(), 9'999u);
+    EXPECT_EQ(clock.nowNs(), 9'999U);
 }
 
 TEST(ManualClockTest, SetNowBackwardsThrows)
@@ -106,16 +109,16 @@ TEST(ManualClockTest, WakeUnblocksSleeperWithoutAdvancingTime)
     clock.wake();
     waiter.join();
     EXPECT_TRUE(woken);
-    EXPECT_EQ(clock.nowNs(), 0u); // time unchanged
+    EXPECT_EQ(clock.nowNs(), 0U); // time unchanged
 }
 
 TEST(ManualClockTest, SleepUntilAlreadyPassedReturnsImmediately)
 {
     ManualClock clock(1'000);
-    const auto  start = std::chrono::steady_clock::now();
+    const auto  START = std::chrono::steady_clock::now();
     clock.sleepUntil(500); // target is in the past
-    const auto elapsed = std::chrono::steady_clock::now() - start;
-    EXPECT_LT(elapsed, 5ms);
+    const auto ELAPSED = std::chrono::steady_clock::now() - START;
+    EXPECT_LT(ELAPSED, 5ms);
 }
 
 TEST(ManualClockTest, SleepUntilBlocksUntilAdvanced)
@@ -157,12 +160,12 @@ TEST(ManualClockTest, SleepUntilBlocksUntilSetNow)
 TEST(ManualClockTest, MultipleWaitersAllWakeOnAdvance)
 {
     ManualClock      clock(0);
-    constexpr int    kWaiters = 4;
+    constexpr int    K_WAITERS = 4;
     std::atomic<int> woken{0};
 
     std::vector<std::thread> threads;
-    threads.reserve(kWaiters);
-    for (int i = 0; i < kWaiters; ++i)
+    threads.reserve(K_WAITERS);
+    for (int i = 0; i < K_WAITERS; ++i)
     {
         threads.emplace_back([&] {
             clock.sleepUntil(100);
@@ -178,5 +181,5 @@ TEST(ManualClockTest, MultipleWaitersAllWakeOnAdvance)
     {
         thr.join();
     }
-    EXPECT_EQ(woken.load(), kWaiters);
+    EXPECT_EQ(woken.load(), K_WAITERS);
 }

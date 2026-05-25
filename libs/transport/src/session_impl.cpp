@@ -1,6 +1,5 @@
 #include <memory>
 #include <stdexcept>
-#include <string>
 #include <string_view>
 #include <utility>
 
@@ -30,7 +29,7 @@ class SessionImpl
   public:
     explicit SessionImpl(zenoh::Session session) : session_(std::move(session)) {}
 
-    zenoh::Session& session() { return session_; }
+    auto session() -> zenoh::Session& { return session_; }
 
   private:
     zenoh::Session session_;
@@ -45,7 +44,7 @@ class ZenohPublisherBackend final : public PublisherBackend
 
     void send(std::string_view bytes) override
     {
-        zenoh::ZResult err{};
+        auto err = zenoh::ZResult{};
         publisher_.put(zenoh::Bytes(bytes), zenoh::Publisher::PutOptions::create_default(), &err);
         if (err != Z_OK)
         {
@@ -78,12 +77,13 @@ Session::Session(std::unique_ptr<SessionImpl> impl) : impl_(std::move(impl)) {}
 
 Session::~Session() = default;
 
-Session Session::create(SessionConfig config, std::shared_ptr<orion::clock::Clock> clock)
+auto Session::create(SessionConfig                               config,
+                     const std::shared_ptr<orion::clock::Clock>& clock) -> Session
 {
-    zenoh::ZResult err{};
-    auto           zenoh_config = config.zenoh_config_path
-                                      ? zenoh::Config::from_file(*config.zenoh_config_path, &err)
-                                      : zenoh::Config::create_default(&err);
+    auto err          = zenoh::ZResult{};
+    auto zenoh_config = config.zenoh_config_path
+                            ? zenoh::Config::from_file(*config.zenoh_config_path, &err)
+                            : zenoh::Config::create_default(&err);
     if (err != Z_OK)
     {
         throw std::runtime_error("Session::create: failed to build Zenoh config");
@@ -96,15 +96,17 @@ Session Session::create(SessionConfig config, std::shared_ptr<orion::clock::Cloc
     }
 
     auto session       = Session(std::make_unique<SessionImpl>(std::move(zenoh_session)));
-    session.clock_     = std::move(clock);
+    session.clock_     = clock;
     session.source_id_ = std::move(config.service_name);
     return session;
 }
 
-std::unique_ptr<PublisherBackend> Session::makePublisherBackend(std::string_view topic)
+auto Session::makePublisherBackend(
+    std::string_view topic) // NOLINT(readability-convert-member-functions-to-static)
+    -> std::unique_ptr<PublisherBackend>
 {
-    zenoh::ZResult err{};
-    auto           pub =
+    auto err = zenoh::ZResult{}; // NOLINT(misc-const-correctness)
+    auto pub =
         impl_->session().declare_publisher(zenoh::KeyExpr(std::string(topic)),
                                            zenoh::Session::PublisherOptions::create_default(),
                                            &err);
@@ -115,10 +117,11 @@ std::unique_ptr<PublisherBackend> Session::makePublisherBackend(std::string_view
     return std::make_unique<ZenohPublisherBackend>(std::move(pub));
 }
 
-std::unique_ptr<SubscriberBackend> Session::makeSubscriberBackend(std::string_view topic,
-                                                                  RawCallback      callback)
+auto Session::makeSubscriberBackend( // NOLINT(readability-convert-member-functions-to-static)
+    std::string_view topic,
+    RawCallback      callback) -> std::unique_ptr<SubscriberBackend>
 {
-    zenoh::ZResult err{};
+    auto err = zenoh::ZResult{}; // NOLINT(misc-const-correctness)
 
     auto on_sample = [callback](const zenoh::Sample& sample) {
         const auto& payload = sample.get_payload();

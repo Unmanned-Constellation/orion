@@ -68,6 +68,7 @@ if(RUN_CLANG_TIDY)
             "^${CMAKE_SOURCE_DIR}/(libs|proto|tests)/"
         COMMENT "Running clang-tidy"
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        DEPENDS orion_proto
         VERBATIM
     )
 endif()

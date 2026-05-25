@@ -38,10 +38,10 @@ class Publisher
     {
     }
 
-    Publisher(const Publisher&)            = delete;
-    Publisher& operator=(const Publisher&) = delete;
-    Publisher(Publisher&&)                 = default;
-    Publisher& operator=(Publisher&&)      = default;
+    Publisher(const Publisher&)                    = delete;
+    auto operator=(const Publisher&) -> Publisher& = delete;
+    Publisher(Publisher&&)                         = default;
+    auto operator=(Publisher&&) -> Publisher&      = default;
     /// @endcond
 
     /// Serializes @p msg into an Envelope and publishes it on the bus.
