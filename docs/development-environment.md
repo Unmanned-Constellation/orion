@@ -36,7 +36,7 @@ All packages are installed in a single `RUN` layer in `docker/Dockerfile`.
 | `doxygen` | Parses C++ doc comments and emits XML consumed by Sphinx/Breathe |
 | `openssh-client` | Allows SSH-based git operations (push, fetch) using the host's forwarded agent |
 
-`protoc` is intentionally absent — it is managed by Conan (`tool_requires("protobuf/5.29.3")`) to guarantee the compiler version matches the runtime library exactly. After `post-create.sh` runs, the Conan-managed `protoc` is symlinked to `/usr/local/bin/protoc` (already on `PATH` via the Dockerfile `ENV`) so the VS Code extension host and all terminals see it without relying on env var inheritance from `postCreateCommand`.
+`protoc` is intentionally absent — it is managed by Conan (`tool_requires("protobuf/5.29.3")`) to guarantee the compiler version matches the runtime library exactly. The Conan-managed `protoc` is available after running `initialize_conan.sh` via the `conanbuild.sh` environment script generated into `build/Debug/generators/` and `build/Release/generators/`.
 
 ## Volume mounts
 
@@ -70,36 +70,29 @@ identity as commits made on the host without any extra git config.
 ```bash
 pre-commit install
 bash scripts/environment/initialize_conan.sh
-(. build/Release/generators/conanbuild.sh && ln -sf "$(which protoc)" /usr/local/bin/protoc)
 ```
 
 `pre-commit install` registers the formatting hooks into `.git/hooks/` so they run on every
 `git commit`. `initialize_conan.sh` does the heavy lifting: it detects the host architecture,
 registers the vendored Zenoh recipes as a local remote, runs `conan install` for both the debug
-and release profiles, and configures both CMake presets. The final line sources `conanbuild.sh`
-in a subshell just long enough to resolve `protoc`'s path, then symlinks it to
-`/usr/local/bin/protoc` — a location already on `PATH` in the container. This is necessary
-because env vars exported inside `postCreateCommand` are not inherited by the VS Code server
-process. See [dependency management](dependency-management.md) for a full walkthrough of what
-`initialize_conan.sh` does.
+and release profiles, and configures both CMake presets. See [dependency management](dependency-management.md)
+for a full walkthrough of what `initialize_conan.sh` does.
 
 The **Conan: Install** VS Code task re-runs `initialize_conan.sh` on demand and is the correct
 way to refresh the environment after changing `conanfile.py` or switching machines.
 
 ## Pre-commit hooks
 
-Four hooks are configured in `.pre-commit-config.yaml`:
+Three hooks are configured in `.pre-commit-config.yaml`:
 
 | Hook | Stage | Trigger | Effect |
 |---|---|---|---|
 | `clang-format` | `pre-commit` | Any `*.cpp` / `*.hpp` staged | Fails if any C++ file needs reformatting |
 | `gersemi` | `pre-commit` | Any `CMakeLists.txt` / `*.cmake` staged | Fails if any CMake file needs reformatting |
 | `conan-lockfile` | `pre-commit` | `conanfile.py` staged | Fails if a dependency line changed but `conan.lock` was not re-staged |
-| `commit-msg-format` | `commit-msg` | Every commit | Fails if the header exceeds 200 chars or the type is not in the allowed list |
 
 The formatting hooks do not auto-fix. Use the **Format: C++** and **Format: CMake** VS Code tasks
-to fix before committing. The `commit-msg` hook requires `pre-commit install --hook-type commit-msg`
-to be run once (the devcontainer's `post-create.sh` does this automatically).
+to fix before committing.
 
 ## Sanitizer and coverage tools
 
