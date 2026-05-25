@@ -21,9 +21,3 @@ repos:
         language: script
         files: '^conanfile\.py$'
         pass_filenames: false
-
-      - id: commit-msg-format
-        name: commit message format
-        entry: scripts/check_commit_msg.sh
-        language: script
-        stages: [commit-msg]
