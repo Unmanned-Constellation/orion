@@ -57,7 +57,7 @@ jobs:
       - name: Check for breaking changes
         run: |
           if git ls-remote --exit-code origin main 2>/dev/null; then
-            git fetch origin main
+            git fetch origin main:main
             buf breaking --against '.git#branch=main'
           else
             echo "No main branch on remote — skipping breaking-change check"
