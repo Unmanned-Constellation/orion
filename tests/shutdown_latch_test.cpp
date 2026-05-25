@@ -10,8 +10,6 @@
 
 #include "orion/app/shutdown_latch.hpp"
 
-using namespace std::chrono_literals;
-
 TEST(ShutdownLatchTest, InitiallyNotStopped)
 {
     const orion::app::ShutdownLatch LATCH;
@@ -38,7 +36,7 @@ TEST(ShutdownLatchTest, WaitReturnsAfterStop)
     orion::app::ShutdownLatch latch;
 
     std::thread stopper([&] {
-        std::this_thread::sleep_for(10ms);
+        std::this_thread::sleep_for(std::chrono::milliseconds{10});
         latch.stop();
     });
 
@@ -48,8 +46,8 @@ TEST(ShutdownLatchTest, WaitReturnsAfterStop)
 
     stopper.join();
     EXPECT_TRUE(latch.stopped());
-    EXPECT_GE(ELAPSED, 10ms);
-    EXPECT_LT(ELAPSED, 500ms);
+    EXPECT_GE(ELAPSED, std::chrono::milliseconds{10});
+    EXPECT_LT(ELAPSED, std::chrono::milliseconds{500});
 }
 
 TEST(ShutdownLatchTest, WaitReturnsImmediatelyIfAlreadyStopped)
@@ -61,7 +59,7 @@ TEST(ShutdownLatchTest, WaitReturnsImmediatelyIfAlreadyStopped)
     latch.wait();
     const auto ELAPSED = std::chrono::steady_clock::now() - START;
 
-    EXPECT_LT(ELAPSED, 5ms);
+    EXPECT_LT(ELAPSED, std::chrono::milliseconds{5});
 }
 
 TEST(ShutdownLatchTest, MultipleWaitersAllWake)
@@ -79,7 +77,7 @@ TEST(ShutdownLatchTest, MultipleWaitersAllWake)
         });
     }
 
-    std::this_thread::sleep_for(10ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
     EXPECT_EQ(woken.load(), 0);
 
     latch.stop();
@@ -95,7 +93,7 @@ TEST(ShutdownLatchTest, SigtermTriggersShutdown)
     const orion::app::ShutdownLatch LATCH;
 
     std::thread sender([] {
-        std::this_thread::sleep_for(10ms);
+        std::this_thread::sleep_for(std::chrono::milliseconds{10});
         kill(getpid(), SIGTERM); // NOLINT(misc-include-cleaner)
     });
 

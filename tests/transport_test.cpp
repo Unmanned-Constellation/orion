@@ -17,8 +17,6 @@
 #include "orion/v1/envelope.pb.h"
 #include "orion/v1/header.pb.h"
 
-using namespace std::chrono_literals;
-
 namespace
 {
 
@@ -42,7 +40,8 @@ orion::transport::SessionConfig makeConfig(const std::string& service_name = "te
 }
 
 // Waits up to |timeout| for |flag| to become true. Returns whether it did.
-bool waitFor(const std::atomic<bool>& flag, std::chrono::milliseconds timeout = 500ms)
+bool waitFor(const std::atomic<bool>&  flag,
+             std::chrono::milliseconds timeout = std::chrono::milliseconds{500})
 {
     const auto DEADLINE = std::chrono::steady_clock::now() + timeout;
     while (!flag.load())
@@ -51,7 +50,7 @@ bool waitFor(const std::atomic<bool>& flag, std::chrono::milliseconds timeout = 
         {
             return false;
         }
-        std::this_thread::sleep_for(5ms);
+        std::this_thread::sleep_for(std::chrono::milliseconds{5});
     }
     return true;
 }
@@ -161,7 +160,7 @@ TEST(TransportTest, TypeMismatchDropped)
     pub.publish(orion::v1::Header{});
 
     // Give the message time to arrive — callback must NOT fire.
-    std::this_thread::sleep_for(100ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds{100});
     EXPECT_FALSE(received.load())
         << "Callback fired despite type mismatch"; // NOLINT(readability-implicit-bool-conversion)
 }

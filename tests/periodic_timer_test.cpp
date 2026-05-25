@@ -10,7 +10,6 @@
 #include "orion/app/shutdown_latch.hpp"
 #include "orion/clock/clock.hpp"
 
-using namespace std::chrono_literals;
 using orion::app::PeriodicTimer;
 using orion::app::ShutdownLatch;
 using orion::clock::ManualClock;
@@ -26,7 +25,7 @@ void tick(ManualClock& clock, std::atomic<int>& count, int expected)
     clock.advance(K_PERIOD_NS);
     while (count.load(std::memory_order_acquire) < expected)
     {
-        std::this_thread::sleep_for(1ms);
+        std::this_thread::sleep_for(std::chrono::milliseconds{1});
     }
 }
 
@@ -108,7 +107,7 @@ TEST(PeriodicTimerTest, OverrunDetectedWhenCallbackExceedsPeriod)
     clock->advance(K_PERIOD_NS);
     while (count.load() < 1)
     {
-        std::this_thread::sleep_for(1ms);
+        std::this_thread::sleep_for(std::chrono::milliseconds{1});
     }
 
     stopAndJoin(latch, *clock, runner);
@@ -139,12 +138,12 @@ TEST(PeriodicTimerTest, OverrunDoesNotCauseCatchUpBurst)
     clock->advance(K_PERIOD_NS);
     while (count.load() < 1)
     {
-        std::this_thread::sleep_for(1ms);
+        std::this_thread::sleep_for(std::chrono::milliseconds{1});
     }
 
     // Give a moment for the timer to re-sleep — should be waiting at
     // (overrun_time + period), not firing immediately multiple times.
-    std::this_thread::sleep_for(5ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds{5});
     EXPECT_EQ(count.load(), 1); // no catch-up burst
 
     // Confirm the timer is still healthy after the overrun.
