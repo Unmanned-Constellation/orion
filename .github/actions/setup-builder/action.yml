@@ -67,7 +67,7 @@ runs:
     - name: Register local recipes remote
       shell: bash
       run: |
-        conan remote add orion-local "$(pwd)/conan/recipes" \
+        conan remote add orion-local "$GITHUB_WORKSPACE/conan/recipes" \
           -t local-recipes-index --index 0 -f
 
     - name: Install dependencies
