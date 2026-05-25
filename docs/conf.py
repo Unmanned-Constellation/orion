@@ -18,8 +18,7 @@ exhale_args = {
     "doxygenStripFromPath":  "..",
     "rootFileTitle":         "Orion API Reference",
     "createTreeView":        True,
-    "exhaleExecutesDoxygen": False,
-    "exhaleUseDoxyfile":     True
+    "exhaleExecutesDoxygen": False
 }
 
 html_theme = "furo"
