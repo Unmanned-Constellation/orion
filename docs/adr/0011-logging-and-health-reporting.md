@@ -126,19 +126,19 @@ The two are paired by convention, not enforced mechanically in this iteration.
 ### What services must not do
 
 - Call `std::abort`, `std::terminate`, or `std::exit` on recoverable errors.
-- Throw exceptions that propagate out of a `PeriodicTimer` callback (the timer has no
+- Throw exceptions that propagate out of a `FrameScheduler` callback (the scheduler has no
   catch — an uncaught exception terminates the process).
 - Use `std::cerr` directly — all diagnostic output goes through the spdlog logger.
 
 ## Consequences
 
 - `spdlog` is added to `conanfile.py` and `conan.lock` when implementation begins.
-- `PeriodicTimer`'s `std::cerr` overrun report is replaced with `spdlog::warn`.
+- `FrameScheduler`'s overrun report uses `spdlog::warn` rather than `std::cerr`.
 - `orion_app` gains a `LoggerFactory` type that encapsulates root logger construction
   (thread pool, sinks) and vends named child loggers. Components accept
   `std::shared_ptr<spdlog::logger>` — they do not call `spdlog::get` or construct sinks.
 - Services gain a new startup dependency: constructing `LoggerFactory` before any component
-  that takes a logger, and before `PeriodicTimer`.
+  that takes a logger, and before `FrameScheduler`.
 - The `orion/system/health/**` topic namespace is reserved. The `Health` proto message and
   `HealthPublisher` type are deferred to the implementation PR.
 - Off-board consumers can subscribe to health topics over the existing Zenoh connection —

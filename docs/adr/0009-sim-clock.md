@@ -1,74 +1,149 @@
 # ADR 0009: SimClock for scaled and replay simulation
 
 ## Status
-Proposed
+Accepted — phased implementation (Phase 1 complete, Phase 2 in progress, Phase 3 future)
 
 ## Context
-`WallClock` runs services at real time. `ManualClock` is step-driven and
-suitable for unit tests but not for continuous simulation. A third clock
-implementation is needed for two scenarios:
+`WallClock` runs services at real time. `ManualClock` is step-driven and suitable
+for unit tests but not for continuous simulation. A third clock implementation is
+needed for two scenarios:
 
 1. **Scaled real-time** — run the full service stack at N× wall speed for
-   integration testing and hardware-in-the-loop runs. All services advance
-   together; no external step driver is required.
+   integration testing and hardware-in-the-loop runs on the Orin Nano. All
+   services advance together; no external step driver is required.
 
-2. **Replay** — drive time from a recorded log. An external driver publishes
-   the current sim time on a well-known topic; services block in `sleepUntil`
-   until the driver advances past their deadline.
+2. **Replay** — drive time from a recorded log. An external driver publishes the
+   current sim time on a well-known Zenoh topic; services block in `sleepUntil`
+   until the driver advances past their deadline. This is the long-term target
+   for deterministic reproduction of field events (e.g. perception anomalies from
+   Cut drone flight logs).
 
 Both scenarios share the same requirement: `sleepUntil` must block until
 simulated time reaches the target, not wall time.
 
-`Publisher<T>::publish` already stamps `published_at_ns` using the injected
-clock (ADR-0004), so all inter-service timestamps are automatically correct
-when `SimClock` is injected — no service code changes required.
+`Publisher<T>::publish` already stamps `published_at_ns` using the injected clock
+(ADR-0004), so all inter-service timestamps are automatically correct when a
+simulation clock is injected — no service code changes required. The clock
+dependency in `orion_transport` is therefore load-bearing and must not be removed.
 
 ## Decision
 
-Implement `SimClock` as a third `Clock` implementation with two modes selected
-at construction:
+Two separate classes implement the two simulation modes. Both inherit `Clock` and
+live in `namespace orion::clock`.
 
-**Scaled mode** — `SimClock(double scale)`. Time advances automatically at
-`scale × wall rate`. `nowNs()` computes `sim_start + (wall_now - wall_start) * scale`.
-`sleepUntil(target_ns)` converts the target back to wall time and calls
-`std::this_thread::sleep_for` with the scaled delta.
+---
 
-**Replay mode** — `SimClock(ReplayMode)`. Time does not advance automatically.
-An internal subscriber listens on `orion/{vehicle_id}/clock/sim_time` for
-`SimTimeUpdate` messages published by the replay driver. On receipt it calls the
-same `setNow` / notify path as `ManualClock`, unblocking any `sleepUntil`
-waiters whose deadline has been reached.
+### Phase 1 — `SimClock` (scaled mode, `orion_clock`)
 
-Key design choices:
+`SimClock` lives directly in `clock.hpp`. It has no dependencies beyond the C++
+standard library, preserving `orion_clock`'s zero-dependency property.
 
-**Epoch anchoring.** `nowNs()` in scaled mode computes time relative to the
-wall instant at construction (`wall_start_`, `sim_start_`). This ensures
-`PeriodicTimer`'s `next_tick_` (anchored at construction) and `nowNs()` are
-always in the same reference frame.
+**Constructors:**
 
-**`sleepUntil` precision.** Scaled mode sleeps for `(target_ns - nowNs()) / scale`
-wall nanoseconds. At 10× scale a 10 ms sim sleep becomes a 1 ms wall sleep —
-below OS timer resolution. Services running at very high sim speeds will
-experience wakeup jitter; this is acceptable for non-real-time simulation.
+```cpp
+// Production: sim time starts at wall time now, advances at scale× wall rate.
+explicit SimClock(double scale);
 
-**Replay mode uses the same condvar pattern as `ManualClock`.** The subscriber
-callback calls `setNow` which notifies all waiters. `SimClock` in replay mode
-is therefore testable with the same `ManualClock`-style test helpers.
+// Test / replay anchor: sim time starts at sim_start_ns.
+explicit SimClock(double scale, uint64_t sim_start_ns);
+```
 
-**Clock topic.** `orion/{vehicle_id}/clock/sim_time` carries a `SimTimeUpdate`
-proto (fields: `sim_time_ns`, `scale`). The vehicle ID is read from the
-`ORION_VEHICLE_ID` environment variable at `SimClock` construction.
+Both constructors throw `std::invalid_argument` if `scale` is `<= 0`, `NaN`, or
+`Inf`.
+
+**`nowNs()`** computes:
+
+```
+sim_start_ns_ + (wall_now - wall_start_) * scale_
+```
+
+`wall_start_` is always captured at construction. `sim_start_ns_` is either
+`wall_start_` (no-arg form) or the caller-supplied value.
+
+**`sleepUntil(target_ns)`** uses a correcting loop — it does not return until
+`nowNs() >= target_ns`. The loop converts the remaining sim duration to wall time
+(`remaining / scale_`) and sleeps, then re-checks. This absorbs OS scheduler
+jitter and makes the contract identical to `ManualClock`: callers never wake
+before their deadline.
+
+**Thread safety:** `SimClock` has no mutable state after construction. All members
+are set once and never modified. `nowNs()` is therefore inherently thread-safe
+with no locking required.
+
+---
+
+### Phase 2 — `ExternalClock` stub (`orion_sim_clock`)
+
+`ExternalClock` is the replay-mode clock. It lives in a new CMake target
+`orion_sim_clock` (`libs/sim_clock/`) which links both `orion_clock` and
+`orion_transport`, breaking the circular dependency that would arise if
+`ExternalClock` lived inside `orion_clock`.
+
+**Dependency graph:**
+
+```
+orion_clock        (Clock, WallClock, ManualClock, SimClock)
+     │
+orion_transport    (Session, Publisher, Subscriber — stamps with Clock)
+     │
+orion_sim_clock    (ExternalClock — depends on both)
+```
+
+**Constructor (Phase 2 stub):**
+
+```cpp
+explicit ExternalClock(orion::transport::Subscriber<SimTimeUpdate> sub);
+```
+
+The constructor accepts the already-created subscriber (wiring of the topic
+string and vehicle ID is the caller's responsibility). In Phase 2, all methods
+throw `std::logic_error("ExternalClock not yet implemented")`. The CMake target
+and dependency graph are structurally correct so that Phase 3 is an in-place
+fill-in with no architectural changes.
+
+**Phase 3 implementation (future):**
+
+`ExternalClock` will store `now_ns_` and a condition variable. The subscriber
+callback calls `setNow(msg.sim_time_ns())`, advancing the clock and notifying all
+`sleepUntil` waiters — the same condvar pattern as `ManualClock`. `nowNs()`
+returns the last received timestamp under a mutex.
+
+---
+
+### `SimTimeUpdate` proto
+
+A new message `proto/orion/v1/sim_time_update.proto` carries time updates from
+the replay driver:
+
+```proto
+message SimTimeUpdate {
+  uint64 sim_time_ns = 1;  // current simulated time, nanoseconds since Unix epoch
+  double scale       = 2;  // informational: driver playback speed relative to wall time
+}
+```
+
+The `scale` field is not used by `ExternalClock` for computation — it is present
+for observability (monitoring tools can display playback speed).
+
+**Topic:** `orion/{vehicle_id}/clock/sim_time`
+
+`vehicle_id` is supplied by the caller when constructing the subscriber, consistent
+with how `SessionConfig::vehicle_id` is passed throughout the transport layer.
+There is no `ORION_VEHICLE_ID` environment variable.
+
+---
 
 ## Consequences
 
-- Services require no code changes to run under simulation — only the clock
-  passed to `Session::create` and `RateGroup` changes.
-- Scaled mode introduces timing imprecision at high scale factors (>10×) due
-  to OS sleep granularity. Replay mode has no such limit.
-- Replay mode introduces a dependency on `orion_transport` from `orion_clock`.
-  This may require splitting `SimClock` into a separate `orion_sim_clock` target
-  to avoid a circular dependency (`orion_transport` already depends on
-  `orion_clock`).
-- A `SimTimeUpdate` proto definition must be added to `proto/orion/v1/`.
-- The replay driver (a separate tool or test harness) is out of scope for this
-  ADR.
+- Services require no code changes to run under simulation — only the concrete
+  `Clock` passed to `Session::create` and `FrameScheduler` changes.
+- `orion_clock` gains `SimClock` with zero new dependencies (Phase 1 complete).
+- `orion_sim_clock` is a new CMake target that owns `ExternalClock` and carries
+  the `orion_transport` dependency (Phase 2 in progress).
+- Scaled mode introduces timing imprecision at very high scale factors (>100×)
+  due to OS sleep granularity; the correcting loop minimises but cannot eliminate
+  jitter.
+- `ExternalClock` in Phase 2 compiles and links correctly but throws at runtime —
+  teams must not ship Phase 2 code to production hardware until Phase 3 is complete.
+- The replay driver (the external Zenoh publisher of `SimTimeUpdate` messages) is
+  out of scope until a real flight log dataset exists to drive it.
