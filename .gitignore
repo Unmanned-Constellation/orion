@@ -23,6 +23,7 @@ bin/
 
 # Generated documentation
 docs/_build/
+docs/api/
 
 # Conan generated
 CMakeUserPresets.json
