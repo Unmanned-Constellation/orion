@@ -48,6 +48,7 @@ class Clock
 class WallClock final : public Clock
 {
   public:
+    /// @copydoc Clock::nowNs
     [[nodiscard]] uint64_t nowNs() const override
     {
         return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -55,6 +56,7 @@ class WallClock final : public Clock
                                          .count());
     }
 
+    /// @copydoc Clock::sleepUntil
     void sleepUntil(uint64_t target_ns) override
     {
         namespace sc = std::chrono;
@@ -78,6 +80,7 @@ class WallClock final : public Clock
 class ManualClock final : public Clock
 {
   public:
+    /// Constructs a ManualClock at the given initial time.
     /// @param initial_ns Starting time in nanoseconds since the Unix epoch.
     explicit ManualClock(uint64_t initial_ns = 0) : now_ns_(initial_ns) {}
 
@@ -95,12 +98,14 @@ class ManualClock final : public Clock
     ManualClock(ManualClock&&)                 = delete;
     ManualClock& operator=(ManualClock&&)      = delete;
 
+    /// @copydoc Clock::nowNs
     [[nodiscard]] uint64_t nowNs() const override
     {
         std::lock_guard lock(mu_);
         return now_ns_;
     }
 
+    /// @copydoc Clock::sleepUntil
     void sleepUntil(uint64_t target_ns) override
     {
         std::unique_lock lock(mu_);

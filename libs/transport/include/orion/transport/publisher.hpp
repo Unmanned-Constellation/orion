@@ -26,6 +26,8 @@ class PublisherBackend
 /// Obtained via Session::advertise<T>(). Non-copyable; movable.
 /// Calling publish() stamps the MessageHeader, wraps the message in an Envelope,
 /// and transmits it on the bus.
+///
+/// @tparam T  Protobuf message type to serialize and publish.
 template <typename T>
 class Publisher
 {
