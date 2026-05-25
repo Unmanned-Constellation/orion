@@ -1,5 +1,6 @@
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <thread>
 
@@ -17,12 +18,12 @@ using orion::clock::ManualClock;
 namespace
 {
 
-constexpr uint64_t kPeriodNs = 10'000'000; // 100 Hz → 10 ms period
+constexpr uint64_t K_PERIOD_NS = 10'000'000; // 100 Hz → 10 ms period
 
 // Advances the clock by one period and waits until count reaches expected.
 void tick(ManualClock& clock, std::atomic<int>& count, int expected)
 {
-    clock.advance(kPeriodNs);
+    clock.advance(K_PERIOD_NS);
     while (count.load(std::memory_order_acquire) < expected)
     {
         std::this_thread::sleep_for(1ms);
@@ -85,7 +86,7 @@ TEST(PeriodicTimerTest, NoOverrunOnNormalTick)
     tick(*clock, count, 3);
     stopAndJoin(latch, *clock, runner);
 
-    EXPECT_EQ(timer.overrunCount(), 0u);
+    EXPECT_EQ(timer.overrunCount(), 0U);
 }
 
 TEST(PeriodicTimerTest, OverrunDetectedWhenCallbackExceedsPeriod)
@@ -98,20 +99,20 @@ TEST(PeriodicTimerTest, OverrunDetectedWhenCallbackExceedsPeriod)
     // Callback advances the clock past the next deadline — simulates a slow tick.
     auto slow_callback = [&] {
         ++count;
-        clock->advance(kPeriodNs * 2); // burn through 2 extra periods
+        clock->advance(K_PERIOD_NS * 2); // burn through 2 extra periods
     };
 
     std::thread runner([&] { timer.run(slow_callback); });
 
     // Trigger the first tick
-    clock->advance(kPeriodNs);
+    clock->advance(K_PERIOD_NS);
     while (count.load() < 1)
     {
         std::this_thread::sleep_for(1ms);
     }
 
     stopAndJoin(latch, *clock, runner);
-    EXPECT_GE(timer.overrunCount(), 1u);
+    EXPECT_GE(timer.overrunCount(), 1U);
 }
 
 TEST(PeriodicTimerTest, OverrunDoesNotCauseCatchUpBurst)
@@ -128,14 +129,14 @@ TEST(PeriodicTimerTest, OverrunDoesNotCauseCatchUpBurst)
         if (first)
         {
             first = false;
-            clock->advance(kPeriodNs * 5);
+            clock->advance(K_PERIOD_NS * 5);
         }
     };
 
     std::thread runner([&] { timer.run(callback); });
 
     // Trigger the first tick (overruns internally)
-    clock->advance(kPeriodNs);
+    clock->advance(K_PERIOD_NS);
     while (count.load() < 1)
     {
         std::this_thread::sleep_for(1ms);

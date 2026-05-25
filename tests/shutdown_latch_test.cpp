@@ -1,8 +1,9 @@
+#include <atomic>
 #include <chrono>
 #include <csignal>
 #include <thread>
+#include <vector>
 
-#include <sys/types.h>
 #include <unistd.h>
 
 #include <gtest/gtest.h>
@@ -13,8 +14,8 @@ using namespace std::chrono_literals;
 
 TEST(ShutdownLatchTest, InitiallyNotStopped)
 {
-    orion::app::ShutdownLatch latch;
-    EXPECT_FALSE(latch.stopped());
+    const orion::app::ShutdownLatch LATCH;
+    EXPECT_FALSE(LATCH.stopped());
 }
 
 TEST(ShutdownLatchTest, StopMakesStoppedTrue)
@@ -41,14 +42,14 @@ TEST(ShutdownLatchTest, WaitReturnsAfterStop)
         latch.stop();
     });
 
-    const auto start = std::chrono::steady_clock::now();
+    const auto START = std::chrono::steady_clock::now();
     latch.wait();
-    const auto elapsed = std::chrono::steady_clock::now() - start;
+    const auto ELAPSED = std::chrono::steady_clock::now() - START;
 
     stopper.join();
     EXPECT_TRUE(latch.stopped());
-    EXPECT_GE(elapsed, 10ms);
-    EXPECT_LT(elapsed, 500ms);
+    EXPECT_GE(ELAPSED, 10ms);
+    EXPECT_LT(ELAPSED, 500ms);
 }
 
 TEST(ShutdownLatchTest, WaitReturnsImmediatelyIfAlreadyStopped)
@@ -56,11 +57,11 @@ TEST(ShutdownLatchTest, WaitReturnsImmediatelyIfAlreadyStopped)
     orion::app::ShutdownLatch latch;
     latch.stop();
 
-    const auto start = std::chrono::steady_clock::now();
+    const auto START = std::chrono::steady_clock::now();
     latch.wait();
-    const auto elapsed = std::chrono::steady_clock::now() - start;
+    const auto ELAPSED = std::chrono::steady_clock::now() - START;
 
-    EXPECT_LT(elapsed, 5ms);
+    EXPECT_LT(ELAPSED, 5ms);
 }
 
 TEST(ShutdownLatchTest, MultipleWaitersAllWake)
@@ -91,14 +92,14 @@ TEST(ShutdownLatchTest, MultipleWaitersAllWake)
 
 TEST(ShutdownLatchTest, SigtermTriggersShutdown)
 {
-    orion::app::ShutdownLatch latch;
+    const orion::app::ShutdownLatch LATCH;
 
     std::thread sender([] {
         std::this_thread::sleep_for(10ms);
-        kill(getpid(), SIGTERM);
+        kill(getpid(), SIGTERM); // NOLINT(misc-include-cleaner)
     });
 
-    latch.wait();
+    LATCH.wait();
     sender.join();
-    EXPECT_TRUE(latch.stopped());
+    EXPECT_TRUE(LATCH.stopped());
 }

@@ -4,14 +4,13 @@
 #include <memory>
 #include <string>
 #include <thread>
-#include <utility>
 
 #include <gtest/gtest.h>
 
 #include "orion/clock/clock.hpp"
 #include "orion/transport/config.hpp"
 #include "orion/transport/message_header.hpp"
-#include "orion/transport/session.hpp"
+#include "orion/transport/session.hpp" // NOLINT(misc-include-cleaner)
 
 // Minimal protobuf messages used in tests — pulled from the transport's internal protos.
 // Real services would use their own domain protos.
@@ -34,11 +33,11 @@ class FakeClock final : public orion::clock::Clock
     uint64_t fixed_ns_;
 };
 
-orion::transport::SessionConfig makeConfig(std::string service_name = "test-service")
+orion::transport::SessionConfig makeConfig(const std::string& service_name = "test-service")
 {
     return {
         .vehicle_id   = "test-vehicle",
-        .service_name = std::move(service_name),
+        .service_name = service_name,
     };
 }
 
@@ -67,7 +66,7 @@ TEST(TransportTest, RoundtripDelivery)
     auto session = orion::transport::Session::create(makeConfig(),
                                                      std::make_shared<orion::clock::WallClock>());
 
-    std::atomic<bool> received{false};
+    std::atomic<bool> received{false}; // NOLINT(misc-const-correctness)
     orion::v1::Header got;
 
     auto sub = session.subscribe<orion::v1::Header>(
@@ -84,7 +83,8 @@ TEST(TransportTest, RoundtripDelivery)
     sent.set_published_at_ns(42);
     pub.publish(sent);
 
-    ASSERT_TRUE(waitFor(received)) << "Subscriber callback did not fire within timeout";
+    ASSERT_TRUE(waitFor(received))
+        << "Subscriber callback did not fire within timeout"; // NOLINT(readability-implicit-bool-conversion)
     EXPECT_EQ(got.source_id(), "hello");
     EXPECT_EQ(got.published_at_ns(), 42U);
 }
@@ -97,8 +97,8 @@ TEST(TransportTest, HeaderTimestampFromClock)
     auto               session =
         orion::transport::Session::create(makeConfig(), std::make_shared<FakeClock>(K_FIXED_NS));
 
-    std::atomic<bool>               received{false};
-    orion::transport::MessageHeader got_hdr;
+    std::atomic<bool>               received{false}; // NOLINT(misc-const-correctness)
+    orion::transport::MessageHeader got_hdr;         // NOLINT(misc-const-correctness)
 
     auto sub = session.subscribe<orion::v1::Header>(
         "orion/test-vehicle/system/timestamp",
@@ -110,7 +110,8 @@ TEST(TransportTest, HeaderTimestampFromClock)
     auto pub = session.advertise<orion::v1::Header>("orion/test-vehicle/system/timestamp");
     pub.publish(orion::v1::Header{});
 
-    ASSERT_TRUE(waitFor(received)) << "Subscriber callback did not fire within timeout";
+    ASSERT_TRUE(waitFor(received))
+        << "Subscriber callback did not fire within timeout"; // NOLINT(readability-implicit-bool-conversion)
     EXPECT_EQ(got_hdr.published_at_ns, K_FIXED_NS);
 }
 
@@ -121,8 +122,8 @@ TEST(TransportTest, HeaderSourceId)
     auto session = orion::transport::Session::create(makeConfig("perception-service"),
                                                      std::make_shared<orion::clock::WallClock>());
 
-    std::atomic<bool>               received{false};
-    orion::transport::MessageHeader got_hdr;
+    std::atomic<bool>               received{false}; // NOLINT(misc-const-correctness)
+    orion::transport::MessageHeader got_hdr;         // NOLINT(misc-const-correctness)
 
     auto sub = session.subscribe<orion::v1::Header>(
         "orion/test-vehicle/system/source",
@@ -134,7 +135,8 @@ TEST(TransportTest, HeaderSourceId)
     auto pub = session.advertise<orion::v1::Header>("orion/test-vehicle/system/source");
     pub.publish(orion::v1::Header{});
 
-    ASSERT_TRUE(waitFor(received)) << "Subscriber callback did not fire within timeout";
+    ASSERT_TRUE(waitFor(received))
+        << "Subscriber callback did not fire within timeout"; // NOLINT(readability-implicit-bool-conversion)
     EXPECT_EQ(got_hdr.source_id, "perception-service");
 }
 
@@ -146,7 +148,7 @@ TEST(TransportTest, TypeMismatchDropped)
     auto session = orion::transport::Session::create(makeConfig(),
                                                      std::make_shared<orion::clock::WallClock>());
 
-    std::atomic<bool> received{false};
+    std::atomic<bool> received{false}; // NOLINT(misc-const-correctness)
 
     // Subscribe expecting Envelope, but we will publish Header.
     auto sub = session.subscribe<orion::v1::Envelope>(
@@ -160,5 +162,6 @@ TEST(TransportTest, TypeMismatchDropped)
 
     // Give the message time to arrive — callback must NOT fire.
     std::this_thread::sleep_for(100ms);
-    EXPECT_FALSE(received.load()) << "Callback fired despite type mismatch";
+    EXPECT_FALSE(received.load())
+        << "Callback fired despite type mismatch"; // NOLINT(readability-implicit-bool-conversion)
 }

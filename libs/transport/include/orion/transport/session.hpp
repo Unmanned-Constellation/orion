@@ -28,7 +28,8 @@ class Session
     /// @param[in] clock   Time source used to stamp MessageHeader::published_at_ns.
     /// @return A connected Session ready to advertise and subscribe.
     /// @throws std::runtime_error if the Zenoh session cannot be opened.
-    static Session create(SessionConfig config, std::shared_ptr<orion::clock::Clock> clock);
+    static auto create(SessionConfig                               config,
+                       const std::shared_ptr<orion::clock::Clock>& clock) -> Session;
 
     /// Returns a Publisher that sends messages of type T on @p topic.
     ///
@@ -36,7 +37,7 @@ class Session
     /// @param[in] topic    Full Zenoh topic key (e.g. "orion/alpha/sensing/detections").
     /// @return A Publisher<T> bound to @p topic.
     template <typename T>
-    Publisher<T> advertise(std::string_view topic);
+    auto advertise(std::string_view topic) -> Publisher<T>;
 
     /// Returns a Subscriber that delivers messages of type T from @p topic.
     ///
@@ -48,13 +49,14 @@ class Session
     /// @param[in] callback    Invoked on the Zenoh thread for each matching message.
     /// @return A Subscriber<T> whose lifetime controls the subscription.
     template <typename T>
-    Subscriber<T> subscribe(std::string_view topic, typename Subscriber<T>::Callback callback);
+    auto subscribe(std::string_view                 topic,
+                   typename Subscriber<T>::Callback callback) -> Subscriber<T>;
 
     /// @cond
-    Session(const Session&)            = delete;
-    Session& operator=(const Session&) = delete;
-    Session(Session&&)                 = default;
-    Session& operator=(Session&&)      = default;
+    Session(const Session&)                    = delete;
+    auto operator=(const Session&) -> Session& = delete;
+    Session(Session&&)                         = default;
+    auto operator=(Session&&) -> Session&      = default;
     ~Session();
     /// @endcond
 
@@ -62,13 +64,13 @@ class Session
     explicit Session(std::unique_ptr<SessionImpl> impl);
 
     // Non-template internals — implemented in session_impl.cpp.
-    std::unique_ptr<PublisherBackend>  makePublisherBackend(std::string_view topic);
-    std::unique_ptr<SubscriberBackend> makeSubscriberBackend(std::string_view topic,
-                                                             RawCallback      callback);
+    auto makePublisherBackend(std::string_view topic) -> std::unique_ptr<PublisherBackend>;
+    auto makeSubscriberBackend(std::string_view topic,
+                               RawCallback      callback) -> std::unique_ptr<SubscriberBackend>;
 
     std::unique_ptr<SessionImpl>         impl_;
-    std::shared_ptr<orion::clock::Clock> clock_;
-    std::string                          source_id_;
+    std::shared_ptr<orion::clock::Clock> clock_{nullptr};
+    std::string                          source_id_{};
 };
 
 } // namespace orion::transport

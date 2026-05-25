@@ -1,0 +1,9 @@
+# Races in Zenoh's internal TCP listener setup (libzenohc.so upstream bug).
+# During Session::open(), the main thread allocates listener state while Zenoh's
+# acceptor thread concurrently copies it before synchronization is established.
+race:zenoh_link_commons*
+
+# Races in Zenoh's Rust Arc drop vs ongoing background thread allocations.
+# The main thread frees Arc-ref-counted session state while Zenoh's networking
+# thread is still performing heap allocations backed by the same allocator pages.
+race:alloc::sync::Arc*drop_slow*
