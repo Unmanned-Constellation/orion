@@ -59,7 +59,7 @@ if(DOXYGEN_FOUND)
     )
 endif()
 
-find_program(RUN_CLANG_TIDY run-clang-tidy)
+find_program(RUN_CLANG_TIDY NAMES run-clang-tidy-18 run-clang-tidy)
 if(RUN_CLANG_TIDY)
     add_custom_target(
         tidy

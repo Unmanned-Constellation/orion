@@ -9,7 +9,6 @@
 
 #include "orion/clock/clock.hpp"
 
-using namespace std::chrono_literals;
 using orion::clock::ManualClock;
 using orion::clock::WallClock;
 
@@ -46,7 +45,7 @@ TEST(WallClockTest, SleepUntilPastTargetReturnsImmediately)
     const auto     START   = std::chrono::steady_clock::now();
     clock.sleepUntil(PAST_NS);
     const auto ELAPSED = std::chrono::steady_clock::now() - START;
-    EXPECT_LT(ELAPSED, 5ms);
+    EXPECT_LT(ELAPSED, std::chrono::milliseconds{5});
 }
 
 TEST(WallClockTest, SleepUntilFutureTargetWakesAtOrAfterTarget)
@@ -103,7 +102,7 @@ TEST(ManualClockTest, WakeUnblocksSleeperWithoutAdvancingTime)
         woken = true;
     });
 
-    std::this_thread::sleep_for(10ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
     EXPECT_FALSE(woken);
 
     clock.wake();
@@ -118,7 +117,7 @@ TEST(ManualClockTest, SleepUntilAlreadyPassedReturnsImmediately)
     const auto  START = std::chrono::steady_clock::now();
     clock.sleepUntil(500); // target is in the past
     const auto ELAPSED = std::chrono::steady_clock::now() - START;
-    EXPECT_LT(ELAPSED, 5ms);
+    EXPECT_LT(ELAPSED, std::chrono::milliseconds{5});
 }
 
 TEST(ManualClockTest, SleepUntilBlocksUntilAdvanced)
@@ -131,7 +130,7 @@ TEST(ManualClockTest, SleepUntilBlocksUntilAdvanced)
         woken = true;
     });
 
-    std::this_thread::sleep_for(10ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
     EXPECT_FALSE(woken);
 
     clock.advance(1'000);
@@ -149,7 +148,7 @@ TEST(ManualClockTest, SleepUntilBlocksUntilSetNow)
         woken = true;
     });
 
-    std::this_thread::sleep_for(10ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
     EXPECT_FALSE(woken);
 
     clock.setNow(5'000);
@@ -173,7 +172,7 @@ TEST(ManualClockTest, MultipleWaitersAllWakeOnAdvance)
         });
     }
 
-    std::this_thread::sleep_for(10ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
     EXPECT_EQ(woken.load(), 0);
 
     clock.advance(100);
