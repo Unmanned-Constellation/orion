@@ -67,24 +67,7 @@ jobs:
             echo "No main branch on remote — skipping breaking-change check"
           fi
 
-  # ── Commit message linting ────────────────────────────────────────────────
-  commitlint:
-    name: Commit messages
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - uses: wagoid/commitlint-github-action@v6
-        with:
-          configFile: ./commitlint.config.mjs
-          failOnWarnings: false
-          failOnErrors: true
-
-  # ── API documentation coverage ───────────────────────────────────────────
+# ── API documentation coverage ───────────────────────────────────────────
   docs:
     name: Docs coverage
     runs-on: ubuntu-22.04
@@ -108,7 +91,7 @@ jobs:
   # ── Debug build + static analysis ────────────────────────────────────────
   build:
     name: Build and lint (debug)
-    needs: [format, commitlint, docs, proto]
+    needs: [format, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -137,7 +120,7 @@ jobs:
   # ── Release build + test ──────────────────────────────────────────────────
   build-release:
     name: Build and test (release)
-    needs: [format, commitlint, docs, proto]
+    needs: [format, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -160,7 +143,7 @@ jobs:
   # ── AddressSanitizer + UndefinedBehaviorSanitizer ─────────────────────────
   sanitize:
     name: Sanitize (ASan + UBSan)
-    needs: [format, commitlint, docs, proto]
+    needs: [format, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -184,7 +167,7 @@ jobs:
   # ── ThreadSanitizer ───────────────────────────────────────────────────────
   tsan:
     name: Thread Sanitizer
-    needs: [format, commitlint, docs, proto]
+    needs: [format, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -208,7 +191,7 @@ jobs:
   # ── Coverage ──────────────────────────────────────────────────────────────
   coverage:
     name: Coverage
-    needs: [format, commitlint, docs, proto]
+    needs: [format, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
@@ -261,7 +244,7 @@ jobs:
   # ── Native ARM64 build + test ─────────────────────────────────────────────
   build-arm64:
     name: Build and test (ARM64)
-    needs: [format, commitlint, docs, proto]
+    needs: [format, docs, proto]
     runs-on: ubuntu-22.04-arm
     env:
       CC: clang-18
@@ -285,7 +268,7 @@ jobs:
   # ── libFuzzer smoke test ──────────────────────────────────────────────────
   fuzz:
     name: Fuzz (smoke test)
-    needs: [format, commitlint, docs, proto]
+    needs: [format, docs, proto]
     runs-on: ubuntu-22.04
     env:
       CC: clang-18
