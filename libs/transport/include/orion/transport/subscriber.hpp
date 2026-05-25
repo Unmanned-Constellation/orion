@@ -31,6 +31,8 @@ class SubscriberBackend
 /// Obtained via Session::subscribe<T>(). Destroying this object cancels the
 /// subscription. Non-copyable; movable. The deserialization and typed callback
 /// are baked in at construction — service code only holds the handle.
+///
+/// @tparam T  Protobuf message type to deserialize and deliver to the callback.
 template <typename T>
 class Subscriber
 {

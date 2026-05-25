@@ -24,6 +24,7 @@ namespace orion::app
 class PeriodicTimer
 {
   public:
+    /// Constructs a PeriodicTimer at the given rate, bound to a clock and shutdown latch.
     /// @param rate_hz  Callback frequency in Hz.
     /// @param clock    Time source — must outlive this object.
     /// @param latch    Shutdown signal — run() returns when latch.stopped().
@@ -37,8 +38,9 @@ class PeriodicTimer
 
     /// Blocks until latch.stopped(), calling callback at each tick.
     ///
-    /// @param callback Invocable called once per tick. Must be non-blocking or
-    ///                 complete within the tick period to avoid overruns.
+    /// @tparam Fn      Callable type satisfying std::invocable. Must be non-blocking
+    ///                 or complete within the tick period to avoid overruns.
+    /// @param callback Invocable called once per tick.
     template <std::invocable Fn>
     void run(Fn&& callback)
     {
