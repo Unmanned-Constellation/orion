@@ -1,20 +1,9 @@
-name: Build and Deploy Documentation
+name: Build Documentation
 
 on:
   push:
-    branches: ["main"] # Triggers when you push to main
-  workflow_dispatch:   # Allows you to trigger it manually from the UI
-
-# Give the action permission to push to GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Ensure only one deployment runs at a time
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+    branches: ["main"]
+  pull_request:
 
 jobs:
   build:
@@ -45,21 +34,3 @@ jobs:
         # Fails the build if there are warnings (-W) to keep docs pristine
         run: sphinx-build -W -b html docs docs/_build/html
 
-      - name: Bypass Jekyll
-        run: touch docs/_build/html/.nojekyll
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: 'docs/_build/html'
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-22.04
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
