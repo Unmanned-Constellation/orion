@@ -17,7 +17,8 @@ namespace orion::clock
 /// time, and sleepUntil blocks until simulated time reaches the target rather
 /// than wall time.
 ///
-/// Production code uses WallClock. Tests use ManualClock. SimClock is future work.
+/// Production code uses WallClock. Tests use ManualClock. SimClock runs services
+/// at scaled wall speed for integration testing and HIL runs (see ADR-0009).
 class Clock
 {
   public:
@@ -73,7 +74,7 @@ class WallClock final : public Clock
 ///
 /// Time does not advance on its own. Call advance() or setNow() to move it
 /// forward. sleepUntil() blocks until the clock is advanced past the target,
-/// making it suitable for driving a PeriodicTimer from a test thread.
+/// making it suitable for driving a FrameScheduler from a test thread.
 ///
 /// @note The ManualClock must outlive any thread blocked in sleepUntil(). The
 ///       destructor wakes all waiters before releasing resources.

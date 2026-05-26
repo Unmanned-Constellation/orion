@@ -113,6 +113,7 @@ When making changes, update documentation alongside the code — never leave the
 | Behaviour that affects operators / integrators | `README.md` and/or the relevant `docs/` page |
 | Change to build, test, or CI workflow | `docs/ci-cd.md`, `docs/development-environment.md`, or `docs/testing.md` as appropriate |
 | Change to dependency management | `docs/dependency-management.md` |
+| New CMake target, target removed, or dependency edge added/removed | `docs/architecture.md` — update the Mermaid diagram and the library responsibilities table; include planned targets as dashed arrows with milestone labels |
 
 `CONTEXT.md` at the repo root captures high-level domain decisions — update it when the architecture shifts, not for routine code changes.
 
