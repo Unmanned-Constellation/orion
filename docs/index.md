@@ -37,4 +37,5 @@ api/library_root
 :caption: Libraries
 
 libs/orion-clock
+libs/orion-transport
 ```

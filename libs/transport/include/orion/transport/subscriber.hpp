@@ -11,7 +11,7 @@ namespace orion::transport
 
 using RawCallback = std::function<void(std::string_view)>;
 
-/// Non-template backend — holds the Zenoh subscriber and the type-erased raw callback.
+/// Non-template backend — holds the transport subscription handle and the type-erased raw callback.
 /// Implemented in session_impl.cpp. Kept alive as long as Subscriber<T> lives.
 class SubscriberBackend
 {
@@ -26,7 +26,7 @@ class SubscriberBackend
     /// @endcond
 };
 
-/// Lifetime handle for a typed subscription on a Zenoh topic.
+/// Lifetime handle for a typed subscription on the message bus.
 ///
 /// Obtained via Session::subscribe<T>(). Destroying this object cancels the
 /// subscription. Non-copyable; movable. The deserialization and typed callback
