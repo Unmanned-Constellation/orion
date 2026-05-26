@@ -13,6 +13,7 @@ jobs:
   format:
     name: Format
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
 
@@ -22,7 +23,7 @@ jobs:
             | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
           echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
             | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update -qq
+          sudo apt-get -o Acquire::http::Timeout=60 update -qq
           sudo apt-get install -y clang-format-18
 
       - name: Install gersemi
@@ -40,6 +41,7 @@ jobs:
   proto:
     name: Proto schema
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
@@ -70,11 +72,12 @@ jobs:
   docs:
     name: Docs coverage
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
       - name: Install Doxygen
-        run: sudo apt-get install -y --no-install-recommends doxygen
+        run: sudo apt-get -o Acquire::http::Timeout=60 update -qq && sudo apt-get install -y --no-install-recommends doxygen
 
       - name: Install Sphinx dependencies
         run: pip install -r docs/requirements.txt
@@ -92,6 +95,7 @@ jobs:
     name: Build and lint (debug)
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     env:
       CC: clang-18
       CXX: clang++-18
@@ -121,6 +125,7 @@ jobs:
     name: Build and test (release)
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     env:
       CC: clang-18
       CXX: clang++-18
@@ -144,6 +149,7 @@ jobs:
     name: Sanitize (ASan + UBSan)
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     env:
       CC: clang-18
       CXX: clang++-18
@@ -168,6 +174,7 @@ jobs:
     name: Thread Sanitizer
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     env:
       CC: clang-18
       CXX: clang++-18
@@ -192,6 +199,7 @@ jobs:
     name: Coverage
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     env:
       CC: clang-18
       CXX: clang++-18
@@ -245,6 +253,7 @@ jobs:
     name: Build and test (ARM64)
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04-arm
+    timeout-minutes: 60
     env:
       CC: clang-18
       CXX: clang++-18
@@ -269,6 +278,7 @@ jobs:
     name: Fuzz (smoke test)
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     env:
       CC: clang-18
       CXX: clang++-18

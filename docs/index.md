@@ -14,6 +14,7 @@ coding-standards
 cross-compilation
 versioning
 orin-setup
+architecture
 ```
 
 ```{toctree}
