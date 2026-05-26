@@ -1,10 +1,9 @@
 #pragma once
 
-#include <functional>
 #include <memory>
+#include <string>
 #include <string_view>
 
-#include "orion/clock/clock.hpp"
 #include "orion/transport/config.hpp"
 #include "orion/transport/publisher.hpp"
 #include "orion/transport/subscriber.hpp"
@@ -22,14 +21,12 @@ class SessionImpl;
 class Session
 {
   public:
-    /// Opens a Zenoh session with the given configuration and clock.
+    /// Opens a Zenoh session with the given configuration.
     ///
     /// @param[in] config  Vehicle ID, service name, and optional Zenoh config path.
-    /// @param[in] clock   Time source used to stamp MessageHeader::published_at_ns.
     /// @return A connected Session ready to advertise and subscribe.
     /// @throws std::runtime_error if the Zenoh session cannot be opened.
-    static auto create(SessionConfig                               config,
-                       const std::shared_ptr<orion::clock::Clock>& clock) -> Session;
+    static auto create(SessionConfig config) -> Session;
 
     /// Returns a Publisher that sends messages of type T on @p topic.
     ///
@@ -68,9 +65,8 @@ class Session
     auto makeSubscriberBackend(std::string_view topic,
                                RawCallback      callback) -> std::unique_ptr<SubscriberBackend>;
 
-    std::unique_ptr<SessionImpl>         impl_;
-    std::shared_ptr<orion::clock::Clock> clock_{nullptr};
-    std::string                          source_id_{};
+    std::unique_ptr<SessionImpl> impl_;
+    std::string                  source_id_{};
 };
 
 } // namespace orion::transport
