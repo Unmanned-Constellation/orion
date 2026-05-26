@@ -7,7 +7,8 @@
 namespace orion::transport
 {
 
-/// Non-template backend — implemented in session_impl.cpp, keeps Zenoh out of this header.
+/// Non-template backend — implemented in session_impl.cpp, keeps transport internals out of this
+/// header.
 class PublisherBackend
 {
   public:
@@ -20,7 +21,7 @@ class PublisherBackend
     virtual void send(std::string_view bytes) = 0;
 };
 
-/// Typed handle for publishing messages of type T on a Zenoh topic.
+/// Typed handle for publishing messages of type T on the message bus.
 ///
 /// Obtained via Session::advertise<T>(). Non-copyable; movable.
 /// Calling publish() wraps the message in an Envelope with the supplied capture
@@ -56,5 +57,5 @@ class Publisher
 
 } // namespace orion::transport
 
-// Template implementation — included here, but only pulls in proto headers (not Zenoh).
+// Template implementation — included here, but only pulls in proto headers (not transport backend).
 #include "orion/transport/publisher_impl.hpp"
