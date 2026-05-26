@@ -196,7 +196,7 @@ no service subscribes to `orion/charlie/**` from Platform A, that traffic never 
 | Field | Rationale |
 |---|---|
 | `vehicle_id` | Identifies the publisher; required for all subsequent topic subscriptions |
-| `published_at_ns` | Heartbeat timestamp; drives liveness timeout logic |
+| `captured_at_ns` | Heartbeat timestamp; drives liveness timeout logic |
 | `latitude_rad`, `longitude_rad`, `altitude_m` | Position in WGS-84; minimum required for flight deconfliction |
 | `velocity_ned_ms` | Current velocity vector; improves deconfliction prediction |
 | `heading_rad` | Current heading |

@@ -12,7 +12,7 @@ namespace orion::transport
 template <typename T>
 auto Session::advertise(std::string_view topic) -> Publisher<T>
 {
-    return Publisher<T>(makePublisherBackend(topic), clock_, source_id_);
+    return Publisher<T>(makePublisherBackend(topic), source_id_);
 }
 
 template <typename T>
@@ -38,8 +38,8 @@ auto Session::subscribe(std::string_view                 topic,
                 return;
             }
             auto hdr = MessageHeader{
-                .published_at_ns = env.header().published_at_ns(),
-                .source_id       = env.header().source_id(),
+                .captured_at_ns = env.header().captured_at_ns(),
+                .source_id      = env.header().source_id(),
             };
             cb(msg, hdr);
         }};
