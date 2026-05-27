@@ -1,14 +1,13 @@
 #include <atomic>
 #include <chrono>
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 
 #include <gtest/gtest.h>
 
 #include "fake_transport.hpp"
-#include "orion/transport/config.hpp"
 #include "orion/transport/message_header.hpp"
 #include "orion/transport/publisher.hpp"
 #include "orion/transport/session.hpp" // NOLINT(misc-include-cleaner)
@@ -33,7 +32,7 @@ auto makeFakePublisher(FakePublisherBackend*& out_ptr,
 {
     auto fake = std::make_unique<FakePublisherBackend>();
     out_ptr   = fake.get();
-    return Publisher<orion::v1::Header>(std::move(fake), std::move(source_id));
+    return {std::move(fake), std::move(source_id)};
 }
 
 } // namespace
@@ -201,7 +200,7 @@ bool waitFor(const std::atomic<bool>&  flag,
 
 } // namespace
 
-TEST(ZenohSessionTest, RoundtripDelivery)
+TEST(ZenohSessionTest, RoundtripDelivery) // NOLINT(readability-function-cognitive-complexity)
 {
     auto session = orion::transport::Session::create({
         .vehicle_id   = "test-vehicle",
