@@ -163,8 +163,8 @@ TEST(ManualClockTest, SleepUntilBlocksUntilSetNow)
 
 TEST(CoordinatedClockTest, DefaultConstructs)
 {
-    EXPECT_NO_THROW(CoordinatedClock clock);
-} // NOLINT(misc-const-correctness)
+    EXPECT_NO_THROW(CoordinatedClock clock); // NOLINT(misc-const-correctness)
+}
 
 TEST(CoordinatedClockTest, UpdateThrowsLogicError)
 {
