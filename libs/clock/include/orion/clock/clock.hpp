@@ -20,16 +20,16 @@ namespace orion::clock
 ///
 /// Production code uses WallClock. Tests use ManualClock. SimClock runs services
 /// at scaled wall speed for integration testing and HIL runs (see ADR-0009).
-class Clock
+class TimeSource
 {
   public:
     /// @cond
-    Clock()                        = default;
-    Clock(const Clock&)            = default;
-    Clock& operator=(const Clock&) = default;
-    Clock(Clock&&)                 = default;
-    Clock& operator=(Clock&&)      = default;
-    virtual ~Clock()               = default;
+    TimeSource()                             = default;
+    TimeSource(const TimeSource&)            = default;
+    TimeSource& operator=(const TimeSource&) = default;
+    TimeSource(TimeSource&&)                 = default;
+    TimeSource& operator=(TimeSource&&)      = default;
+    virtual ~TimeSource()                    = default;
     /// @endcond
 
     /// Returns the current time as nanoseconds since the Unix epoch.
@@ -46,11 +46,11 @@ class Clock
     virtual void sleepUntil(uint64_t target_ns) = 0;
 };
 
-/// Production Clock implementation backed by std::chrono::system_clock.
-class WallClock final : public Clock
+/// Production TimeSource implementation backed by std::chrono::system_clock.
+class WallClock final : public TimeSource
 {
   public:
-    /// @copydoc Clock::nowNs
+    /// @copydoc TimeSource::nowNs
     [[nodiscard]] uint64_t nowNs() const override
     {
         return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -58,7 +58,7 @@ class WallClock final : public Clock
                                          .count());
     }
 
-    /// @copydoc Clock::sleepUntil
+    /// @copydoc TimeSource::sleepUntil
     void sleepUntil(uint64_t target_ns) override
     {
         namespace sc = std::chrono;
@@ -71,7 +71,7 @@ class WallClock final : public Clock
     }
 };
 
-/// Manually-controlled Clock for tests and simulation drivers.
+/// Manually-controlled TimeSource for tests and simulation drivers.
 ///
 /// Time does not advance on its own. Call advance() or setNow() to move it
 /// forward. sleepUntil() blocks until the clock is advanced past the target,
@@ -79,7 +79,7 @@ class WallClock final : public Clock
 ///
 /// @note The ManualClock must outlive any thread blocked in sleepUntil(). The
 ///       destructor wakes all waiters before releasing resources.
-class ManualClock final : public Clock
+class ManualClock final : public TimeSource
 {
   public:
     /// Constructs a ManualClock at the given initial time.
@@ -100,14 +100,14 @@ class ManualClock final : public Clock
     ManualClock(ManualClock&&)                 = delete;
     ManualClock& operator=(ManualClock&&)      = delete;
 
-    /// @copydoc Clock::nowNs
+    /// @copydoc TimeSource::nowNs
     [[nodiscard]] uint64_t nowNs() const override
     {
         std::lock_guard lock(mu_);
         return now_ns_;
     }
 
-    /// @copydoc Clock::sleepUntil
+    /// @copydoc TimeSource::sleepUntil
     void sleepUntil(uint64_t target_ns) override
     {
         std::unique_lock lock(mu_);
@@ -161,7 +161,7 @@ class ManualClock final : public Clock
     bool                    stopped_{false};
 };
 
-/// Clock implementation for scaled real-time simulation.
+/// TimeSource implementation for scaled real-time simulation.
 ///
 /// Sim time advances at `scale` times wall speed, anchored to `sim_start_ns` at
 /// construction. `sleepUntil` uses a correcting loop so callers never wake before
@@ -171,7 +171,7 @@ class ManualClock final : public Clock
 /// locking.
 ///
 /// @see ADR-0009
-class SimClock final : public Clock
+class SimClock final : public TimeSource
 {
   public:
     /// Constructs a SimClock anchored at the current wall time.
@@ -194,14 +194,14 @@ class SimClock final : public Clock
     {
     }
 
-    /// @copydoc Clock::nowNs
+    /// @copydoc TimeSource::nowNs
     [[nodiscard]] uint64_t nowNs() const override
     {
         const auto ELAPSED = static_cast<double>(wallNowNs() - wall_start_);
         return sim_start_ns_ + static_cast<uint64_t>(ELAPSED * scale_);
     }
 
-    /// @copydoc Clock::sleepUntil
+    /// @copydoc TimeSource::sleepUntil
     void sleepUntil(uint64_t target_ns) override
     {
         while (nowNs() < target_ns)
@@ -237,7 +237,7 @@ class SimClock final : public Clock
     uint64_t sim_start_ns_;
 };
 
-/// Clock implementation for coordinated faster-than-real-time simulation.
+/// TimeSource implementation for coordinated faster-than-real-time simulation.
 ///
 /// Driven by an external caller (typically a Zenoh subscriber callback) via update().
 /// All services running a CoordinatedClock advance in lockstep when the Clock Service
@@ -249,7 +249,7 @@ class SimClock final : public Clock
 /// fill-in with no architectural changes.
 ///
 /// @see ADR-0009
-class CoordinatedClock final : public Clock
+class CoordinatedClock final : public TimeSource
 {
   public:
     CoordinatedClock()                                           = default;
@@ -269,14 +269,14 @@ class CoordinatedClock final : public Clock
         throw std::logic_error("CoordinatedClock not yet implemented");
     }
 
-    /// @copydoc Clock::nowNs
+    /// @copydoc TimeSource::nowNs
     /// @throws std::logic_error always — not yet implemented.
     [[nodiscard]] uint64_t nowNs() const override
     {
         throw std::logic_error("CoordinatedClock not yet implemented");
     }
 
-    /// @copydoc Clock::sleepUntil
+    /// @copydoc TimeSource::sleepUntil
     /// @throws std::logic_error always — not yet implemented.
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void sleepUntil(uint64_t target_ns) override

@@ -4,12 +4,14 @@
 Proposed
 
 ## Context
-No logging strategy exists today. The only diagnostic output in the codebase is a bare
-`std::cerr` call inside `PeriodicTimer` for overrun events. This is problematic for three
-reasons:
+No logging strategy exists today. Services have no structured facility for diagnostic output,
+and library code (e.g. `FrameScheduler`) intentionally does not log — overrun visibility is
+exposed via `overrunCount()` so callers can route warnings through their own facility. This
+gap is problematic for three reasons:
 
-1. **Performance.** `std::cerr` is synchronized (mutex-protected, flushed on write). Calling
-   it from a 100 Hz callback introduces unbounded latency into the service loop.
+1. **Performance.** Ad-hoc `std::cerr` calls are synchronized (mutex-protected, flushed on
+   write). Calling them from a 100 Hz callback introduces unbounded latency into the service
+   loop.
 2. **Observability.** Unstructured text on stderr gives operators no way to filter, aggregate,
    or act on log records from multiple services running concurrently on the Jetson.
 3. **Crash bias.** Standard C++ idioms (`std::terminate`, `std::abort`, uncaught exceptions)
@@ -133,7 +135,9 @@ The two are paired by convention, not enforced mechanically in this iteration.
 ## Consequences
 
 - `spdlog` is added to `conanfile.py` and `conan.lock` when implementation begins.
-- `FrameScheduler`'s overrun report uses `spdlog::warn` rather than `std::cerr`.
+- `FrameScheduler` does not log internally. Services that need overrun visibility poll
+  `overrunCount()` and route warnings through their own spdlog logger (e.g. `logger->warn("overrun")`).
+  Library code remains log-free per ADR-0008.
 - `orion_app` gains a `LoggerFactory` type that encapsulates root logger construction
   (thread pool, sinks) and vends named child loggers. Components accept
   `std::shared_ptr<spdlog::logger>` — they do not call `spdlog::get` or construct sinks.

@@ -15,10 +15,8 @@ The library is header-only (`orion_clock` is an `INTERFACE` CMake target) and ha
 no runtime dependencies beyond the C++ standard library. The single header is at
 `libs/clock/include/orion/clock/clock.hpp`.
 
-The `orion_app` library (`PeriodicTimer`, `ShutdownLatch`) builds directly on top
-of `orion_clock` and is documented in the same section below. `PeriodicTimer` is
-superseded by `FrameScheduler` (ADR-0008) and will be removed in the same PR that
-introduces it.
+The `orion_app` library (`FrameScheduler`, `ShutdownLatch`) builds directly on top
+of `orion_clock` and is documented in the same section below.
 
 ---
 
@@ -82,7 +80,7 @@ clock.sleepUntil(now + 20'000'000);    // sleep ~20 ms
 `sleepUntil` computes the remaining delta at call time and delegates to
 `std::this_thread::sleep_for`. If the target is already in the past, it returns
 immediately without sleeping. The implementation is a single sleep call — it
-does not loop to correct for early wakeup. `PeriodicTimer` accounts for this
+does not loop to correct for early wakeup. `FrameScheduler` accounts for this
 by checking the actual clock time after sleep and detecting overruns.
 
 **Thread safety:** fully thread-safe; all methods are effectively stateless.
@@ -140,8 +138,8 @@ a single `ManualClock`:
 
 ```cpp
 auto clock = std::make_shared<ManualClock>(0);
-// start multiple PeriodicTimer threads all sharing clock...
-clock->advance(10'000'000); // all timers with a 10 ms period fire at once
+// start multiple FrameScheduler threads all sharing clock...
+clock->advance(10'000'000); // all schedulers with a 10 ms period fire at once
 ```
 
 #### Thread safety
@@ -218,55 +216,67 @@ auto sub = session.subscribe<orion::v1::SimTimeUpdate>(
 
 ---
 
-## `PeriodicTimer`
+## `FrameScheduler`
 
 ```cpp
-#include "orion/app/periodic_timer.hpp"
+#include "orion/app/frame_scheduler.hpp"
 namespace orion::app
 ```
 
-Calls a callback at a fixed rate using an injected `Clock`. The timer runs until
-the associated `ShutdownLatch` is stopped.
+Single-threaded, time-triggered executor. Runs all registered callbacks
+sequentially on one thread at integer sub-multiples of the minor frame rate
+(see ADR-0008).
 
 ```cpp
-orion::app::PeriodicTimer timer(
-    100.0,   // rate in Hz
-    clock,   // shared_ptr<Clock>
+orion::app::FrameScheduler sched(
+    100.0,   // minor frame rate in Hz — must be a positive integer value
+    clock,   // shared_ptr<TimeSource>
     &latch   // ShutdownLatch*
 );
-timer.run([&] { /* called ~100 times per second */ });
+sched.every(1,   [&] { imu.read(); });          // 100 Hz — every tick
+sched.every(10,  [&] { telemetry.publish(); });  // 10 Hz  — every 10th tick
+sched.every(100, [&] { diagnostics.check(); });  // 1 Hz   — every 100th tick
+sched.run();  // blocks until latch is stopped
 ```
 
-`run()` blocks the calling thread. Call it from a dedicated thread if you need
-the main thread free for other work.
+`run()` blocks the calling thread. All callbacks execute in registration order
+with no synchronisation required between components within the same service.
+
+### Rate expression — tick divisors
+
+`every(N, cb)` schedules `cb` on ticks where `tick_count % N == 0`. Tick count
+starts at 1, so the first fire is on tick N. All divisors must evenly divide
+the minor frame rate; a non-divisor asserts at registration time.
 
 ### Overrun handling
 
-If a callback takes longer than the tick period, the timer:
+If the combined callback time in a tick exceeds the period, `FrameScheduler`:
 
 1. Increments the overrun counter (readable via `overrunCount()`).
-2. Schedules the **next** tick relative to when the overrun ended, not the
-   original missed deadline. This prevents a burst of immediate catch-up ticks
-   after a slow callback.
+2. Advances `next_tick_` by one period from the intended deadline. If that
+   deadline has already passed, the next tick fires immediately — recovering
+   one period at a time until the scheduler catches up to the clock.
 
 ```
-Normal tick:   deadline → sleep → callback → deadline + period → ...
-Overrun tick:  deadline → sleep → [slow callback] → callback_end + period → ...
+Normal tick:  deadline → sleep → [callbacks] → deadline + period → ...
+Overrun tick: deadline → sleep → [slow callbacks] → deadline + period → (immediate if past) ...
 ```
 
 ### Constructor-time deadline anchoring
 
-`next_tick_` is computed at construction (`nowNs() + period_ns_`), not inside
+`next_tick_` is set at construction (`nowNs() + period_ns_`), not inside
 `run()`. This eliminates a startup race in tests where the test thread might
-advance the clock between object construction and the first call to `run()`.
+advance the clock between construction and the first call to `run()`.
 
 ### Method reference
 
 | Method | Description |
 |--------|-------------|
-| `PeriodicTimer(double rate_hz, shared_ptr<Clock>, ShutdownLatch*)` | Construct at the given rate. Anchors the first deadline to construction time. |
-| `void run(Fn&& callback)` | Blocks, calling `callback` at each tick. Returns when the latch is stopped. |
-| `uint64_t overrunCount() const` | Number of ticks where the callback exceeded the period. Atomic, readable from any thread. |
+| `FrameScheduler(double rate_hz, shared_ptr<TimeSource>, ShutdownLatch*, int rt_priority = 0)` | Construct at the given rate. `rate_hz` must be a positive integer value. `clock` and `latch` must not be null. Optional `rt_priority > 0` sets `SCHED_FIFO` priority on the run thread. All preconditions are enforced with `assert()` (debug builds only). |
+| `void every(uint64_t divisor, Fn&& callback)` | Register a callback to run every `divisor` ticks. Must be called before `run()`. Asserts `divisor > 0` and `divisor` evenly divides `rate_hz`. |
+| `void run()` | Blocks, dispatching callbacks each tick in registration order. Returns when the latch is stopped. Asserts it has not been called previously. |
+| `uint64_t overrunCount() const` | Number of ticks where combined callback time exceeded the period. Atomic, readable from any thread. |
+| `bool rtPriorityApplied() const` | True if `run()` successfully applied the requested `SCHED_FIFO` priority via `pthread_setschedparam`. Always false when `rt_priority` is 0 or before `run()` is called. |
 
 ---
 
@@ -278,7 +288,7 @@ namespace orion::app
 ```
 
 Blocks `main()` until SIGTERM or SIGINT is received, or until `stop()` is called
-programmatically. Also acts as the run-loop exit signal for `PeriodicTimer`.
+programmatically. Also acts as the run-loop exit signal for `FrameScheduler`.
 
 ```cpp
 int main()
@@ -323,7 +333,7 @@ threads are created**, so the blocked signal mask is inherited correctly.
 # Clock only
 target_link_libraries(my_target PRIVATE orion_clock)
 
-# App (PeriodicTimer + ShutdownLatch) — pulls in orion_clock transitively
+# App (FrameScheduler + ShutdownLatch) — pulls in orion_clock transitively
 target_link_libraries(my_target PRIVATE orion_app)
 ```
 
@@ -335,20 +345,19 @@ Linking either target adds the appropriate include path and enforces `cxx_std_20
 
 ### Minimal production service
 
-`timer.run` is the service loop. Everything before it is wiring; everything
-inside it is what the service actually does. The callback has no knowledge of
-the clock or shutdown mechanism.
+`sched.run()` is the service loop. Everything before it is wiring. Callbacks
+execute in registration order with no inter-component synchronisation required.
 
 ```cpp
 #include "orion/clock/clock.hpp"
-#include "orion/app/periodic_timer.hpp"
+#include "orion/app/frame_scheduler.hpp"
 #include "orion/app/shutdown_latch.hpp"
 
 int main()
 {
     orion::app::ShutdownLatch latch;   // must be first — sets signal mask before any other threads
     auto clock = std::make_shared<orion::clock::WallClock>();
-    orion::app::PeriodicTimer timer(100.0, clock, &latch);
+    orion::app::FrameScheduler sched(100.0, clock, &latch);
 
     // construct dependencies...
     ImuReader      imu;
@@ -357,11 +366,12 @@ int main()
     Controller     controller;
     Publisher      publisher;
 
-    timer.run([&] {
-        auto state = estimator.update(imu.read(), gps.read());
-        controller.step(state);
-        publisher.publish(state);
-    });
+    sched.every(1,  [&] { imu.read(); gps.read(); });          // 100 Hz
+    sched.every(1,  [&] { estimator.update(); });               // 100 Hz, sees fresh sensor data
+    sched.every(1,  [&] { controller.step(); });                // 100 Hz
+    sched.every(10, [&] { publisher.publish(estimator.state()); }); // 10 Hz
+
+    sched.run();
     // returns when SIGTERM/SIGINT is received or latch.stop() is called
 }
 ```
@@ -373,12 +383,13 @@ TEST(MyServiceTest, TicksAtRate)
 {
     orion::app::ShutdownLatch latch;
     auto clock = std::make_shared<orion::clock::ManualClock>(0);
-    orion::app::PeriodicTimer timer(100.0, clock, &latch);
+    orion::app::FrameScheduler sched(100.0, clock, &latch);
     std::atomic<int> count{0};
 
-    std::thread runner([&] { timer.run([&] { ++count; }); });
+    sched.every(1, [&] { ++count; });
+    std::thread runner([&] { sched.run(); });
 
-    // Each 10 ms advance fires exactly one callback.
+    // Each 10 ms advance fires exactly one tick.
     clock->advance(10'000'000);
     while (count.load() < 1) std::this_thread::sleep_for(1ms);
 
@@ -395,29 +406,31 @@ TEST(MyServiceTest, TicksAtRate)
 
 ### Testing overrun behaviour
 
+After a severe overrun the scheduler catches up by firing missed ticks
+immediately — one per period — rather than skipping them.
+
 ```cpp
-TEST(MyServiceTest, OverrunCountedAndNoburstAfter)
+TEST(MyServiceTest, OverrunCatchesUp)
 {
     orion::app::ShutdownLatch latch;
     auto clock = std::make_shared<orion::clock::ManualClock>(0);
-    orion::app::PeriodicTimer timer(100.0, clock, &latch);
+    orion::app::FrameScheduler sched(100.0, clock, &latch);
     std::atomic<int> count{0};
 
-    // Callback burns 3 extra periods worth of simulated time.
-    auto slow = [&] {
+    // First tick burns 3 extra periods inside the callback.
+    bool first = true;
+    sched.every(1, [&] {
         ++count;
-        clock->advance(30'000'000); // +30 ms inside a 10 ms period
-    };
+        if (first) { first = false; clock->advance(30'000'000); }
+    });
 
-    std::thread runner([&] { timer.run(slow); });
+    std::thread runner([&] { sched.run(); });
 
-    clock->advance(10'000'000); // trigger first tick
-    while (count.load() < 1) std::this_thread::sleep_for(1ms);
+    clock->advance(10'000'000); // trigger tick 1 (overrun)
 
-    // After the overrun the timer should be sleeping, not firing in a burst.
-    std::this_thread::sleep_for(5ms);
-    EXPECT_EQ(count.load(), 1);
-    EXPECT_GE(timer.overrunCount(), 1u);
+    // Ticks 2–4 fire immediately as catch-up; tick 5 requires a normal advance.
+    while (count.load() < 4) std::this_thread::sleep_for(1ms);
+    EXPECT_EQ(sched.overrunCount(), 1u);
 
     latch.stop();
     clock->wake();

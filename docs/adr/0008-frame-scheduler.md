@@ -67,9 +67,15 @@ If the combined wall time of all callbacks in a tick exceeds the minor frame
 period, `FrameScheduler`:
 
 1. Increments an overrun counter (readable via `overrunCount()`).
-2. Logs a warning via spdlog.
-3. Schedules the next tick from the *intended* next deadline, not from the end
-   of the slow tick — no catch-up burst.
+2. Advances `next_tick_` by one period from the *intended* deadline (`next_tick_
+   += period_ns_`), not from the end of the slow tick. If the intended deadline
+   has already passed, `sleepUntil` returns immediately and the next tick fires
+   at once — recovering one period at a time until the scheduler catches up to
+   the clock.
+
+Logging is the responsibility of the calling service, not `FrameScheduler`.
+Library code does not log. Services that need overrun visibility should poll
+`overrunCount()` and route warnings through their own logging facility.
 
 If the intended next deadline has already passed (the overrun was severe), the
 next tick fires immediately. Overruns on heavy ticks (where multiple divisors
@@ -105,7 +111,7 @@ Recommended priority assignments on the Jetson:
 
 ### Shutdown
 
-At the top of every tick, `FrameScheduler` checks `latch.stopRequested()`. If
+At the top of every tick, `FrameScheduler` checks `latch.stopped()`. If
 true, `run()` returns. Maximum shutdown latency is one minor frame period
 (10 ms at 100 Hz), which is operationally negligible.
 

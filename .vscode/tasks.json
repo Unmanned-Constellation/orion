@@ -199,7 +199,7 @@
     },
     {
       "label": "CI: Check All",
-      "detail": "Run all fast CI checks in parallel (format, proto lint, proto breaking changes, docs)",
+      "detail": "Run all fast CI checks in parallel (format, lint, proto lint, proto breaking changes, docs)",
       "type": "shell",
       "command": "echo 'All checks passed.'",
       "dependsOn": [
@@ -207,7 +207,9 @@
         "CI: Check Format (CMake)",
         "CI: Proto Lint",
         "CI: Proto Breaking Changes",
-        "CI: Docs Check"
+        "CI: Docs Check",
+        "Lint: C++",
+        "CMake: Run Tests"
       ],
       "dependsOrder": "parallel",
       "group": {
