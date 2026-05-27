@@ -161,7 +161,10 @@ TEST(ManualClockTest, SleepUntilBlocksUntilSetNow)
 
 // --- CoordinatedClock ---
 
-TEST(CoordinatedClockTest, DefaultConstructs) { EXPECT_NO_THROW(CoordinatedClock clock); }
+TEST(CoordinatedClockTest, DefaultConstructs)
+{
+    EXPECT_NO_THROW(CoordinatedClock clock);
+} // NOLINT(misc-const-correctness)
 
 TEST(CoordinatedClockTest, UpdateThrowsLogicError)
 {
@@ -169,10 +172,10 @@ TEST(CoordinatedClockTest, UpdateThrowsLogicError)
     EXPECT_THROW(clock.update(0), std::logic_error);
 }
 
-TEST(CoordinatedClockTest, NowNsThrowsLogicError)
+TEST(CoordinatedClockTest, NowNsThrowsLogicError) // NOLINT(readability-function-size)
 {
-    CoordinatedClock clock;
-    EXPECT_THROW({ (void)clock.nowNs(); }, std::logic_error);
+    const CoordinatedClock CLOCK;
+    EXPECT_THROW({ (void)CLOCK.nowNs(); }, std::logic_error);
 }
 
 TEST(CoordinatedClockTest, SleepUntilThrowsLogicError)
@@ -183,26 +186,26 @@ TEST(CoordinatedClockTest, SleepUntilThrowsLogicError)
 
 // --- SimClock ---
 
-TEST(SimClockTest, ZeroScaleThrows)
+TEST(SimClockTest, ZeroScaleThrows) // NOLINT(readability-function-size)
 {
-    EXPECT_THROW({ SimClock clock(0.0); }, std::invalid_argument);
+    EXPECT_THROW({ const SimClock clock(0.0); }, std::invalid_argument);
 }
 
-TEST(SimClockTest, NegativeScaleThrows)
+TEST(SimClockTest, NegativeScaleThrows) // NOLINT(readability-function-size)
 {
-    EXPECT_THROW({ SimClock clock(-1.0); }, std::invalid_argument);
+    EXPECT_THROW({ const SimClock clock(-1.0); }, std::invalid_argument);
 }
 
-TEST(SimClockTest, NaNScaleThrows)
+TEST(SimClockTest, NaNScaleThrows) // NOLINT(readability-function-size)
 {
     const double NAN_VAL = std::numeric_limits<double>::quiet_NaN();
-    EXPECT_THROW({ SimClock clock(NAN_VAL); }, std::invalid_argument);
+    EXPECT_THROW({ const SimClock clock(NAN_VAL); }, std::invalid_argument);
 }
 
-TEST(SimClockTest, InfScaleThrows)
+TEST(SimClockTest, InfScaleThrows) // NOLINT(readability-function-size)
 {
     const double INF_VAL = std::numeric_limits<double>::infinity();
-    EXPECT_THROW({ SimClock clock(INF_VAL); }, std::invalid_argument);
+    EXPECT_THROW({ const SimClock clock(INF_VAL); }, std::invalid_argument);
 }
 
 TEST(SimClockTest, SingleArgConstructorNowNsNearWallTime)
