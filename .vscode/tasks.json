@@ -70,7 +70,6 @@
         "kind": "build",
         "isDefault": true
       },
-      "problemMatcher": "$gcc",
       "presentation": {
         "reveal": "always",
         "panel": "shared"
@@ -84,7 +83,6 @@
       "group": {
         "kind": "build"
       },
-      "problemMatcher": "$gcc",
       "presentation": {
         "reveal": "always",
         "panel": "shared"
@@ -119,7 +117,6 @@
         "kind": "test",
         "isDefault": true
       },
-      "problemMatcher": "$gcc",
       "presentation": {
         "reveal": "always",
         "panel": "shared"
@@ -130,7 +127,6 @@
       "detail": "Run clang-tidy static analysis on all project source",
       "type": "shell",
       "command": "/usr/bin/cmake --build ${command:cmake.buildDirectory} --target tidy",
-      "problemMatcher": "$gcc",
       "presentation": {
         "reveal": "always",
         "panel": "shared"

@@ -205,6 +205,22 @@ TEST(SimClockTest, InfScaleThrows)
     EXPECT_THROW({ SimClock clock(INF_VAL); }, std::invalid_argument);
 }
 
+TEST(SimClockTest, SingleArgConstructorNowNsNearWallTime)
+{
+    const auto BEFORE_NS =
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                  std::chrono::system_clock::now().time_since_epoch())
+                                  .count());
+    const SimClock CLOCK(1.0);
+    const auto     AFTER_NS =
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                  std::chrono::system_clock::now().time_since_epoch())
+                                  .count());
+
+    EXPECT_GE(CLOCK.nowNs(), BEFORE_NS);
+    EXPECT_LE(CLOCK.nowNs(), AFTER_NS + 5'000'000); // +5 ms for scheduler jitter
+}
+
 TEST(SimClockTest, AnchoredNowNsMatchesSimStartAtConstruction)
 {
     constexpr uint64_t K_SIM_START = 1'000'000'000ULL; // 1 s
@@ -260,6 +276,17 @@ TEST(SimClockTest, SleepUntilWallTimeScalesWithFactor)
 }
 
 // --- ManualClock ---
+
+TEST(ManualClockTest, SleepUntilAfterWakeReturnsImmediately)
+{
+    ManualClock clock(0);
+    clock.wake();
+
+    const auto START = std::chrono::steady_clock::now();
+    clock.sleepUntil(999'999'999); // far future — must not block
+    const auto ELAPSED = std::chrono::steady_clock::now() - START;
+    EXPECT_LT(ELAPSED, std::chrono::milliseconds{5});
+}
 
 TEST(ManualClockTest, MultipleWaitersAllWakeOnAdvance)
 {

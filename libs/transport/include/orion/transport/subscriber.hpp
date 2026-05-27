@@ -57,3 +57,6 @@ class Subscriber
 };
 
 } // namespace orion::transport
+
+// Template implementation — decodes Envelope framing for makeRawCallback<T>.
+#include "orion/transport/subscriber_impl.hpp"
