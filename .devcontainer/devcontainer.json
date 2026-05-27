@@ -16,6 +16,7 @@
     "source=orion-cmake-tools,target=/root/.local/share/CMakeTools,type=volume",
     "source=orion-claude-profile,target=/root/.claude,type=volume",
     "source=orion-agents-profile,target=/root/.agents,type=volume",
+    "source=orion-gh-profile,target=/root/.config/gh,type=volume",
     "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,readonly"
   ],
   "remoteEnv": {
