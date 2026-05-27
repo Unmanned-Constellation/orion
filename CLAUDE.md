@@ -121,5 +121,5 @@ When making changes, update documentation alongside the code — never leave the
 
 - Framework: **GoogleTest**
 - Tests live in `tests/`; one `orion_tests` binary covers all units
-- Prefer **fake objects** over mocks — see `FakeClock` in `transport_test.cpp` as the pattern
+- Prefer **fake objects** over mocks — see `FakePublisherBackend` / `FakeSubscriberBackend` in `tests/fake_transport.hpp` and `ManualClock` in `libs/clock/include/orion/clock/clock.hpp` as the pattern
 - Write tests before implementation (TDD)

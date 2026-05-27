@@ -1,15 +1,13 @@
 # ADR 0004: Transport abstraction layer
 
 ## Status
-Accepted
+Accepted (amended — see timestamp ownership revision below)
 
 ## Context
 Zenoh was chosen as the IPC transport (ADR-0001). Microservices need a stable API to publish and
 subscribe to typed messages without depending directly on Zenoh. Reasons to abstract:
 
 - Zenoh is subject to change; a direct dependency in every service makes upgrades painful.
-- Simulation requires an injectable clock; hardcoding `system_clock::now()` makes this
-  impossible without source changes.
 - Future transport protocols (DDS, custom UDP, etc.) should be substitutable without touching
   service code.
 
@@ -21,22 +19,26 @@ into the public headers (`libs/transport/include/`).
 
 Key design choices:
 
-**Typed template API over raw bytes.** `Publisher<T>::publish(const T&)` and
-`Subscriber<T>::Callback = std::function<void(const T&, const MessageHeader&)>`. This gives
+**Typed template API over raw bytes.** `Publisher<T>::publish(const T&, uint64_t captured_at_ns)`
+and `Subscriber<T>::Callback = std::function<void(const T&, const MessageHeader&)>`. This gives
 compile-time type safety: it is impossible to publish the wrong message type on a topic.
 
 **Envelope is transport-internal.** Each published message is wrapped in an `orion::v1::Envelope`
 (defined in `proto/orion/v1/envelope.proto`) before transmission. The envelope carries a
-`orion::v1::Header` (published_at_ns, source_id) and a type_url for runtime type validation.
-Service authors never create or read envelopes; the transport stamps and validates them automatically.
+`orion::v1::Header` (captured_at_ns, source_id) and a type_url for runtime type validation.
+Service authors never create or read envelopes directly.
 
-**Timestamp stamping.** `Publisher<T>::publish` stamps `published_at_ns` by calling
-`clock_->nowNs()` on the `orion::clock::Clock` injected into the `Session` at construction.
-This makes the timestamp source swappable without touching service code (e.g. `WallClock` in
-production, a `SimClock` in simulation).
+**Timestamp ownership belongs to services.** `Publisher<T>::publish` accepts `captured_at_ns`
+explicitly — the time the underlying data was captured, supplied by the calling service.
+Services hold their own `orion::clock::Clock` reference and call `clock->nowNs()` at the point
+of hardware or data capture, not at publish time. This ensures timestamps reflect data age
+rather than transport latency.
+
+`orion_transport` has no dependency on `orion_clock`. The two libraries are fully independent;
+services link both and wire them at startup.
 
 **Subscriber receives `MessageHeader`.** The callback signature exposes `MessageHeader` (a
-plain struct with `published_at_ns` and `source_id`) so callers can read envelope metadata
+plain struct with `captured_at_ns` and `source_id`) so callers can read envelope metadata
 without depending on protobuf types in their callback signatures.
 
 **`orion_proto` is PRIVATE to `orion_transport`.** Consumers link against `orion_transport`
@@ -45,10 +47,9 @@ and include domain-specific proto headers directly; they do not see `Envelope` o
 ## Consequences
 
 - All inter-service communication goes through `Session::advertise<T>` / `Session::subscribe<T>`.
+- `Session::create(SessionConfig)` takes no Clock parameter — the transport is time-agnostic.
+- Services are responsible for capturing and passing timestamps at the right moment.
 - Adding a new transport backend requires replacing `session_impl.cpp` only.
-- Simulation time coordination: clock injection is already implemented. `Session::create` accepts
-  a `std::shared_ptr<orion::clock::Clock>`; `WallClock` is the default. A `SimClock` that
-  subscribes to `orion/swarm/clock` is not yet implemented.
+- `orion_clock` and `orion_transport` have no dependency on each other — circular dependency
+  is structurally impossible.
 - Request-reply (Zenoh queryables) is deferred; the abstraction is currently pub-sub only.
-- Domain timestamps (e.g., camera capture time) belong in the proto message fields, not in the
-  transport header. `published_at_ns` records when the transport published the message.

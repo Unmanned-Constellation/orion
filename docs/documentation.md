@@ -92,11 +92,8 @@ Use triple-slash `///` or Javadoc `/** */` block comments on public declarations
 /// Brief one-line description.
 ///
 /// @param config Session configuration including vehicle_id and service_name.
-/// @param clock  Time source injected for testability; defaults to wall clock.
-/// @return       A Session connected to the Zenoh bus, or an error.
-static auto create(SessionConfig config,
-                   std::shared_ptr<Clock> clock = std::make_shared<WallClock>())
-    -> std::expected<Session, std::error_code>;
+/// @return       A Session connected to the Zenoh bus, or throws on failure.
+static auto create(SessionConfig config) -> Session;
 ```
 
 Key rules enforced by the Doxyfile:

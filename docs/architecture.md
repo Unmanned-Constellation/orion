@@ -35,7 +35,6 @@ flowchart LR
         orion_proto["orion_proto<br/>(STATIC)"]:::staticLib
         orion_app["orion_app<br/>(INTERFACE)"]:::interface
         orion_transport["orion_transport<br/>(SHARED)"]:::sharedLib
-        orion_sim_clock["orion_sim_clock<br/>(INTERFACE · M3)"]:::planned
     end
 
     subgraph Executables ["🚀 Tests"]
@@ -53,19 +52,14 @@ flowchart LR
     spdlog      -.-> orion_app
 
     %% Internal Module Edges
-    orion_clock -->|publicly linked| orion_transport
-    orion_clock --> orion_app
     orion_proto --> orion_transport
-
-    orion_clock     -. M3 .-> orion_sim_clock
-    orion_transport -. M3 .-> orion_sim_clock
+    orion_clock --> orion_app
 
     %% Executable Edges
     orion_clock     --> orion_tests
     orion_app       --> orion_tests
     orion_transport --> orion_tests
     orion_proto     --> orion_tests
-    orion_sim_clock -.-> orion_tests
     gtest           --> orion_tests
 ```
 
@@ -79,31 +73,32 @@ local recipes under `conan/recipes/` — see
 
 | Target | Type | Responsibility |
 |---|---|---|
-| `orion_clock` | INTERFACE | Abstract `Clock` interface + `WallClock`, `ManualClock`, `SimClock`. Zero deps beyond stdlib. |
+| `orion_clock` | INTERFACE | Abstract `Clock` interface + `WallClock`, `ManualClock`, `SimClock`, `CoordinatedClock`. Zero deps beyond stdlib. |
 | `orion_proto` | STATIC | Compiled protobuf message bindings for all `.proto` files under `proto/orion/v1/`. |
 | `orion_app` | INTERFACE | `ShutdownLatch`, `FrameScheduler`, `CrashHandler` (M2), `LoggerFactory` (M2). Depends on `orion_clock`. |
-| `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Stamps messages with injected `Clock`. Depends on `orion_clock` + `orion_proto` + Zenoh. |
-| `orion_sim_clock` | INTERFACE (M3) | `ExternalClock` — replay-mode clock driven by `Subscriber<SimTimeUpdate>`. Sits above both `orion_clock` and `orion_transport` to avoid a circular dependency. |
+| `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic — services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
 
 ---
 
-## Why `orion_clock` has zero dependencies
+## Why `orion_clock` and `orion_transport` have no dependency on each other
 
-Services inject a `shared_ptr<Clock>` at construction. `orion_transport` links
-`orion_clock` **publicly** so that `Publisher<T>::publish` stamps
-`MessageHeader::published_at_ns` using the injected clock. This means simulation
-timestamps are correct in published messages with no service code changes — only
-the concrete `Clock` passed to `Session::create` changes.
+Services hold their own `Clock` reference and call `clock->nowNs()` at the point
+of data capture, passing the result to `Publisher<T>::publish(msg, captured_at_ns)`.
+The transport layer is fully time-agnostic — it forwards the timestamp into the
+`Envelope` header without knowing or caring what clock produced it.
 
-If `orion_clock` took a dependency on `orion_transport`, `ExternalClock` (which
-depends on `Subscriber<T>`) would create a cycle:
+This means the two libraries are structurally independent:
 
 ```
-orion_clock → orion_transport → orion_clock   ✗ circular
+orion_clock      (Clock, WallClock, ManualClock, SimClock, CoordinatedClock)
+orion_transport  (Session, Publisher, Subscriber)
+services         link both independently
 ```
 
-The solution is `orion_sim_clock` — a separate target above both — which is why
-`ExternalClock` does not live in `orion_clock` itself.
+Keeping them independent makes circular dependencies impossible. `CoordinatedClock`
+lives in `orion_clock` and exposes an `update(sim_time_ns)` method — the service
+wires the Zenoh subscription and calls `update()` in the callback, so
+`CoordinatedClock` itself has no knowledge of Zenoh or transport.
 
 ---
 
@@ -124,9 +119,9 @@ The solution is `orion_sim_clock` — a separate target above both — which is 
 
 ## Milestone build targets
 
-| Milestone | New targets | New dependencies |
+| Milestone | New targets / features | New dependencies |
 |---|---|---|
 | Current | `orion_clock`, `orion_proto`, `orion_app`, `orion_transport` | protobuf, zenoh-c, zenoh-cpp, abseil, gtest |
-| M1 — Core Runtime | `SimClock` in `orion_clock`; `FrameScheduler` in `orion_app` | none |
+| M1 — Core Runtime | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
 | M2 — Observability | `CrashHandler`, `LoggerFactory`, `HealthPublisher` in `orion_app` | backward-cpp, libdw, spdlog |
-| M3 — Simulation | `orion_sim_clock` (new target), `ExternalClock` | none |
+| M3 — Simulation | `CoordinatedClock` Phase 3 full implementation; Clock Service publisher | none |

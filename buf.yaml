@@ -4,6 +4,8 @@ modules:
 lint:
   use:
     - STANDARD
+# WIRE enforces field-number and type stability (binary compat) without blocking
+# field renames. Upgrade to FILE at v1.0 when the proto API is stable.
 breaking:
   use:
-    - FILE
+    - WIRE
