@@ -17,9 +17,9 @@ struct SessionConfig
     /// Stamped as MessageHeader::source_id on every published message.
     std::string service_name;
 
-    /// Path to a backend-specific config file (Zenoh JSON format).
+    /// Path to a backend-specific config file.
     /// When absent, the transport backend uses its built-in defaults.
-    std::optional<std::string> zenoh_config_path;
+    std::optional<std::string> config_path;
 };
 
 } // namespace orion::transport

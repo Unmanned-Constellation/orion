@@ -79,9 +79,8 @@ Session::~Session() = default;
 auto Session::create(SessionConfig config) -> Session
 {
     auto err          = zenoh::ZResult{};
-    auto zenoh_config = config.zenoh_config_path
-                            ? zenoh::Config::from_file(*config.zenoh_config_path, &err)
-                            : zenoh::Config::create_default(&err);
+    auto zenoh_config = config.config_path ? zenoh::Config::from_file(*config.config_path, &err)
+                                           : zenoh::Config::create_default(&err);
     if (err != Z_OK)
     {
         throw std::runtime_error("Session::create: failed to build Zenoh config");
