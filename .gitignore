@@ -14,12 +14,12 @@ build/
 bin/
 
 # IDE and Editor specific configurations
-.vscode/settings.json
 *.swp
 *.swo
 
 # Local Developer/Container Caches
 .ccache/
+.cache/
 
 # Generated documentation
 docs/_build/

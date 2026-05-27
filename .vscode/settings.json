@@ -1,0 +1,10 @@
+{
+    "protobuf.externalLinter.enabled": true,
+    "protobuf.externalLinter.linter": "buf",
+    "protobuf.externalLinter.bufPath": "/usr/local/bin/buf",
+    "protobuf.buf.path": "/usr/local/bin/buf",
+    "cmake.exportCompileCommandsFile": true,
+    "clangd.arguments": [
+        "--compile-commands-dir=${command:cmake.buildDirectory}"
+    ]
+}
