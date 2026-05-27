@@ -38,7 +38,7 @@ auto session = orion::transport::Session::create({
 |-------|------|-------------|
 | `vehicle_id` | `std::string` | Vehicle identifier — second segment of every per-vehicle topic. |
 | `service_name` | `std::string` | Stamped as `MessageHeader::source_id` on every outbound message. |
-| `zenoh_config_path` | `std::optional<std::string>` | Path to a backend-specific config file. Uses built-in defaults when absent. |
+| `config_path` | `std::optional<std::string>` | Path to a backend-specific config file. Uses built-in defaults when absent. |
 
 ### `Publisher<T>`
 
@@ -105,6 +105,6 @@ Subscribers silently drop messages whose `type_url` does not match the expected 
   reference and supply `captured_at_ns` at point of hardware capture. The transport layer
   is fully time-agnostic.
 - Backend types (Zenoh session, publisher, subscriber handles) never appear in public
-  headers — the pimpl pattern keeps all backend includes confined to `session_impl.cpp`.
+  headers — the pimpl pattern keeps all backend includes confined to `zenoh_session.cpp`.
 - `PublisherBackend` and `SubscriberBackend` are abstract interfaces; tests can substitute
   fake backends without any Zenoh dependency.
