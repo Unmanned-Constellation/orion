@@ -1,14 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
-
-#include "orion/clock/clock.hpp"
 
 namespace orion::transport
 {
 
-/// Non-template backend — implemented in session_impl.cpp, keeps Zenoh out of this header.
+/// Non-template backend — implemented in session_impl.cpp, keeps transport internals out of this
+/// header.
 class PublisherBackend
 {
   public:
@@ -21,11 +21,11 @@ class PublisherBackend
     virtual void send(std::string_view bytes) = 0;
 };
 
-/// Typed handle for publishing messages of type T on a Zenoh topic.
+/// Typed handle for publishing messages of type T on the message bus.
 ///
 /// Obtained via Session::advertise<T>(). Non-copyable; movable.
-/// Calling publish() stamps the MessageHeader, wraps the message in an Envelope,
-/// and transmits it on the bus.
+/// Calling publish() wraps the message in an Envelope with the supplied capture
+/// timestamp and transmits it on the bus.
 ///
 /// @tparam T  Protobuf message type to serialize and publish.
 template <typename T>
@@ -33,10 +33,8 @@ class Publisher
 {
   public:
     /// @cond
-    Publisher(std::unique_ptr<PublisherBackend>    backend,
-              std::shared_ptr<orion::clock::Clock> clock,
-              std::string                          source_id)
-        : backend_(std::move(backend)), clock_(std::move(clock)), source_id_(std::move(source_id))
+    Publisher(std::unique_ptr<PublisherBackend> backend, std::string source_id)
+        : backend_(std::move(backend)), source_id_(std::move(source_id))
     {
     }
 
@@ -47,16 +45,17 @@ class Publisher
     /// @endcond
 
     /// Serializes @p msg into an Envelope and publishes it on the bus.
-    /// @param[in] msg  Message to serialize and publish.
-    void publish(const T& msg);
+    /// @param[in] msg             Message to serialize and publish.
+    /// @param[in] captured_at_ns  Time the underlying data was captured, nanoseconds
+    ///                            since the Unix epoch. Supplied by the calling service.
+    void publish(const T& msg, uint64_t captured_at_ns);
 
   private:
-    std::unique_ptr<PublisherBackend>    backend_;
-    std::shared_ptr<orion::clock::Clock> clock_;
-    std::string                          source_id_;
+    std::unique_ptr<PublisherBackend> backend_;
+    std::string                       source_id_;
 };
 
 } // namespace orion::transport
 
-// Template implementation — included here, but only pulls in proto headers (not Zenoh).
+// Template implementation — included here, but only pulls in proto headers (not transport backend).
 #include "orion/transport/publisher_impl.hpp"

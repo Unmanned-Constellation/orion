@@ -13,7 +13,6 @@
 #include <zenoh/api/subscriber.hxx>
 #include <zenoh_concrete.h>
 
-#include "orion/clock/clock.hpp"
 #include "orion/transport/config.hpp"
 #include "orion/transport/publisher.hpp"
 #include "orion/transport/session.hpp"
@@ -77,13 +76,11 @@ Session::Session(std::unique_ptr<SessionImpl> impl) : impl_(std::move(impl)) {}
 
 Session::~Session() = default;
 
-auto Session::create(SessionConfig                               config,
-                     const std::shared_ptr<orion::clock::Clock>& clock) -> Session
+auto Session::create(SessionConfig config) -> Session
 {
     auto err          = zenoh::ZResult{};
-    auto zenoh_config = config.zenoh_config_path
-                            ? zenoh::Config::from_file(*config.zenoh_config_path, &err)
-                            : zenoh::Config::create_default(&err);
+    auto zenoh_config = config.config_path ? zenoh::Config::from_file(*config.config_path, &err)
+                                           : zenoh::Config::create_default(&err);
     if (err != Z_OK)
     {
         throw std::runtime_error("Session::create: failed to build Zenoh config");
@@ -96,7 +93,6 @@ auto Session::create(SessionConfig                               config,
     }
 
     auto session       = Session(std::make_unique<SessionImpl>(std::move(zenoh_session)));
-    session.clock_     = clock;
     session.source_id_ = std::move(config.service_name);
     return session;
 }

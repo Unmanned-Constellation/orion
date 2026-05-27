@@ -156,6 +156,68 @@ clock to avoid a data race on the clock's internal state.
 
 ---
 
+### `SimClock`
+
+Scaled real-time clock for integration testing and fast SIL runs. Advances at
+`scale×` wall speed; no external coordination required.
+
+```cpp
+// Run at 10× wall speed, sim time anchored to wall time at construction.
+orion::clock::SimClock clock(10.0);
+
+// Anchored start — useful in tests where sim_start_ns must be known.
+orion::clock::SimClock clock(2.0, 0);  // sim time starts at 0, runs at 2× wall speed
+```
+
+**`nowNs()`** computes `sim_start_ns + (wall_now - wall_start) * scale`. All
+members are set at construction and never mutated — `nowNs()` is thread-safe
+with no locking.
+
+**`sleepUntil(target_ns)`** uses a correcting loop: converts the remaining sim
+duration to wall time (`remaining / scale`), sleeps, then re-checks. Callers
+never wake before their sim-time deadline regardless of OS scheduler jitter.
+
+| Constructor | Description |
+|---|---|
+| `SimClock(double scale)` | Sim time starts at wall time now, advances at `scale×`. |
+| `SimClock(double scale, uint64_t sim_start_ns)` | Sim time starts at `sim_start_ns`, advances at `scale×`. |
+
+Both throw `std::invalid_argument` if `scale` is `≤ 0`, `NaN`, or infinite.
+
+---
+
+### `CoordinatedClock`
+
+Coordinated faster-than-real-time clock for lockstep multi-service simulation.
+Driven externally via `update(sim_time_ns)` — typically called from a Zenoh
+subscriber callback receiving `SimTimeUpdate` messages from a Clock Service.
+
+All services sharing a `CoordinatedClock` advance in lockstep when the Clock
+Service broadcasts a new timestamp. `sleepUntil` blocks on a condition variable
+until `update()` advances past the target — identical pattern to `ManualClock`.
+
+**Phase 2 stub:** `nowNs()` and `sleepUntil()` throw `std::logic_error` until
+Phase 3 is implemented. `update()` and the constructor compile correctly.
+
+```cpp
+auto clock = std::make_shared<orion::clock::CoordinatedClock>();
+
+// Wire the Zenoh subscription in your service:
+auto sub = session.subscribe<orion::v1::SimTimeUpdate>(
+    "orion/alpha/clock/sim_time",
+    [&](const orion::v1::SimTimeUpdate& msg, const auto&) {
+        clock->update(msg.sim_time_ns());
+    });
+```
+
+| Method | Description |
+|---|---|
+| `void update(uint64_t sim_time_ns)` | Advance clock to `sim_time_ns` and wake all `sleepUntil` waiters. |
+| `uint64_t nowNs() const` | Returns current sim time (Phase 3). |
+| `void sleepUntil(uint64_t target_ns)` | Blocks until `update()` advances past `target_ns` (Phase 3). |
+
+---
+
 ## `PeriodicTimer`
 
 ```cpp

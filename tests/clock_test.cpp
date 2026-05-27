@@ -1,6 +1,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -9,7 +10,9 @@
 
 #include "orion/clock/clock.hpp"
 
+using orion::clock::CoordinatedClock;
 using orion::clock::ManualClock;
+using orion::clock::SimClock;
 using orion::clock::WallClock;
 
 // --- WallClock ---
@@ -154,6 +157,138 @@ TEST(ManualClockTest, SleepUntilBlocksUntilSetNow)
     clock.setNow(5'000);
     waiter.join();
     EXPECT_TRUE(woken);
+}
+
+// --- CoordinatedClock ---
+
+TEST(CoordinatedClockTest, DefaultConstructs)
+{
+    EXPECT_NO_THROW(CoordinatedClock clock); // NOLINT(misc-const-correctness)
+}
+
+TEST(CoordinatedClockTest, UpdateThrowsLogicError)
+{
+    CoordinatedClock clock;
+    EXPECT_THROW(clock.update(0), std::logic_error);
+}
+
+TEST(CoordinatedClockTest, NowNsThrowsLogicError) // NOLINT(readability-function-size)
+{
+    const CoordinatedClock CLOCK;
+    EXPECT_THROW({ (void)CLOCK.nowNs(); }, std::logic_error);
+}
+
+TEST(CoordinatedClockTest, SleepUntilThrowsLogicError)
+{
+    CoordinatedClock clock;
+    EXPECT_THROW(clock.sleepUntil(0), std::logic_error);
+}
+
+// --- SimClock ---
+
+TEST(SimClockTest, ZeroScaleThrows) // NOLINT(readability-function-size)
+{
+    EXPECT_THROW({ const SimClock clock(0.0); }, std::invalid_argument);
+}
+
+TEST(SimClockTest, NegativeScaleThrows) // NOLINT(readability-function-size)
+{
+    EXPECT_THROW({ const SimClock clock(-1.0); }, std::invalid_argument);
+}
+
+TEST(SimClockTest, NaNScaleThrows) // NOLINT(readability-function-size)
+{
+    const double NAN_VAL = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_THROW({ const SimClock clock(NAN_VAL); }, std::invalid_argument);
+}
+
+TEST(SimClockTest, InfScaleThrows) // NOLINT(readability-function-size)
+{
+    const double INF_VAL = std::numeric_limits<double>::infinity();
+    EXPECT_THROW({ const SimClock clock(INF_VAL); }, std::invalid_argument);
+}
+
+TEST(SimClockTest, SingleArgConstructorNowNsNearWallTime)
+{
+    const auto BEFORE_NS =
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                  std::chrono::system_clock::now().time_since_epoch())
+                                  .count());
+    const SimClock CLOCK(1.0);
+    const auto     AFTER_NS =
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                  std::chrono::system_clock::now().time_since_epoch())
+                                  .count());
+
+    EXPECT_GE(CLOCK.nowNs(), BEFORE_NS);
+    EXPECT_LE(CLOCK.nowNs(), AFTER_NS + 5'000'000); // +5 ms for scheduler jitter
+}
+
+TEST(SimClockTest, AnchoredNowNsMatchesSimStartAtConstruction)
+{
+    constexpr uint64_t K_SIM_START = 1'000'000'000ULL; // 1 s
+    const SimClock     CLOCK(1.0, K_SIM_START);
+    EXPECT_NEAR(static_cast<double>(CLOCK.nowNs()), static_cast<double>(K_SIM_START), 5e6);
+}
+
+TEST(SimClockTest, NowNsAdvancesAtScaledRate)
+{
+    const SimClock CLOCK(2.0, 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds{20});
+    constexpr uint64_t K_EXPECTED_NS = 40'000'000ULL; // 40 ms at 2×
+    constexpr uint64_t K_TOLERANCE   = 10'000'000ULL; // ±10 ms
+    EXPECT_NEAR(static_cast<double>(CLOCK.nowNs()),
+                static_cast<double>(K_EXPECTED_NS),
+                static_cast<double>(K_TOLERANCE));
+}
+
+TEST(SimClockTest, NowNsIsMonotonic)
+{
+    const SimClock CLOCK(1.0, 0);
+    const uint64_t FIRST  = CLOCK.nowNs();
+    const uint64_t SECOND = CLOCK.nowNs();
+    EXPECT_GE(SECOND, FIRST);
+}
+
+TEST(SimClockTest, SleepUntilPastTargetReturnsImmediately)
+{
+    SimClock   clock(1.0, 0);
+    const auto START = std::chrono::steady_clock::now();
+    clock.sleepUntil(0); // already past
+    const auto ELAPSED = std::chrono::steady_clock::now() - START;
+    EXPECT_LT(ELAPSED, std::chrono::milliseconds{5});
+}
+
+TEST(SimClockTest, SleepUntilNeverReturnsBeforeTarget)
+{
+    SimClock           clock(10.0, 0);
+    constexpr uint64_t K_TARGET_NS = 50'000'000ULL; // 50 ms sim = 5 ms wall at 10×
+    clock.sleepUntil(K_TARGET_NS);
+    EXPECT_GE(clock.nowNs(), K_TARGET_NS);
+}
+
+TEST(SimClockTest, SleepUntilWallTimeScalesWithFactor)
+{
+    SimClock           clock(10.0, 0);
+    constexpr uint64_t K_TARGET_NS = 100'000'000ULL; // 100 ms sim = ~10 ms wall at 10×
+    const auto         START       = std::chrono::steady_clock::now();
+    clock.sleepUntil(K_TARGET_NS);
+    const auto ELAPSED = std::chrono::steady_clock::now() - START;
+    EXPECT_GE(ELAPSED, std::chrono::milliseconds{5});   // took real wall time
+    EXPECT_LT(ELAPSED, std::chrono::milliseconds{100}); // but much less than sim time
+}
+
+// --- ManualClock ---
+
+TEST(ManualClockTest, SleepUntilAfterWakeReturnsImmediately)
+{
+    ManualClock clock(0);
+    clock.wake();
+
+    const auto START = std::chrono::steady_clock::now();
+    clock.sleepUntil(999'999'999); // far future — must not block
+    const auto ELAPSED = std::chrono::steady_clock::now() - START;
+    EXPECT_LT(ELAPSED, std::chrono::milliseconds{5});
 }
 
 TEST(ManualClockTest, MultipleWaitersAllWakeOnAdvance)
