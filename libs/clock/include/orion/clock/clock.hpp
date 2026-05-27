@@ -278,8 +278,10 @@ class CoordinatedClock final : public Clock
 
     /// @copydoc Clock::sleepUntil
     /// @throws std::logic_error always — not yet implemented.
-    void sleepUntil(uint64_t /*target_ns*/) override
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    void sleepUntil(uint64_t target_ns) override
     {
+        (void)target_ns;
         throw std::logic_error("CoordinatedClock not yet implemented");
     }
 };
