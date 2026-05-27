@@ -262,17 +262,21 @@ class CoordinatedClock final : public Clock
     /// Advances the clock to sim_time_ns and unblocks any sleepUntil waiters.
     /// Called by the service's SimTimeUpdate subscriber callback.
     /// @param sim_time_ns  New simulated time, nanoseconds since the Unix epoch.
-    void update(uint64_t /*sim_time_ns*/)
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    void update(uint64_t sim_time_ns)
     {
+        (void)sim_time_ns;
         throw std::logic_error("CoordinatedClock not yet implemented");
     }
 
+    /// @copydoc Clock::nowNs
     /// @throws std::logic_error always — not yet implemented.
     [[nodiscard]] uint64_t nowNs() const override
     {
         throw std::logic_error("CoordinatedClock not yet implemented");
     }
 
+    /// @copydoc Clock::sleepUntil
     /// @throws std::logic_error always — not yet implemented.
     void sleepUntil(uint64_t /*target_ns*/) override
     {

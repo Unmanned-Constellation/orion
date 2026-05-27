@@ -191,14 +191,26 @@
       }
     },
     {
+      "label": "CI: Proto Breaking Changes",
+      "detail": "Run buf breaking against origin/main — catches wire-incompatible proto changes before push",
+      "type": "shell",
+      "command": "if git ls-remote --exit-code origin main 2>/dev/null && git ls-tree -r origin/main --name-only | grep -q '\\.proto$'; then buf breaking --against '.git#branch=origin/main'; else echo 'No proto files on origin/main — skipping.'; fi",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
       "label": "CI: Check All",
-      "detail": "Run all fast CI checks in parallel (format, proto lint, docs)",
+      "detail": "Run all fast CI checks in parallel (format, proto lint, proto breaking changes, docs)",
       "type": "shell",
       "command": "echo 'All checks passed.'",
       "dependsOn": [
         "CI: Check Format (C++)",
         "CI: Check Format (CMake)",
         "CI: Proto Lint",
+        "CI: Proto Breaking Changes",
         "CI: Docs Check"
       ],
       "dependsOrder": "parallel",
