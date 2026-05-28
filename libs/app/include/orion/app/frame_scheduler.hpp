@@ -1,12 +1,12 @@
 #pragma once
 
 #include <atomic>
-#include <cassert>
 #include <cmath>
 #include <concepts>
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include <pthread.h>
@@ -29,6 +29,9 @@ class FrameScheduler
     /// @param latch       Shutdown signal — run() returns when latch.stopped().
     /// @param rt_priority SCHED_FIFO priority passed to pthread_setschedparam
     ///                    before the tick loop. 0 (default) keeps SCHED_OTHER.
+    /// @throws std::invalid_argument if rate_hz is not a positive integer Hz value.
+    /// @throws std::invalid_argument if clock is null.
+    /// @throws std::invalid_argument if latch is null.
     FrameScheduler(double                                    rate_hz,
                    std::shared_ptr<orion::clock::TimeSource> clock,
                    ShutdownLatch*                            latch,
@@ -36,37 +39,47 @@ class FrameScheduler
         : period_ns_(periodNsFrom(rate_hz)),
           frame_ticks_(static_cast<uint64_t>(rate_hz)),
           clock_(clockFrom(std::move(clock))),
-          latch_(latch),
+          latch_(latchFrom(latch)),
           rt_priority_(rt_priority),
           next_tick_(clock_->nowNs() + period_ns_)
     {
-        assert(latch_ != nullptr && "latch must not be null");
     }
 
     /// Registers a callback to run on every tick where tick_count % divisor == 0.
     ///
-    /// May only be called before run(). Calling after run() has been entered
-    /// is a programming error and will assert.
-    ///
-    /// Preconditions are enforced with assert() and are therefore only checked
-    /// in debug builds (NDEBUG disables them in release).
+    /// May only be called before run().
     ///
     /// @param divisor  Tick divisor. Must be > 0 and must evenly divide rate_hz.
     /// @param callback Invocable called on matching ticks.
+    /// @throws std::invalid_argument if divisor is 0 or does not evenly divide rate_hz.
+    /// @throws std::logic_error if called after run() has been entered.
     template <std::invocable Fn>
     void every(uint64_t divisor, Fn&& callback)
     {
-        assert(divisor > 0 && "divisor must be > 0");
-        assert(frame_ticks_ % divisor == 0 && "divisor must evenly divide the minor frame");
-        assert(!running_.load(std::memory_order_acquire) && "every() called after run()");
+        if (divisor == 0)
+        {
+            throw std::invalid_argument("FrameScheduler::every: divisor must be > 0");
+        }
+        if (frame_ticks_ % divisor != 0)
+        {
+            throw std::invalid_argument(
+                "FrameScheduler::every: divisor must evenly divide the minor frame");
+        }
+        if (running_.load(std::memory_order_acquire))
+        {
+            throw std::logic_error("FrameScheduler::every: every() called after run()");
+        }
         callbacks_.push_back({divisor, std::forward<Fn>(callback)});
     }
 
     /// Blocks until latch.stopped(), executing registered callbacks each tick.
+    /// @throws std::logic_error if called more than once.
     void run()
     {
-        assert(!running_.exchange(true, std::memory_order_acq_rel) &&
-               "run() called more than once");
+        if (running_.exchange(true, std::memory_order_acq_rel))
+        {
+            throw std::logic_error("FrameScheduler::run: run() called more than once");
+        }
 
         if (rt_priority_ > 0)
         {
@@ -132,16 +145,31 @@ class FrameScheduler
 
     static auto periodNsFrom(double rate_hz) -> uint64_t
     {
-        assert(rate_hz > 0.0 && std::floor(rate_hz) == rate_hz &&
-               "rate_hz must be a positive integer Hz value");
+        if (rate_hz <= 0.0 || std::floor(rate_hz) != rate_hz)
+        {
+            throw std::invalid_argument(
+                "FrameScheduler: rate_hz must be a positive integer Hz value");
+        }
         return static_cast<uint64_t>(1e9 / rate_hz);
     }
 
     static auto clockFrom(std::shared_ptr<orion::clock::TimeSource> clock)
         -> std::shared_ptr<orion::clock::TimeSource>
     {
-        assert(clock != nullptr && "clock must not be null");
+        if (clock == nullptr)
+        {
+            throw std::invalid_argument("FrameScheduler: clock must not be null");
+        }
         return clock;
+    }
+
+    static auto latchFrom(ShutdownLatch* latch) -> ShutdownLatch*
+    {
+        if (latch == nullptr)
+        {
+            throw std::invalid_argument("FrameScheduler: latch must not be null");
+        }
+        return latch;
     }
 
     const uint64_t                            period_ns_;

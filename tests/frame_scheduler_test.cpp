@@ -363,90 +363,61 @@ TEST(FrameSchedulerTest, FirstTickAlignmentFiresOnTickN)
     stopAndJoin(latch, *clock, runner);
 }
 
-// --- Programming-error assertions (death tests) ----------------------------
+// --- Programming-error preconditions ---------------------------------------
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST(FrameSchedulerDeathTest, ZeroDivisorAsserts)
+TEST(FrameSchedulerPreconditionTest, ZeroDivisorThrows)
 {
     ShutdownLatch  latch;
     auto           clock = std::make_shared<ManualClock>(0);
     FrameScheduler sched(100.0, clock, &latch);
 
-    EXPECT_DEATH(sched.every(0, [] {}), "divisor must be > 0");
+    EXPECT_THROW(sched.every(0, [] {}), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST(FrameSchedulerDeathTest, EveryAfterRunAsserts)
-{
-    ShutdownLatch    latch;
-    auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
-    std::atomic<int> count{0};
-
-    sched.every(1, [&] { ++count; });
-    auto runner = std::thread([&] { sched.run(); });
-
-    // Wait until the scheduler has entered its run loop.
-    tick(*clock, count, 1);
-
-    // GTest death tests fork. The child inherits the runner thread but terminates
-    // via SIGABRT before interacting with it, so the orphaned thread is harmless.
-    EXPECT_DEATH(sched.every(1, [] {}), "every\\(\\) called after run\\(\\)");
-
-    stopAndJoin(latch, *clock, runner);
-}
-
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST(FrameSchedulerDeathTest, NonDivisorAsserts)
+TEST(FrameSchedulerPreconditionTest, NonDivisorThrows)
 {
     ShutdownLatch  latch;
     auto           clock = std::make_shared<ManualClock>(0);
     FrameScheduler sched(100.0, clock, &latch);
 
     // 3 does not evenly divide 100.
-    EXPECT_DEATH(sched.every(3, [] {}), "divisor must evenly divide");
+    EXPECT_THROW(sched.every(3, [] {}), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST(FrameSchedulerDeathTest, NullClockAsserts)
+TEST(FrameSchedulerPreconditionTest, NullClockThrows)
 {
     ShutdownLatch latch;
-    EXPECT_DEATH(FrameScheduler(100.0, nullptr, &latch), "clock must not be null");
+    EXPECT_THROW(FrameScheduler(100.0, nullptr, &latch), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST(FrameSchedulerDeathTest, NullLatchAsserts)
+TEST(FrameSchedulerPreconditionTest, NullLatchThrows)
 {
     auto clock = std::make_shared<ManualClock>(0);
-    EXPECT_DEATH(FrameScheduler(100.0, clock, nullptr), "latch must not be null");
+    EXPECT_THROW(FrameScheduler(100.0, clock, nullptr), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST(FrameSchedulerDeathTest, NonPositiveRateAsserts)
+TEST(FrameSchedulerPreconditionTest, ZeroRateThrows)
 {
     ShutdownLatch latch;
     auto          clock = std::make_shared<ManualClock>(0);
-    EXPECT_DEATH(FrameScheduler(0.0, clock, &latch), "rate_hz");
+    EXPECT_THROW(FrameScheduler(0.0, clock, &latch), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST(FrameSchedulerDeathTest, NegativeRateAsserts)
+TEST(FrameSchedulerPreconditionTest, NegativeRateThrows)
 {
     ShutdownLatch latch;
     auto          clock = std::make_shared<ManualClock>(0);
-    EXPECT_DEATH(FrameScheduler(-100.0, clock, &latch), "rate_hz");
+    EXPECT_THROW(FrameScheduler(-100.0, clock, &latch), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST(FrameSchedulerDeathTest, NonIntegerRateAsserts)
+TEST(FrameSchedulerPreconditionTest, NonIntegerRateThrows)
 {
     ShutdownLatch latch;
     auto          clock = std::make_shared<ManualClock>(0);
-    EXPECT_DEATH(FrameScheduler(99.5, clock, &latch), "rate_hz");
+    EXPECT_THROW(FrameScheduler(99.5, clock, &latch), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST(FrameSchedulerDeathTest, RunCalledTwiceAsserts)
+TEST(FrameSchedulerPreconditionTest, EveryAfterRunThrows)
 {
     ShutdownLatch    latch;
     auto             clock = std::make_shared<ManualClock>(0);
@@ -458,10 +429,24 @@ TEST(FrameSchedulerDeathTest, RunCalledTwiceAsserts)
 
     tick(*clock, count, 1);
 
-    // GTest death tests fork; the child terminates via SIGABRT immediately.
-    EXPECT_DEATH(
-        sched.run(),
-        "run\\(\\) called more than once"); // NOLINT(readability-function-cognitive-complexity)
+    EXPECT_THROW(sched.every(1, [] {}), std::logic_error);
+
+    stopAndJoin(latch, *clock, runner);
+}
+
+TEST(FrameSchedulerPreconditionTest, RunCalledTwiceThrows)
+{
+    ShutdownLatch    latch;
+    auto             clock = std::make_shared<ManualClock>(0);
+    FrameScheduler   sched(100.0, clock, &latch);
+    std::atomic<int> count{0};
+
+    sched.every(1, [&] { ++count; });
+    auto runner = std::thread([&] { sched.run(); });
+
+    tick(*clock, count, 1);
+
+    EXPECT_THROW(sched.run(), std::logic_error);
 
     stopAndJoin(latch, *clock, runner);
 }
