@@ -41,7 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         openssh-client \
     && rm -rf /var/lib/apt/lists/* \
     && pip3 install --no-cache-dir pre-commit==4.6.0 gersemi==0.27.5 conan==2.28.1 \
-            sphinx==8.1.3 breathe==4.36.0 furo==2025.12.19 myst-parser==4.0.1 exhale==0.3.7 \
+            sphinx==8.1.3 breathe==4.36.0 furo==2025.12.19 myst-parser==4.0.1 exhale==0.3.7 sphinxcontrib-mermaid==1.0.0 \
     && rm -rf /root/.cache/pip \
     && update-alternatives --install /usr/bin/cc cc /usr/bin/clang-18 100 \
     && update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-18 100 \
