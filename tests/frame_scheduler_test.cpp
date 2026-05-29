@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -365,6 +366,7 @@ TEST(FrameSchedulerTest, FirstTickAlignmentFiresOnTickN)
 
 // --- Programming-error preconditions ---------------------------------------
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, ZeroDivisorThrows)
 {
     ShutdownLatch  latch;
@@ -374,6 +376,7 @@ TEST(FrameSchedulerPreconditionTest, ZeroDivisorThrows)
     EXPECT_THROW(sched.every(0, [] {}), std::invalid_argument);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, NonDivisorThrows)
 {
     ShutdownLatch  latch;
@@ -384,18 +387,21 @@ TEST(FrameSchedulerPreconditionTest, NonDivisorThrows)
     EXPECT_THROW(sched.every(3, [] {}), std::invalid_argument);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, NullClockThrows)
 {
     ShutdownLatch latch;
     EXPECT_THROW(FrameScheduler(100.0, nullptr, &latch), std::invalid_argument);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, NullLatchThrows)
 {
     auto clock = std::make_shared<ManualClock>(0);
     EXPECT_THROW(FrameScheduler(100.0, clock, nullptr), std::invalid_argument);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, ZeroRateThrows)
 {
     ShutdownLatch latch;
@@ -403,6 +409,7 @@ TEST(FrameSchedulerPreconditionTest, ZeroRateThrows)
     EXPECT_THROW(FrameScheduler(0.0, clock, &latch), std::invalid_argument);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, NegativeRateThrows)
 {
     ShutdownLatch latch;
@@ -410,6 +417,7 @@ TEST(FrameSchedulerPreconditionTest, NegativeRateThrows)
     EXPECT_THROW(FrameScheduler(-100.0, clock, &latch), std::invalid_argument);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, NonIntegerRateThrows)
 {
     ShutdownLatch latch;
@@ -417,6 +425,7 @@ TEST(FrameSchedulerPreconditionTest, NonIntegerRateThrows)
     EXPECT_THROW(FrameScheduler(99.5, clock, &latch), std::invalid_argument);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, EveryAfterRunThrows)
 {
     ShutdownLatch    latch;
@@ -434,6 +443,7 @@ TEST(FrameSchedulerPreconditionTest, EveryAfterRunThrows)
     stopAndJoin(latch, *clock, runner);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, RunCalledTwiceThrows)
 {
     ShutdownLatch    latch;
