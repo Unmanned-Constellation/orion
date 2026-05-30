@@ -48,7 +48,7 @@ Header-only; downloads the source tarball from GitHub. Declares a dependency on 
 
 `initialize_conan.sh` registers `conan/recipes/` as a `local-recipes-index` remote (`orion-local`)
 at priority 0 so Conan reads recipes directly from the filesystem. No `conan export` step is
-needed — this avoids the timestamp churn that `conan export` causes in the lockfile.
+needed - this avoids the timestamp churn that `conan export` causes in the lockfile.
 
 ## `conanfile.py`
 
@@ -66,7 +66,7 @@ def build_requirements(self):
 
 `tool_requires("protobuf/5.29.3")` causes Conan's `VirtualBuildEnv` generator to add protobuf's
 `bin/` directory to `PATH` via `conanbuild.sh`. CMake uses this during the build via the
-`protobuf::protoc` import target — `protoc` never needs to be on the system PATH. The compiler
+`protobuf::protoc` import target - `protoc` never needs to be on the system PATH. The compiler
 version is guaranteed to match the runtime library through the shared lockfile entry.
 
 ## buf
@@ -109,9 +109,9 @@ differ in the resulting file.
 ## Adding a dependency
 
 1. Add `self.requires("lib/version")` to `conanfile.py`
-2. Run the **Conan: Create Lockfile** task — this regenerates `conan.lock` using the release
+2. Run the **Conan: Create Lockfile** task - this regenerates `conan.lock` using the release
    profile for the current architecture
-3. Run the **Conan: Install** task — installs all dependencies and reconfigures both CMake presets
+3. Run the **Conan: Install** task - installs all dependencies and reconfigures both CMake presets
 4. Commit `conanfile.py` and `conan.lock` together
 
 ## Lockfile recovery
@@ -122,7 +122,7 @@ If `conan.lock` is stale or causes a conflict during install, the recovery seque
 rm conan.lock
 ```
 
-Then run steps 2–4 above. The lockfile must be regenerated before `conan install` will succeed —
+Then run steps 2–4 above. The lockfile must be regenerated before `conan install` will succeed -
 running install first against a missing or inconsistent lockfile will fail.
 
 ## `initialize_conan.sh` walkthrough
@@ -133,7 +133,7 @@ running install first against a missing or inconsistent lockfile will fail.
 2. Runs `conan profile detect --force` to (re)generate the default Conan profile for the host
 3. Registers `conan/recipes/` as a `local-recipes-index` remote named `orion-local` at priority 0
    (checked before ConanCenter). The `-f` flag makes this idempotent on re-runs.
-4. Wipes `build/` entirely to ensure a clean slate — pass `--no-clean` to skip this
+4. Wipes `build/` entirely to ensure a clean slate - pass `--no-clean` to skip this
 5. Installs the **Release** profile: `conan install . --profile=conan/profiles/${ARCH}/release`
 6. Installs the **Debug** profile: `conan install . --profile=conan/profiles/${ARCH}/debug`
 7. Configures both CMake presets: `cmake --preset release` and `cmake --preset debug`

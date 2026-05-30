@@ -14,7 +14,7 @@ A crash handler that prints a symbolized stack trace to stderr before the proces
 exits gives the information needed to diagnose the fault from a log alone.
 
 `ShutdownLatch` already manages SIGINT and SIGTERM via `pthread_sigmask` +
-`sigwait`. Crash signals must not be handled via `sigwait` — they are
+`sigwait`. Crash signals must not be handled via `sigwait` - they are
 synchronous faults that must be delivered to the faulting thread as a signal
 action, not consumed by a watcher thread.
 
@@ -28,7 +28,7 @@ at destruction.
 ```cpp
 int main()
 {
-    orion::app::ShutdownLatch latch;   // blocks SIGINT/SIGTERM — must be first
+    orion::app::ShutdownLatch latch;   // blocks SIGINT/SIGTERM - must be first
     orion::app::CrashHandler  crash;   // registers crash signal actions
     // ...
 }
@@ -40,11 +40,11 @@ int main()
 using `backward::SignalHandling`. This gives full control over signal flags.
 Each action is registered with all three flags:
 
-- **`SA_SIGINFO`** — handler receives `siginfo_t` (faulting address via
+- **`SA_SIGINFO`** - handler receives `siginfo_t` (faulting address via
   `si_addr`) and `ucontext_t` (CPU register state). backward-cpp uses the
   instruction pointer from `ucontext_t` to include the faulting frame in the
   trace; without it the frame that actually crashed is absent.
-- **`SA_ONSTACK`** — signal is delivered on an alternate stack allocated at
+- **`SA_ONSTACK`** - signal is delivered on an alternate stack allocated at
   construction via `sigaltstack`. Required for stack-overflow crashes (SIGSEGV
   on stack exhaust): the default stack is already full and the signal cannot be
   delivered without an alternate stack, resulting in silent hang or re-fault.
@@ -55,7 +55,7 @@ Each action is registered with all three flags:
   64 KB buffer so that overflow inside the handler (e.g. deep DWARF unwinding)
   faults immediately rather than scribbling on adjacent memory. The constructor
   stores the `mmap` base and total size; the destructor calls `munmap`.
-- **`SA_RESETHAND`** — resets the disposition to `SIG_DFL` after the first
+- **`SA_RESETHAND`** - resets the disposition to `SIG_DFL` after the first
   delivery. If the handler itself faults (corrupted stack, bad pointer), the
   second signal hits the kernel default (core dump) rather than re-entering the
   handler. On an autonomy platform a locked-up crash handler is worse than no
@@ -69,7 +69,7 @@ composable in test harnesses and correctly scoped as a RAII object.
 
 `SIGSEGV`, `SIGABRT`, `SIGFPE`, `SIGILL`, `SIGBUS`.
 
-`SIGABRT` is included because `std::terminate` and `assert()` raise it —
+`SIGABRT` is included because `std::terminate` and `assert()` raise it -
 those are crashes in production, not intentional calls.
 
 ### Handler body
@@ -78,13 +78,13 @@ The handler runs on the alternate stack with `SA_SIGINFO` context available:
 
 1. Writes a single header line to `STDERR_FILENO` via `write()` (async-signal-safe):
    ```
-   [CrashHandler] caught SIGSEGV — stack trace:
+   [CrashHandler] caught SIGSEGV - stack trace:
    ```
 2. Captures a `backward::StackTrace`, skipping signal handler frames so the
    first printed frame is the fault site.
 3. Prints via `backward::Printer` to stderr.
 4. Re-raises the signal via `raise(sig)`. Because `SA_RESETHAND` has reset the
-   disposition to `SIG_DFL`, the re-raise delivers the default action — core
+   disposition to `SIG_DFL`, the re-raise delivers the default action - core
    dump if enabled, otherwise signal-exit. The process exit status reflects the
    signal, which supervisors and `systemd` can distinguish from a clean exit.
 
@@ -99,7 +99,7 @@ is acceptable: the handler runs in a process that is already dying.
 instances produce double-registration; the second destructor restores the first
 instance's handlers and the first destructor restores the pre-`CrashHandler`
 handlers, leaving the process unprotected. A `static std::atomic<bool>` flag is
-set in the constructor and checked first — a second construction asserts false
+set in the constructor and checked first - a second construction asserts false
 with a clear message.
 
 ### Symbol resolution
@@ -156,7 +156,7 @@ step on the `install` target.
 - `CrashHandler` must not be constructed more than once per process; the
   single-instance check enforces this at runtime.
 - `SA_RESETHAND` means the handler fires at most once per signal per process
-  lifetime — a second fault of the same type after a partial trace hits
+  lifetime - a second fault of the same type after a partial trace hits
   `SIG_DFL` directly.
 - Stack-overflow faults produce a full trace because the handler runs on the
   alternate stack; without `SA_ONSTACK` they would hang silently.

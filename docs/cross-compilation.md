@@ -2,7 +2,7 @@
 
 Orion is developed on x86_64 workstations and deployed to a Jetson Orin Nano (ARM64). The toolchain
 is designed so both environments use the same Dockerfile, the same VS Code workflow, and the same
-`initialize_conan.sh` script — the architecture is detected automatically at each stage.
+`initialize_conan.sh` script - the architecture is detected automatically at each stage.
 
 For the full rationale behind this strategy, see
 [ADR-0003](adr/0003-multi-platform-build-and-deploy.md).
@@ -17,7 +17,7 @@ For the full rationale behind this strategy, see
 | `arm64` | `nvcr.io/nvidia/deepstream:7.1-triton-l4t` | ~15 GB |
 
 The full build toolchain (clang-18, cmake, ninja, conan, ccache) is installed identically on top
-of both bases. No QEMU emulation is used — builds on the Orin are native ARM64.
+of both bases. No QEMU emulation is used - builds on the Orin are native ARM64.
 
 ## Conan profile selection
 
@@ -52,9 +52,9 @@ This mapping is what allows the same recipe to fetch the correct pre-built binar
 The workflow on the Orin is identical to x86:
 
 1. Clone the repo and open in VS Code
-2. Click **Reopen in Container** — VS Code detects the ARM64 host and BuildKit selects the L4T
+2. Click **Reopen in Container** - VS Code detects the ARM64 host and BuildKit selects the L4T
    base image automatically
-3. Wait for `post-create.sh` to complete — the first run pulls the L4T image (~15 GB) and builds
+3. Wait for `post-create.sh` to complete - the first run pulls the L4T image (~15 GB) and builds
    any Conan packages not yet in the cache, which takes significantly longer than x86
 4. Run **CMake: Build All**
 
@@ -65,7 +65,7 @@ One-time Jetson configuration (Docker runtime, GPU access) is documented separat
 
 DeepStream APIs are only present in the L4T base image. Per [ADR-0002](adr/0002-deepstream-over-raw-gstreamer.md),
 all hardware-dependent code sits behind an abstract interface. The DeepStream adapter is never
-compiled or linked in the x86 dev environment — only the stub implementation is used there.
+compiled or linked in the x86 dev environment - only the stub implementation is used there.
 
 ## Cross-compiling from x86 to ARM64
 
@@ -105,16 +105,16 @@ cmake --preset cross-arm64
 cmake --build --preset cross-arm64
 ```
 
-There is no `ctest` step — the resulting binaries target `aarch64-linux-gnu` and cannot execute
+There is no `ctest` step - the resulting binaries target `aarch64-linux-gnu` and cannot execute
 on x86.
 
 ### Toolchain file
 
 `cmake/toolchains/aarch64-linux-gnu.cmake` sets:
-- `CMAKE_C_COMPILER_TARGET` and `CMAKE_CXX_COMPILER_TARGET` to `aarch64-linux-gnu` — tells
+- `CMAKE_C_COMPILER_TARGET` and `CMAKE_CXX_COMPILER_TARGET` to `aarch64-linux-gnu` - tells
   clang-18 which target triple to emit code for
-- `CMAKE_SYSROOT` to `/usr/aarch64-linux-gnu` — the cross sysroot from `gcc-aarch64-linux-gnu`
-- `CMAKE_FIND_ROOT_PATH_MODE_*` — restricts `find_*` calls to the sysroot only
+- `CMAKE_SYSROOT` to `/usr/aarch64-linux-gnu` - the cross sysroot from `gcc-aarch64-linux-gnu`
+- `CMAKE_FIND_ROOT_PATH_MODE_*` - restricts `find_*` calls to the sysroot only
 - Then `include()`s Conan's generated toolchain for package paths and compiler flags
 
 The CMake preset sets `CMAKE_SYSTEM_NAME=Linux` and `CMAKE_SYSTEM_PROCESSOR=aarch64` via
@@ -124,7 +124,7 @@ The CMake preset sets `CMAKE_SYSTEM_NAME=Linux` and `CMAKE_SYSTEM_PROCESSOR=aarc
 
 CI tests ARM64 natively on an `ubuntu-22.04-arm` runner using a single host profile
 (`conan/profiles/arm64/debug`) and the standard `debug` CMake preset. The native runner
-executes a full `ctest` step — no cross-compilation is involved. ARM64 Conan packages and
+executes a full `ctest` step - no cross-compilation is involved. ARM64 Conan packages and
 ccache are cached separately under keys prefixed `conan-arm64-` to avoid key collisions with
 the x86 jobs. See [ci-cd.md](ci-cd.md) for the full job description.
 

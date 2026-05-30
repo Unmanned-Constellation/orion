@@ -98,11 +98,11 @@ static auto create(SessionConfig config) -> Session;
 
 Key rules enforced by the Doxyfile:
 
-- `WARN_IF_UNDOCUMENTED = YES` — every public class, function, and field needs
+- `WARN_IF_UNDOCUMENTED = YES` - every public class, function, and field needs
   at minimum a brief description.
-- `WARN_NO_PARAMDOC = YES` — every parameter must have a `@param` annotation.
-- `WARN_AS_ERROR = YES` — missing docs fail the CI `docs` job.
-- `EXCLUDE_PATTERNS = *_impl.hpp` — PIMPL implementation headers are excluded;
+- `WARN_NO_PARAMDOC = YES` - every parameter must have a `@param` annotation.
+- `WARN_AS_ERROR = YES` - missing docs fail the CI `docs` job.
+- `EXCLUDE_PATTERNS = *_impl.hpp` - PIMPL implementation headers are excluded;
   document the public interface headers only.
 
 ## Exposing symbols in RST

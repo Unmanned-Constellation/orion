@@ -1,10 +1,10 @@
-# orion_clock — Clock Abstraction Library
+# orion_clock - Clock Abstraction Library
 
 Time abstraction library for the Orion autonomy platform.
 
 ## Overview
 
-`orion_clock` provides a single abstract interface — `Clock` — that services use
+`orion_clock` provides a single abstract interface - `Clock` - that services use
 for all time queries and sleeping. Injecting the clock at construction rather than
 calling `std::chrono` directly makes periodic loops testable and simulation-safe:
 the same service code that runs at 100 Hz on hardware can be driven at arbitrary
@@ -37,7 +37,7 @@ If sleeping were done with `std::this_thread::sleep_for`, the loop would always
 sleep for wall time, defeating the point of injectable simulation clocks.
 `sleepUntil` lets `ManualClock` block the caller on a condition variable until
 simulated time advances, so a `FrameScheduler` driving at 100 Hz under
-`ManualClock` runs exactly when the test says it should — not when the OS wakes
+`ManualClock` runs exactly when the test says it should - not when the OS wakes
 it up.
 
 ### Monotonicity contract
@@ -50,7 +50,7 @@ explicitly by throwing if you attempt to set time backwards.
 
 ## API Reference
 
-### `Clock` — abstract base
+### `Clock` - abstract base
 
 ```cpp
 #include "orion/clock/clock.hpp"
@@ -79,7 +79,7 @@ clock.sleepUntil(now + 20'000'000);    // sleep ~20 ms
 
 `sleepUntil` computes the remaining delta at call time and delegates to
 `std::this_thread::sleep_for`. If the target is already in the past, it returns
-immediately without sleeping. The implementation is a single sleep call — it
+immediately without sleeping. The implementation is a single sleep call - it
 does not loop to correct for early wakeup. `FrameScheduler` accounts for this
 by checking the actual clock time after sleep and detecting overruns.
 
@@ -148,7 +148,7 @@ All public methods are thread-safe via an internal mutex. `sleepUntil` releases
 the mutex while waiting. `ManualClock` is neither copyable nor movable.
 
 The destructor sets `stopped_` and notifies all waiters, guaranteeing that no
-thread remains blocked in `sleepUntil` after the object is destroyed — but the
+thread remains blocked in `sleepUntil` after the object is destroyed - but the
 caller is still responsible for joining any such threads before destroying the
 clock to avoid a data race on the clock's internal state.
 
@@ -163,12 +163,12 @@ Scaled real-time clock for integration testing and fast SIL runs. Advances at
 // Run at 10× wall speed, sim time anchored to wall time at construction.
 orion::clock::SimClock clock(10.0);
 
-// Anchored start — useful in tests where sim_start_ns must be known.
+// Anchored start - useful in tests where sim_start_ns must be known.
 orion::clock::SimClock clock(2.0, 0);  // sim time starts at 0, runs at 2× wall speed
 ```
 
 **`nowNs()`** computes `sim_start_ns + (wall_now - wall_start) * scale`. All
-members are set at construction and never mutated — `nowNs()` is thread-safe
+members are set at construction and never mutated - `nowNs()` is thread-safe
 with no locking.
 
 **`sleepUntil(target_ns)`** uses a correcting loop: converts the remaining sim
@@ -187,12 +187,12 @@ Both throw `std::invalid_argument` if `scale` is `≤ 0`, `NaN`, or infinite.
 ### `CoordinatedClock`
 
 Coordinated faster-than-real-time clock for lockstep multi-service simulation.
-Driven externally via `update(sim_time_ns)` — typically called from a Zenoh
+Driven externally via `update(sim_time_ns)` - typically called from a Zenoh
 subscriber callback receiving `SimTimeUpdate` messages from a Clock Service.
 
 All services sharing a `CoordinatedClock` advance in lockstep when the Clock
 Service broadcasts a new timestamp. `sleepUntil` blocks on a condition variable
-until `update()` advances past the target — identical pattern to `ManualClock`.
+until `update()` advances past the target - identical pattern to `ManualClock`.
 
 **Phase 2 stub:** `nowNs()` and `sleepUntil()` throw `std::logic_error` until
 Phase 3 is implemented. `update()` and the constructor compile correctly.
@@ -229,20 +229,20 @@ sequentially on one thread at integer sub-multiples of the minor frame rate
 
 ```cpp
 orion::app::FrameScheduler sched(
-    100.0,   // minor frame rate in Hz — must be a positive integer value
+    100.0,   // minor frame rate in Hz - must be a positive integer value
     clock,   // shared_ptr<TimeSource>
     &latch   // ShutdownLatch*
 );
-sched.every(1,   [&] { imu.read(); });          // 100 Hz — every tick
-sched.every(10,  [&] { telemetry.publish(); });  // 10 Hz  — every 10th tick
-sched.every(100, [&] { diagnostics.check(); });  // 1 Hz   — every 100th tick
+sched.every(1,   [&] { imu.read(); });          // 100 Hz - every tick
+sched.every(10,  [&] { telemetry.publish(); });  // 10 Hz  - every 10th tick
+sched.every(100, [&] { diagnostics.check(); });  // 1 Hz   - every 100th tick
 sched.run();  // blocks until latch is stopped
 ```
 
 `run()` blocks the calling thread. All callbacks execute in registration order
 with no synchronisation required between components within the same service.
 
-### Rate expression — tick divisors
+### Rate expression - tick divisors
 
 `every(N, cb)` schedules `cb` on ticks where `tick_count % N == 0`. Tick count
 starts at 1, so the first fire is on tick N. All divisors must evenly divide
@@ -254,7 +254,7 @@ If the combined callback time in a tick exceeds the period, `FrameScheduler`:
 
 1. Increments the overrun counter (readable via `overrunCount()`).
 2. Advances `next_tick_` by one period from the intended deadline. If that
-   deadline has already passed, the next tick fires immediately — recovering
+   deadline has already passed, the next tick fires immediately - recovering
    one period at a time until the scheduler catches up to the clock.
 
 ```
@@ -333,7 +333,7 @@ threads are created**, so the blocked signal mask is inherited correctly.
 # Clock only
 target_link_libraries(my_target PRIVATE orion_clock)
 
-# App (FrameScheduler + ShutdownLatch) — pulls in orion_clock transitively
+# App (FrameScheduler + ShutdownLatch) - pulls in orion_clock transitively
 target_link_libraries(my_target PRIVATE orion_app)
 ```
 
@@ -355,7 +355,7 @@ execute in registration order with no inter-component synchronisation required.
 
 int main()
 {
-    orion::app::ShutdownLatch latch;   // must be first — sets signal mask before any other threads
+    orion::app::ShutdownLatch latch;   // must be first - sets signal mask before any other threads
     auto clock = std::make_shared<orion::clock::WallClock>();
     orion::app::FrameScheduler sched(100.0, clock, &latch);
 
@@ -407,7 +407,7 @@ TEST(MyServiceTest, TicksAtRate)
 ### Testing overrun behaviour
 
 After a severe overrun the scheduler catches up by firing missed ticks
-immediately — one per period — rather than skipping them.
+immediately - one per period - rather than skipping them.
 
 ```cpp
 TEST(MyServiceTest, OverrunCatchesUp)

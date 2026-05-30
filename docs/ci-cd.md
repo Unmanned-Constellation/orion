@@ -19,7 +19,7 @@ each job only needs to pass a Conan profile and an optional list of extra apt pa
 
 | Input | Required | Default | Description |
 |---|---|---|---|
-| `conan-profile` | yes | — | Path to the Conan host profile (e.g. `conan/profiles/x86_64/debug`) |
+| `conan-profile` | yes | - | Path to the Conan host profile (e.g. `conan/profiles/x86_64/debug`) |
 | `extra-packages` | no | `""` | Space-separated extra apt packages installed alongside the base toolchain |
 | `cache-key-prefix` | no | `conan` | Prefix used for Conan package and ccache cache keys |
 
@@ -27,13 +27,13 @@ each job only needs to pass a Conan profile and an optional list of extra apt pa
 
 | Step | What it does |
 |---|---|
-| Install toolchain | Installs clang-18, cmake, ninja, ccache — plus any `extra-packages` — from the LLVM apt repository |
+| Install toolchain | Installs clang-18, cmake, ninja, ccache - plus any `extra-packages` - from the LLVM apt repository |
 | Configure ccache | Sets `CMAKE_C_COMPILER_LAUNCHER=ccache` / `CMAKE_CXX_COMPILER_LAUNCHER=ccache`; caps cache at 1 GB |
 | Cache ccache | `~/.cache/ccache` keyed on `<prefix>-<os>-<sha>`, restores from most recent prior run |
-| Cache pip | `~/.cache/pip` keyed on OS — avoids re-downloading the Conan wheel |
+| Cache pip | `~/.cache/pip` keyed on OS - avoids re-downloading the Conan wheel |
 | Install Conan | `pip install conan` |
 | Cache Conan packages | `~/.conan2/p` keyed on `<prefix>-<os>-<conan.lock hash>` |
-| Configure Conan profile | `conan profile detect --force` — picks up clang-18 via `CC`/`CXX` |
+| Configure Conan profile | `conan profile detect --force` - picks up clang-18 via `CC`/`CXX` |
 | Register local recipes remote | Adds `conan/recipes/` as `orion-local` (priority 0, `local-recipes-index` type) |
 | Install dependencies | `conan install --profile=<conan-profile> --lockfile=conan.lock` |
 
@@ -42,12 +42,12 @@ each job only needs to pass a Conan profile and an optional list of extra apt pa
 The fast-check jobs (format, proto, docs) run in parallel with each other. All
 build, test, sanitizer, coverage, and fuzz jobs depend on those three via `needs:` and only
 start after they all pass. Every job sets `CC=clang-18` and `CXX=clang++-18` so Conan and
-CMake use clang rather than the runner's default GCC — required because Conan injects
+CMake use clang rather than the runner's default GCC - required because Conan injects
 `-stdlib=libstdc++` and GCC rejects that flag.
 
 ### Format
 
-Checks all C++ and CMake files are correctly formatted. No build required — fastest failing job.
+Checks all C++ and CMake files are correctly formatted. No build required - fastest failing job.
 
 | Check | Tool | Command |
 |---|---|---|
@@ -62,22 +62,22 @@ Runs two `buf` checks against the `proto/` directory:
 
 | Step | Command | What it catches |
 |---|---|---|
-| Lint | `buf lint` | Style violations — package naming, field conventions, etc. |
+| Lint | `buf lint` | Style violations - package naming, field conventions, etc. |
 | Breaking changes | `buf breaking --against '.git#branch=main'` | Backward-incompatible schema changes (removed fields, renamed messages, etc.) |
 
-`buf` is downloaded directly from GitHub releases (v1.69.0) — no additional setup required.
+`buf` is downloaded directly from GitHub releases (v1.69.0) - no additional setup required.
 
 ### Docs coverage
 
 Validates that all public C++ symbols are documented and that the Sphinx site
 builds without warnings. Runs in parallel with **Format** and **Proto schema**
-— all downstream jobs gate on these via `needs: [format, docs, proto]`.
+- all downstream jobs gate on these via `needs: [format, docs, proto]`.
 
 | Step | Command |
 |---|---|
 | Install Doxygen | `apt-get install doxygen` |
 | Install Sphinx deps | `pip install -r docs/requirements.txt` |
-| Run Doxygen | `doxygen docs/Doxyfile` — emits XML to `docs/_build/doxygen/xml/` |
+| Run Doxygen | `doxygen docs/Doxyfile` - emits XML to `docs/_build/doxygen/xml/` |
 | Build Sphinx site | `sphinx-build -W -b html docs docs/_build/html` |
 
 `-W` promotes any Sphinx warning to an error. The Doxyfile sets
@@ -115,7 +115,7 @@ statically. Uses the debug Conan install (same packages, separate build director
 ### Thread Sanitizer
 
 Builds and tests with `-fsanitize=thread`. Finds data races in concurrent code. Incompatible
-with ASan — runs as a separate job. Uses the debug Conan install.
+with ASan - runs as a separate job. Uses the debug Conan install.
 
 ### Coverage
 
@@ -131,7 +131,7 @@ suite grows.
 ### Build and test (ARM64)
 
 Runs on a native `ubuntu-22.04-arm` runner. Uses `conan/profiles/arm64/debug` (single-profile
-install) and `cmake --preset debug`. Includes a full `ctest` step — native execution means tests
+install) and `cmake --preset debug`. Includes a full `ctest` step - native execution means tests
 actually run on ARM64. ARM64 Conan packages and ccache are cached separately under keys prefixed
 `conan-arm64-` and `ccache-conan-arm64-`.
 

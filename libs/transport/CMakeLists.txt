@@ -4,7 +4,6 @@ target_include_directories(orion_transport PUBLIC include PRIVATE src)
 
 target_link_libraries(
     orion_transport
-    PUBLIC orion_clock
     PRIVATE zenohcxx::zenohc
     PRIVATE orion_proto
 )

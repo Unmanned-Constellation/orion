@@ -2,18 +2,18 @@
 
 ## Status
 
-Deferred — architecture decided, implementation not yet scheduled.
+Deferred - architecture decided, implementation not yet scheduled.
 
 ## Context
 
 Orion vehicles need to communicate with entities outside the local Zenoh bus: ground control
 stations (GCS), swarm peers, and off-board intelligence consumers. These external systems speak
-a variety of wire formats — STANAG 4586, MAVLink, Cursor on Target (CoT/ATAK), STANAG 4676, and
+a variety of wire formats - STANAG 4586, MAVLink, Cursor on Target (CoT/ATAK), STANAG 4676, and
 potentially others. None of them speak Zenoh or protobuf natively.
 
 Implementing per-format translation inside individual microservices (a `stanag_bridge`, a
 `mavlink_bridge`, etc.) would multiply boundary-crossing services and distribute external protocol
-logic across the codebase. A single service already owns the external network interface — the
+logic across the codebase. A single service already owns the external network interface - the
 natural consolidation point is there.
 
 ## Decision
@@ -44,9 +44,9 @@ and subscribe exactly like any other service.
 The edge service hosts a pool of **protocol handlers**, one per external format. Each handler is
 responsible for:
 
-1. **Inbound** — receiving external messages, parsing the wire format, and publishing the
+1. **Inbound** - receiving external messages, parsing the wire format, and publishing the
    equivalent internal proto message on the Zenoh bus.
-2. **Outbound** — subscribing to relevant Zenoh topics, and serialising + transmitting the
+2. **Outbound** - subscribing to relevant Zenoh topics, and serialising + transmitting the
    internal proto message in the external wire format.
 
 Handlers are self-contained translation units. Adding support for a new external format means
@@ -84,7 +84,7 @@ responsible for converting at the boundary. Agreed internal conventions:
 
 ### STANAG 4586 handler
 
-**LOI target: 5** — full control including launch and recovery. LOI 5 is the ceiling; LOI 2
+**LOI target: 5** - full control including launch and recovery. LOI 5 is the ceiling; LOI 2
 (telemetry only) will be implemented first as a vertical slice, with each subsequent LOI level
 shipped incrementally.
 
@@ -102,13 +102,13 @@ QGC and Mission Planner speak MAVLink; ATAK speaks CoT. They are covered by sepa
 
 **Additional prerequisites before implementation:**
 
-- **Document access** — STANAG 4586 is NATO RESTRICTED. The canonical document is required for
+- **Document access** - STANAG 4586 is NATO RESTRICTED. The canonical document is required for
   exact message field layouts; open-source implementations (Neptus, python-stanag-4586-EDA-v1)
   may inform development but must not substitute for the authoritative specification.
-- **GCS target** — Neptus is the recommended starting point for protocol-level integration
+- **GCS target** - Neptus is the recommended starting point for protocol-level integration
   testing given it is open-source. Kutta UGCS should be the target for formal compliance
   validation; contact is required to evaluate licensing and export restrictions.
-- **Test harness** — no public NATO conformance test tool exists. Protocol-level testing will
+- **Test harness** - no public NATO conformance test tool exists. Protocol-level testing will
   use the Python STANAG 4586 library (`python-stanag-4586-EDA-v1`) and Neptus before
   progressing to a commercial GCS.
 
@@ -127,7 +127,7 @@ inter-vehicle links because:
 - TCP interprets radio-induced packet loss as network congestion and throttles its send window,
   degrading throughput on links where loss is due to link quality rather than capacity.
 - Head-of-line blocking stalls all in-flight messages behind a single lost packet. For real-time
-  telemetry, a stale dropped frame is worthless — the next frame should arrive unimpeded.
+  telemetry, a stale dropped frame is worthless - the next frame should arrive unimpeded.
 - Many tactical radio systems implement their own link-layer reliability (ARQ, FEC). TCP
   retransmission on top of radio ARQ produces double retransmission and compounds latency.
 
@@ -149,14 +149,14 @@ Zenoh Router configuration for swarm peering:
 
 **WireGuard** provides network-layer encryption and mutual authentication. Each vehicle holds a
 WireGuard keypair; only keypairs in the swarm's allowlist can join the mesh. WireGuard operates
-transparently below Zenoh — the router sees a regular UDP socket over the WireGuard interface.
+transparently below Zenoh - the router sees a regular UDP socket over the WireGuard interface.
 
 **WireGuard was chosen over alternatives (IPsec, custom TLS, application-layer encryption)
 because:**
 - Minimal attack surface (small, auditable codebase).
 - Kernel-space implementation means negligible CPU overhead on the Jetson.
 - Public-key per vehicle is a natural fit for swarm member identity.
-- Works transparently over any IP-capable link — WiFi, commercial radio, or custom hardware.
+- Works transparently over any IP-capable link - WiFi, commercial radio, or custom hardware.
 
 **Radio hardware note:** Orion's swarm link layer is designed to run over a custom radio being
 developed in parallel with the software stack. The radio will expose a standard IP interface;
@@ -165,29 +165,29 @@ configuration or application code are required when the custom radio replaces in
 
 The existing topic scheme (ADR-0005) handles vehicle disambiguation with no additional mechanism:
 
-- `orion/{vehicle_id}/...` — per-vehicle data, namespaced by vehicle ID.
-- `orion/swarm/...` — swarm-wide coordination topics.
+- `orion/{vehicle_id}/...` - per-vehicle data, namespaced by vehicle ID.
+- `orion/swarm/...` - swarm-wide coordination topics.
 
 Any microservice on any vehicle subscribes to another vehicle's topics using the identical
 `Session::subscribe` call it uses for local topics. The transport abstraction is unaware of
 whether a publisher is local or remote.
 
-### Swarm presence — neighbor discovery and minimal state
+### Swarm presence - neighbor discovery and minimal state
 
 Every vehicle publishes a `Presence` message on `orion/swarm/presence` at a fixed interval.
 Every vehicle subscribes to `orion/swarm/presence`. This single topic is the complete mechanism
 for:
 
-1. **Discovery** — a vehicle learns a neighbor exists when it first receives its `Presence`.
-2. **Liveness** — a vehicle is considered lost after a defined number of consecutive missed
+1. **Discovery** - a vehicle learns a neighbor exists when it first receives its `Presence`.
+2. **Liveness** - a vehicle is considered lost after a defined number of consecutive missed
    heartbeats. No separate health check is needed.
-3. **Minimal neighbor state** — `Presence` carries the smallest set of information each platform
+3. **Minimal neighbor state** - `Presence` carries the smallest set of information each platform
    needs about its neighbors to make safe, coordinated decisions. Nothing more is relayed.
 
 **`Presence` is the only swarm topic that is relayed across intermediate vehicles.** In a chain
-topology (A — B — C), Router B relays `orion/swarm/presence` between A and C so that A knows
+topology (A - B - C), Router B relays `orion/swarm/presence` between A and C so that A knows
 C exists and C knows A exists. High-bandwidth per-vehicle topics (`sensing`, `control`, full
-`nav` streams) are never relayed — they remain local to direct peers. Zenoh's interest-based
+`nav` streams) are never relayed - they remain local to direct peers. Zenoh's interest-based
 routing ensures B only relays topics that the far side has actually subscribed to; as long as
 no service subscribes to `orion/charlie/**` from Platform A, that traffic never crosses B.
 
