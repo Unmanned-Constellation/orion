@@ -8,10 +8,10 @@ explains the philosophy behind each tool, how to use it locally, and what CI enf
 
 The goal is a codebase where defects are caught as early as possible. The order of preference is:
 
-1. **Compile-time** — clang-tidy rules out entire classes of error before the binary exists
-2. **Sanitizer runs** — ASan/UBSan/TSan catch memory and concurrency bugs at test time
-3. **Fuzzing** — libFuzzer finds crash-inducing inputs that hand-written tests miss
-4. **Coverage** — the 60% floor is a floor, not a target; it catches test suite regressions
+1. **Compile-time** - clang-tidy rules out entire classes of error before the binary exists
+2. **Sanitizer runs** - ASan/UBSan/TSan catch memory and concurrency bugs at test time
+3. **Fuzzing** - libFuzzer finds crash-inducing inputs that hand-written tests miss
+4. **Coverage** - the 60% floor is a floor, not a target; it catches test suite regressions
 
 None of these tools replaces the others. All four run in CI on every PR.
 
@@ -66,7 +66,7 @@ Output is suppressed on success and printed in full on failure.
 
 ASan catches heap/stack buffer overflows, use-after-free, and memory leaks. UBSan catches
 signed integer overflow, null pointer dereference, misaligned access, and other C++ undefined
-behaviour. Both are compile-time instrumentation — the sanitized binary detects errors at the
+behaviour. Both are compile-time instrumentation - the sanitized binary detects errors at the
 exact line they occur and terminates with a detailed report.
 
 ### When to run
@@ -77,7 +77,7 @@ Run the sanitize preset before merging any change that:
 - performs arithmetic on pointers or indices
 - modifies shared state
 
-CI runs it on every PR — this section is for running it locally.
+CI runs it on every PR - this section is for running it locally.
 
 ### Running
 
@@ -174,16 +174,16 @@ TOTAL                                  1               0  100%           1  ... 
 ```
 
 The three coverage percentages are:
-- **Region%** — percentage of distinct code regions (conditionals, loops) executed
-- **Function%** — percentage of functions called at least once
-- **Line%** — percentage of executable lines reached
+- **Region%** - percentage of distinct code regions (conditionals, loops) executed
+- **Function%** - percentage of functions called at least once
+- **Line%** - percentage of executable lines reached
 
 Line coverage is the primary metric enforced by CI.
 
 ### The 60% floor
 
 CI fails if total line coverage falls below **60%**. This floor exists to detect test suite
-regressions — a sharp drop signals that new code shipped without tests. It is not a quality
+regressions - a sharp drop signals that new code shipped without tests. It is not a quality
 target. As the test suite matures, raise it in `.github/workflows/ci.yml`:
 
 ```yaml
@@ -246,14 +246,14 @@ Create a file in `tests/fuzz/`:
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, const size_t size) {
     // Feed data into the function under test.
-    // Do NOT allocate memory that is not freed — ASan will catch it.
+    // Do NOT allocate memory that is not freed - ASan will catch it.
     // Return 0 always. Non-zero return values have special meaning to libFuzzer.
     return 0;
 }
 ```
 
 Rules:
-- The function signature must match exactly — libFuzzer provides the entry point
+- The function signature must match exactly - libFuzzer provides the entry point
 - Keep the target deterministic: no random numbers, no time-dependent behaviour
 - If the function throws, catch the exception rather than letting it propagate
 - Avoid calling functions with external side effects (network, filesystem) inside the target

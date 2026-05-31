@@ -1,7 +1,7 @@
 # ADR 0003: Multi-platform build and deploy strategy
 
 ## Status
-Accepted — amended from original (unified Dockerfile, native Orin builds)
+Accepted - amended from original (unified Dockerfile, native Orin builds)
 
 ## Context
 Orion is developed on x86_64 workstations but deployed to a Jetson Orin Nano (ARM64). ADR 0002
@@ -25,11 +25,11 @@ adds ~15 GB of dead weight to an environment that never calls a DeepStream API.
 ### Unified Dockerfile with architecture detection
 A single `docker/Dockerfile` uses BuildKit's `TARGETARCH` to select the base image automatically:
 
-- **AMD64** → `ubuntu:22.04` — lightweight dev base, no NVIDIA dependencies
-- **ARM64** → `nvcr.io/nvidia/deepstream:7.1-triton-l4t` — L4T base with DeepStream, CUDA, TensorRT
+- **AMD64** → `ubuntu:22.04` - lightweight dev base, no NVIDIA dependencies
+- **ARM64** → `nvcr.io/nvidia/deepstream:7.1-triton-l4t` - L4T base with DeepStream, CUDA, TensorRT
 
 The full build toolchain (cmake, ninja, clang-18, conan, ccache) is installed on top of both bases
-identically. Builds on the Orin are native — no QEMU emulation.
+identically. Builds on the Orin are native - no QEMU emulation.
 
 ### Abstract interface for hardware-dependent code
 The Perception Service exposes an abstract interface. On x86 this is satisfied by a stub
@@ -52,13 +52,13 @@ Static linking embeds symbols directly into our binaries so there is no runtime 
 conflict with Triton's versions. This assumption must be verified explicitly if either dep is ever
 switched to shared linking.
 
-The abstract interface pattern also limits the conflict surface — DeepStream APIs are only called
+The abstract interface pattern also limits the conflict surface - DeepStream APIs are only called
 in the Perception Service adapter, which does not directly expose protobuf types across the
 DeepStream/application boundary.
 
 ## Consequences
 - `docker/Dockerfile` is the single source of truth for both dev and deploy environments.
-- The Orin devcontainer is opened the same way as x86 — VS Code detects ARM64 and BuildKit selects
+- The Orin devcontainer is opened the same way as x86 - VS Code detects ARM64 and BuildKit selects
   the L4T base automatically.
 - QEMU is not required. ARM64 builds are native on the Orin.
 - DeepStream-specific code is never compiled or linked in the dev environment.

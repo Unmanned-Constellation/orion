@@ -4,7 +4,7 @@ include(GoogleTest)
 add_executable(
     orion_tests
     clock_test.cpp
-    periodic_timer_test.cpp
+    frame_scheduler_test.cpp
     shutdown_latch_test.cpp
     transport_test.cpp
 )

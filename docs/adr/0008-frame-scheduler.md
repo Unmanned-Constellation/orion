@@ -31,21 +31,21 @@ registered by tick divisor.
 
 ## Decision
 
-Replace `PeriodicTimer` with `FrameScheduler` — a single-threaded,
+Replace `PeriodicTimer` with `FrameScheduler` - a single-threaded,
 time-triggered executor that runs all components of a service sequentially on
 one thread.
 
 ```cpp
-// Service main — all components on one thread
+// Service main - all components on one thread
 auto sched = FrameScheduler(100.0, clock, latch);    // minor frame = 100 Hz
-sched.every(1,   [&] { imu.read(); });                // 100 Hz — every tick
-sched.every(1,   [&] { estimator.update(); });         // 100 Hz — every tick
-sched.every(10,  [&] { telemetry.publish(); });        // 10 Hz  — every 10th tick
-sched.every(100, [&] { diagnostics.check(); });        // 1 Hz   — every 100th tick
+sched.every(1,   [&] { imu.read(); });                // 100 Hz - every tick
+sched.every(1,   [&] { estimator.update(); });         // 100 Hz - every tick
+sched.every(10,  [&] { telemetry.publish(); });        // 10 Hz  - every 10th tick
+sched.every(100, [&] { diagnostics.check(); });        // 1 Hz   - every 100th tick
 sched.run();                                           // blocks until latch stops
 ```
 
-### Rate expression — tick divisors
+### Rate expression - tick divisors
 
 Rates are expressed as integer divisors of the minor frame, not as Hz values.
 `every(N, cb)` schedules `cb` to run on ticks where `tick_count % N == 0`.
@@ -67,9 +67,15 @@ If the combined wall time of all callbacks in a tick exceeds the minor frame
 period, `FrameScheduler`:
 
 1. Increments an overrun counter (readable via `overrunCount()`).
-2. Logs a warning via spdlog.
-3. Schedules the next tick from the *intended* next deadline, not from the end
-   of the slow tick — no catch-up burst.
+2. Advances `next_tick_` by one period from the *intended* deadline (`next_tick_
+   += period_ns_`), not from the end of the slow tick. If the intended deadline
+   has already passed, `sleepUntil` returns immediately and the next tick fires
+   at once - recovering one period at a time until the scheduler catches up to
+   the clock.
+
+Logging is the responsibility of the calling service, not `FrameScheduler`.
+Library code does not log. Services that need overrun visibility should poll
+`overrunCount()` and route warnings through their own logging facility.
 
 If the intended next deadline has already passed (the overrun was severe), the
 next tick fires immediately. Overruns on heavy ticks (where multiple divisors
@@ -81,10 +87,10 @@ budget violation and should be investigated.
 `FrameScheduler` accepts an optional `rt_priority` constructor parameter:
 
 ```cpp
-// Production — SCHED_FIFO priority 40 (requires CAP_SYS_NICE or systemd unit)
+// Production - SCHED_FIFO priority 40 (requires CAP_SYS_NICE or systemd unit)
 auto sched = FrameScheduler(100.0, clock, latch, /*rt_priority=*/40);
 
-// Development / tests — SCHED_OTHER (default, no elevated capability needed)
+// Development / tests - SCHED_OTHER (default, no elevated capability needed)
 auto sched = FrameScheduler(100.0, clock, latch);
 ```
 
@@ -105,21 +111,21 @@ Recommended priority assignments on the Jetson:
 
 ### Shutdown
 
-At the top of every tick, `FrameScheduler` checks `latch.stopRequested()`. If
+At the top of every tick, `FrameScheduler` checks `latch.stopped()`. If
 true, `run()` returns. Maximum shutdown latency is one minor frame period
 (10 ms at 100 Hz), which is operationally negligible.
 
 ### Registration lifetime
 
 `every()` may only be called before `run()`. Calling `every()` after `run()`
-has been entered asserts — registration is a setup-phase operation and the
+has been entered asserts - registration is a setup-phase operation and the
 callback list is owned exclusively by the run loop with no synchronization
 required on the hot path.
 
 ### `PeriodicTimer` retirement
 
 `PeriodicTimer` is deleted in the same PR that introduces `FrameScheduler`. No
-service code currently uses `PeriodicTimer` — it exists only as a header and
+service code currently uses `PeriodicTimer` - it exists only as a header and
 its own tests. Those tests are superseded by `FrameScheduler` tests. The
 `clock.hpp` doc comment referencing `PeriodicTimer` is updated to reference
 `FrameScheduler`.
@@ -138,10 +144,10 @@ its own tests. Those tests are superseded by `FrameScheduler` tests. The
 - Heavy ticks (where multiple divisors coincide) have a larger WCET budget
   requirement than light ticks. Service authors must account for this when
   choosing the minor frame rate and registering callbacks.
-- `SimClock` and `ManualClock` work identically — clock injection and the
+- `SimClock` and `ManualClock` work identically - clock injection and the
   `sleepUntil` contract are unchanged.
 - Production deployments require `CAP_SYS_NICE` (via `systemd`
   `AmbientCapabilities`) to use `SCHED_FIFO`. Development and test runs use the
   default `SCHED_OTHER` path without elevated capabilities.
-- `PeriodicTimer` is removed entirely. There is no deprecation period — no
+- `PeriodicTimer` is removed entirely. There is no deprecation period - no
   service code depends on it at the time of this ADR.

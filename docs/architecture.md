@@ -16,7 +16,7 @@ flowchart LR
     classDef executable fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#7f1d1d
     classDef planned    fill:#f8fafc,stroke:#64748b,stroke-width:2px,stroke-dasharray: 5 5,color:#475569
 
-    subgraph External ["📦 System & Conan Dependencies"]
+    subgraph External ["System & Conan Dependencies"]
         direction TB
         protobuf(["protobuf/5.29.3"]):::external
         zenohc(["zenoh-c/1.9.0 ①"]):::external
@@ -29,7 +29,7 @@ flowchart LR
         spdlog(["spdlog (M2)"]):::planned
     end
 
-    subgraph Modules ["⚙️ CMake Targets"]
+    subgraph Modules ["CMake Targets"]
         direction TB
         orion_clock["orion_clock<br/>(INTERFACE)"]:::interface
         orion_proto["orion_proto<br/>(STATIC)"]:::staticLib
@@ -37,8 +37,9 @@ flowchart LR
         orion_transport["orion_transport<br/>(SHARED)"]:::sharedLib
     end
 
-    subgraph Executables ["🚀 Tests"]
+    subgraph Executables ["Executables"]
         orion_tests{{"orion_tests"}}:::executable
+        clock_service{{"clock_service (M3)"}}:::planned
     end
 
     %% External to Module Edges
@@ -61,10 +62,13 @@ flowchart LR
     orion_transport --> orion_tests
     orion_proto     --> orion_tests
     gtest           --> orion_tests
+
+    orion_transport -.-> clock_service
+    orion_proto     -.-> clock_service
 ```
 
 ① `zenoh-c` and `zenoh-cpp` are not in ConanCenter. They are maintained as
-local recipes under `conan/recipes/` — see
+local recipes under `conan/recipes/` - see
 [Dependency Management](dependency-management.md).
 
 ---
@@ -76,7 +80,7 @@ local recipes under `conan/recipes/` — see
 | `orion_clock` | INTERFACE | Abstract `Clock` interface + `WallClock`, `ManualClock`, `SimClock`, `CoordinatedClock`. Zero deps beyond stdlib. |
 | `orion_proto` | STATIC | Compiled protobuf message bindings for all `.proto` files under `proto/orion/v1/`. |
 | `orion_app` | INTERFACE | `ShutdownLatch`, `FrameScheduler`, `CrashHandler` (M2), `LoggerFactory` (M2). Depends on `orion_clock`. |
-| `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic — services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
+| `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
 
 ---
 
@@ -84,7 +88,7 @@ local recipes under `conan/recipes/` — see
 
 Services hold their own `Clock` reference and call `clock->nowNs()` at the point
 of data capture, passing the result to `Publisher<T>::publish(msg, captured_at_ns)`.
-The transport layer is fully time-agnostic — it forwards the timestamp into the
+The transport layer is fully time-agnostic - it forwards the timestamp into the
 `Envelope` header without knowing or caring what clock produced it.
 
 This means the two libraries are structurally independent:
@@ -96,7 +100,7 @@ services         link both independently
 ```
 
 Keeping them independent makes circular dependencies impossible. `CoordinatedClock`
-lives in `orion_clock` and exposes an `update(sim_time_ns)` method — the service
+lives in `orion_clock` and exposes an `update(sim_time_ns)` method - the service
 wires the Zenoh subscription and calls `update()` in the callback, so
 `CoordinatedClock` itself has no knowledge of Zenoh or transport.
 
@@ -119,9 +123,9 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 
 ## Milestone build targets
 
-| Milestone | New targets / features | New dependencies |
-|---|---|---|
-| Current | `orion_clock`, `orion_proto`, `orion_app`, `orion_transport` | protobuf, zenoh-c, zenoh-cpp, abseil, gtest |
-| M1 — Core Runtime | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
-| M2 — Observability | `CrashHandler`, `LoggerFactory`, `HealthPublisher` in `orion_app` | backward-cpp, libdw, spdlog |
-| M3 — Simulation | `CoordinatedClock` Phase 3 full implementation; Clock Service publisher | none |
+| Milestone | Status | New targets / features | New dependencies |
+|---|---|---|---|
+| Baseline | Done | `orion_clock`, `orion_proto`, `orion_app`, `orion_transport` | protobuf, zenoh-c, zenoh-cpp, abseil, gtest |
+| M1 - Core Runtime | Done | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
+| M2 - Observability | Planned | `CrashHandler`, `LoggerFactory`, `HealthPublisher` in `orion_app` | backward-cpp, libdw, spdlog |
+| M3 - Simulation | Planned | `CoordinatedClock` Phase 3 full implementation; Clock Service publisher | none |

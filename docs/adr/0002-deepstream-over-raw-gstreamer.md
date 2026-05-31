@@ -1,13 +1,13 @@
 # ADR 0002: DeepStream over raw GStreamer + TensorRT
 
 ## Status
-Amended — see ADR 0003 for deployment strategy and dev/deploy image split.
+Amended - see ADR 0003 for deployment strategy and dev/deploy image split.
 
 ## Context
 The Perception Service requires hardware-accelerated inference on the Jetson Orin Nano. Two approaches were considered:
 
-- **Raw GStreamer + TensorRT** — full control over the inference integration and metadata schema. TensorRT libraries are unavailable on x86_64 without a GPU, so hardware-dependent pipeline stages cannot run in the devcontainer.
-- **DeepStream SDK** — NVIDIA's opinionated inference pipeline framework built on GStreamer. Provides `nvinfer`, `nvtracker`, and `NvDsObjectMeta` out of the box.
+- **Raw GStreamer + TensorRT** - full control over the inference integration and metadata schema. TensorRT libraries are unavailable on x86_64 without a GPU, so hardware-dependent pipeline stages cannot run in the devcontainer.
+- **DeepStream SDK** - NVIDIA's opinionated inference pipeline framework built on GStreamer. Provides `nvinfer`, `nvtracker`, and `NvDsObjectMeta` out of the box.
 
 ## Decision
 Use DeepStream as the pipeline framework for the Perception Service on the Orin Nano.

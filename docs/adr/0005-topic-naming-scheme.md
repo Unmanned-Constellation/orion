@@ -44,18 +44,22 @@ Domains group related topics and enable useful wildcard subscriptions
 
 | Domain   | What lives here                              |
 |----------|----------------------------------------------|
-| `sensing` | Perception outputs — detections, tracked objects |
+| `sensing` | Perception outputs - detections, tracked objects |
 | `control` | Actuator commands, flight mode               |
-| `nav`     | Navigation state — position, velocity, attitude |
+| `nav`     | Navigation state - position, velocity, attitude |
 | `system`  | Health, diagnostics, service status          |
 
 New domains are added by amending this ADR. Existing domain names must not be renamed (breaking
 change for all subscribers of that domain).
 
 ### Swarm-wide namespace
-Topics that span vehicles (e.g., simulation clock, swarm-level coordination) use
-`orion/swarm/{topic}`. This avoids a naming exception for the sim time publisher
-(`orion/swarm/clock`) while leaving room for future swarm coordination topics.
+Topics that span vehicles (e.g., swarm-level coordination, cross-vehicle rendezvous)
+use `orion/swarm/{topic}`. This leaves room for future swarm coordination topics.
+
+Note: the simulation clock is published per-vehicle at
+`orion/{vehicle_id}/clock/sim_time` (see ADR-0009), not under `orion/swarm/`. Each
+vehicle's `clock_service` drives its own `CoordinatedClock` subscribers independently,
+which allows vehicles in a swarm simulation to run at different speeds or phases.
 
 ## Consequences
 

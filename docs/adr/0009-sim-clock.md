@@ -1,16 +1,16 @@
 # ADR 0009: SimClock and CoordinatedClock for simulation
 
 ## Status
-Accepted — phased implementation (Phase 1 complete, Phase 2 in progress, Phase 3 future)
+Accepted - phased implementation (Phase 1 complete, Phase 2 in progress, Phase 3 future)
 
 ## Context
 `WallClock` runs services at real time. `ManualClock` is step-driven and suitable for unit tests
 but not for continuous simulation. Two additional clock implementations are needed:
 
-1. **Scaled real-time (`SimClock`)** — run the full service stack at N× wall speed for
+1. **Scaled real-time (`SimClock`)** - run the full service stack at N× wall speed for
    integration testing. All services advance together; no external coordination required.
 
-2. **Coordinated sim time (`CoordinatedClock`)** — a Clock Service publishes `SimTimeUpdate`
+2. **Coordinated sim time (`CoordinatedClock`)** - a Clock Service publishes `SimTimeUpdate`
    messages over Zenoh; all services block in `sleepUntil` until the broadcast advances past
    their deadline. This enables deterministic faster-than-real-time simulation where all services
    stay in lockstep regardless of processing variance.
@@ -28,14 +28,14 @@ All clock implementations live in `orion_clock` (`libs/clock/clock.hpp`) with ze
 dependencies. `orion_clock` and `orion_transport` have no dependency on each other.
 
 ```
-orion_clock      (Clock, WallClock, ManualClock, SimClock, CoordinatedClock — zero deps)
-orion_transport  (Session, Publisher, Subscriber — zero clock dep)
+orion_clock      (Clock, WallClock, ManualClock, SimClock, CoordinatedClock - zero deps)
+orion_transport  (Session, Publisher, Subscriber - zero clock dep)
 services         (link both independently)
 ```
 
 ---
 
-### Phase 1 — `SimClock` (complete)
+### Phase 1 - `SimClock` (complete)
 
 `SimClock` has no dependencies beyond the C++ standard library.
 
@@ -54,17 +54,17 @@ Both throw `std::invalid_argument` if `scale` is `<= 0`, `NaN`, or `Inf`.
 sim_start_ns_ + (wall_now - wall_start_) * scale_
 ```
 
-**`sleepUntil(target_ns)`** uses a correcting loop — converts remaining sim duration to wall
+**`sleepUntil(target_ns)`** uses a correcting loop - converts remaining sim duration to wall
 time (`remaining / scale_`) and sleeps, then re-checks. Callers never wake before their deadline.
 
-**Thread safety:** no mutable state after construction — inherently thread-safe, no locking.
+**Thread safety:** no mutable state after construction - inherently thread-safe, no locking.
 
 ---
 
-### Phase 2 — `CoordinatedClock` stub (in progress)
+### Phase 2 - `CoordinatedClock` stub (in progress)
 
 `CoordinatedClock` is the coordinated-sim-time clock. It lives in `clock.hpp` alongside the
-other implementations — no separate CMake target needed.
+other implementations - no separate CMake target needed.
 
 **Design:** `CoordinatedClock` exposes an `update(uint64_t sim_time_ns)` method. The calling
 service subscribes to `orion/{vehicle_id}/clock/sim_time` and calls `clock->update(msg.sim_time_ns())`
@@ -74,13 +74,13 @@ This mirrors the `ManualClock` pattern: an external driver advances time, and `s
 waiters unblock when time passes their target. `ManualClock` is driven by test threads;
 `CoordinatedClock` is driven by a Zenoh subscriber callback.
 
-**Phase 2 stub:** constructor and `update()` compile correctly. `nowNs()` and `sleepUntil()`
-throw `std::logic_error("CoordinatedClock not yet implemented")`.
+**Phase 2 stub:** constructor compiles correctly. `update()`, `nowNs()`, and `sleepUntil()`
+all throw `std::logic_error("CoordinatedClock not yet implemented")`.
 
 **Phase 3 implementation (future):**
 
 `CoordinatedClock` stores `now_ns_` and a condition variable. `update()` sets `now_ns_` under
-a mutex and notifies all `sleepUntil` waiters — identical condvar pattern to `ManualClock`.
+a mutex and notifies all `sleepUntil` waiters - identical condvar pattern to `ManualClock`.
 `nowNs()` returns the last received timestamp under the same mutex.
 
 ---
@@ -96,7 +96,7 @@ message SimTimeUpdate {
 }
 ```
 
-`scale` is not used by `CoordinatedClock` for computation — present for observability only.
+`scale` is not used by `CoordinatedClock` for computation - present for observability only.
 
 **Topic:** `orion/{vehicle_id}/clock/sim_time`
 

@@ -28,7 +28,7 @@ For Jetson Orin Nano setup, see [docs/orin-setup.md](docs/orin-setup.md).
 
 1. Clone the repo and open it in VS Code
 2. When prompted, click **Reopen in Container**
-3. Wait for the container to finish — `post-create.sh` runs automatically and handles Conan install
+3. Wait for the container to finish - `post-create.sh` runs automatically and handles Conan install
    and CMake configure for both presets
 4. Run the **CMake: Build All** task (`Ctrl+Shift+B`)
 
@@ -41,7 +41,7 @@ For first-time setup on a Jetson Orin Nano, see [docs/orin-setup.md](docs/orin-s
 
 | Path | Contents |
 |------|----------|
-| `cmake/` | CMake helper modules — `tools.cmake` (format, lint, coverage, docs targets), `toolchains/` (cross-compile toolchain files) |
+| `cmake/` | CMake helper modules - `tools.cmake` (format, lint, coverage, docs targets), `toolchains/` (cross-compile toolchain files) |
 | `conan/` | Conan profiles and custom recipes for zenoh-c and zenoh-cpp |
 | `docker/` | Unified Dockerfile (selects base image by architecture) |
 | `docs/` | Process documentation and architecture decision records |
@@ -65,22 +65,22 @@ test(transport): add fuzz target for topic key-expression parsing
 
 ## Documentation
 
-- [Development environment](docs/development-environment.md) — devcontainer internals, volume
+- [Development environment](docs/development-environment.md) - devcontainer internals, volume
   mounts, VS Code tasks, pre-commit hooks
-- [Building and testing](docs/building-and-testing.md) — CMake presets, proto codegen, formatting,
+- [Building and testing](docs/building-and-testing.md) - CMake presets, proto codegen, formatting,
   linting, sanitizers, coverage, fuzzing, Doxygen
-- [Testing](docs/testing.md) — unit tests, sanitizers (ASan/UBSan/TSan), coverage, fuzzing with
+- [Testing](docs/testing.md) - unit tests, sanitizers (ASan/UBSan/TSan), coverage, fuzzing with
   libFuzzer: philosophy, writing targets, interpreting output
-- [Coding standards](docs/coding-standards.md) — C++ Core Guidelines, HiCPP, CERT, naming
+- [Coding standards](docs/coding-standards.md) - C++ Core Guidelines, HiCPP, CERT, naming
   conventions, hard limits enforced by clang-tidy
-- [CI/CD](docs/ci-cd.md) — GitHub Actions jobs, dependency caching, what blocks a merge
-- [Dependency management](docs/dependency-management.md) — Conan profiles, adding dependencies,
+- [CI/CD](docs/ci-cd.md) - GitHub Actions jobs, dependency caching, what blocks a merge
+- [Dependency management](docs/dependency-management.md) - Conan profiles, adding dependencies,
   lockfile workflow
-- [Cross-compilation](docs/cross-compilation.md) — x86 dev vs Jetson deploy, arch profiles, static
+- [Cross-compilation](docs/cross-compilation.md) - x86 dev vs Jetson deploy, arch profiles, static
   linking constraints
-- [Versioning](docs/versioning.md) — git-tag-based semantic versioning, CHANGELOG generation
-- [Orin setup](docs/orin-setup.md) — one-time Jetson configuration after flashing JetPack
-- [Architecture decisions](docs/adr/) — ADR-0001 Zenoh transport, ADR-0002 DeepStream,
+- [Versioning](docs/versioning.md) - git-tag-based semantic versioning, CHANGELOG generation
+- [Orin setup](docs/orin-setup.md) - one-time Jetson configuration after flashing JetPack
+- [Architecture decisions](docs/adr/) - ADR-0001 Zenoh transport, ADR-0002 DeepStream,
   ADR-0003 multi-platform build strategy, ADR-0004 transport abstraction layer,
   ADR-0005 topic naming scheme, ADR-0006 edge network service (multi-protocol gateway),
   ADR-0007 public API service, ADR-0008 rate-group executor, ADR-0009 sim clock,
