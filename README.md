@@ -83,5 +83,8 @@ test(transport): add fuzz target for topic key-expression parsing
 - [Architecture decisions](docs/adr/) - ADR-0001 Zenoh transport, ADR-0002 DeepStream,
   ADR-0003 multi-platform build strategy, ADR-0004 transport abstraction layer,
   ADR-0005 topic naming scheme, ADR-0006 edge network service (multi-protocol gateway),
-  ADR-0007 public API service, ADR-0008 rate-group executor, ADR-0009 sim clock,
-  ADR-0010 crash handler, ADR-0011 logging and health reporting
+  ADR-0007 public API service, ADR-0008 FrameScheduler (major/minor frame executor),
+  ADR-0009 sim clock, ADR-0010 crash handler, ADR-0011 logging and health reporting,
+  ADR-0012 gimbal signal routing, ADR-0013 gimbal control loop separation,
+  ADR-0014 gimbal kinematics, ADR-0015 gimbal FC integration,
+  ADR-0016 reactive vs. periodic execution model, ADR-0017 simulation driving model

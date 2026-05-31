@@ -4,12 +4,12 @@ Time abstraction library for the Orion autonomy platform.
 
 ## Overview
 
-`orion_clock` provides a single abstract interface - `Clock` - that services use
+`orion_clock` provides a single abstract interface - `TimeSource` - that services use
 for all time queries and sleeping. Injecting the clock at construction rather than
 calling `std::chrono` directly makes periodic loops testable and simulation-safe:
 the same service code that runs at 100 Hz on hardware can be driven at arbitrary
 speed under a `ManualClock` in unit tests or under a `SimClock` in
-hardware-in-the-loop runs (see ADR-0009).
+software-in-the-loop runs (see ADR-0009).
 
 The library is header-only (`orion_clock` is an `INTERFACE` CMake target) and has
 no runtime dependencies beyond the C++ standard library. The single header is at
@@ -50,7 +50,7 @@ explicitly by throwing if you attempt to set time backwards.
 
 ## API Reference
 
-### `Clock` - abstract base
+### `TimeSource` - abstract base
 
 ```cpp
 #include "orion/clock/clock.hpp"

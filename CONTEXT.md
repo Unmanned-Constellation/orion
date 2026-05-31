@@ -54,17 +54,17 @@ A test mode where no physical hardware is present - all hardware dependencies ar
 ## Batch Simulation
 A SIL mode that replays missions repeatedly at accelerated speed for Monte Carlo-style analysis. Services are driven by `CoordinatedClock`, which receives coordinated sim time from a Clock Service publisher over Zenoh.
 
-## Clock
-An abstract interface (`nowNs() → uint64_t`, `sleepUntil(uint64_t)`) in `orion_clock`. Each microservice holds its own `Clock` reference and calls `nowNs()` at the point of data capture to produce timestamps passed to `Publisher::publish`. Services have no knowledge of whether they are running against a `WallClock`, `SimClock`, or `CoordinatedClock`; the injected implementation determines the time mode.
+## TimeSource
+The abstract interface (`nowNs() → uint64_t`, `sleepUntil(uint64_t)`) in `orion_clock`. Each microservice holds its own `TimeSource` reference and calls `clock->nowNs()` at the point of data capture to produce timestamps passed to `Publisher::publish`. Services have no knowledge of whether they are running against a `WallClock`, `SimClock`, or `CoordinatedClock`; the injected implementation determines the time mode.
 
 ## WallClock
-Concrete `Clock` implementation backed by `std::chrono::system_clock`. Used in production and real-time HIL.
+Concrete `TimeSource` implementation backed by `std::chrono::system_clock`. Used in production and real-time HIL.
 
 ## SimClock
-A `Clock` implementation for scaled real-time simulation. Advances at a fixed multiple of wall speed (`scale×`), computed entirely from the wall clock - no external coordination required. Two services constructed with the same scale at the same wall time will agree on sim time automatically. Suitable for integration testing and fast SIL runs where lockstep coordination is not required.
+A `TimeSource` implementation for scaled real-time simulation. Advances at a fixed multiple of wall speed (`scale×`), computed entirely from the wall clock - no external coordination required. Two services constructed with the same scale at the same wall time will agree on sim time automatically. Suitable for integration testing and fast SIL runs where lockstep coordination is not required.
 
 ## CoordinatedClock
-A `Clock` implementation for coordinated faster-than-real-time simulation. Receives sim time via `update(sim_time_ns)`, called by the service's `SimTimeUpdate` subscriber callback. All services using `CoordinatedClock` advance in lockstep when the Clock Service broadcasts a new timestamp. Phase 2 stub - `update()`, `nowNs()`, and `sleepUntil()` all throw until Phase 3 is implemented.
+A `TimeSource` implementation for coordinated faster-than-real-time simulation. Receives sim time via `update(sim_time_ns)`, called by the service's `SimTimeUpdate` subscriber callback. All services using `CoordinatedClock` advance in lockstep when the Clock Service broadcasts a new timestamp. Phase 2 stub - `update()`, `nowNs()`, and `sleepUntil()` all throw until Phase 3 is implemented.
 
 ## Vehicle ID
 A human-readable deployment name (`alpha`, `bravo`, `uav-01`) configured via `ORION_VEHICLE_ID`. Appears as the second segment of every per-vehicle topic: `orion/{vehicle_id}/{domain}/{topic}`.
