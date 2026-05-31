@@ -1,5 +1,5 @@
 name: Setup C++ builder
-description: Installs LLVM 18, Conan, ccache, registers the local recipes remote, and installs dependencies.
+description: Configures ccache and Conan. Optionally installs LLVM 18 and toolchain for non-containerized runners.
 
 inputs:
   conan-profile:
@@ -13,11 +13,21 @@ inputs:
     description: Prefix for the Conan package and ccache keys
     required: false
     default: conan
+  install-toolchain:
+    description: Set to true for non-containerized runners (e.g. ARM64 native runner)
+    required: false
+    default: "false"
+
+outputs:
+  ccache-key:
+    description: Exact cache key to use when saving ccache after the build step
+    value: ${{ steps.ccache-key.outputs.key }}
 
 runs:
   using: composite
   steps:
     - name: Install toolchain
+      if: ${{ inputs.install-toolchain == 'true' }}
       shell: bash
       run: |
         wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
@@ -27,38 +37,51 @@ runs:
         sudo apt-get -o Acquire::http::Timeout=60 update -qq
         sudo apt-get install -y clang-18 cmake ninja-build ccache ${{ inputs.extra-packages }}
 
-    - name: Configure ccache
+    - name: Install Conan
+      if: ${{ inputs.install-toolchain == 'true' }}
       shell: bash
-      run: |
-        ccache --set-config=max_size=1G
-        ccache --set-config=compression=true
-        echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
-        echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
-
-    - name: Cache ccache
-      uses: actions/cache@v5
-      with:
-        path: ~/.cache/ccache
-        key: ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.sha }}
-        restore-keys: ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-
+      run: pip install conan
 
     - name: Cache pip
+      if: ${{ inputs.install-toolchain == 'true' }}
       uses: actions/cache@v5
       with:
         path: ~/.cache/pip
         key: pip-${{ runner.os }}-conan
         restore-keys: pip-${{ runner.os }}-
 
-    - name: Install Conan
+    - name: Configure ccache
       shell: bash
-      run: pip install conan
+      run: |
+        ccache --set-config=cache_dir="$HOME/.cache/ccache"
+        ccache --set-config=base_dir="$GITHUB_WORKSPACE"
+        ccache --set-config=max_size=1G
+        ccache --set-config=compression=true
+        echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
+        echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
 
-    - name: Cache Conan packages
-      uses: actions/cache@v5
+    - name: Compute ccache key
+      id: ccache-key
+      shell: bash
+      run: echo "key=ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore ccache
+      id: ccache-restore
+      uses: actions/cache/restore@v5
+      with:
+        path: ~/.cache/ccache
+        key: ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.sha }}
+        restore-keys: ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-
+
+    - name: Restore Conan packages
+      id: conan-restore
+      uses: actions/cache/restore@v5
       with:
         path: ~/.conan2/p
-        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('conan.lock') }}
-        restore-keys: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
+        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('conan.lock') }}-${{ inputs.conan-profile }}
+        restore-keys: |
+          ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('conan.lock') }}-
+          ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
 
     - name: Configure Conan profile
       shell: bash
@@ -67,7 +90,7 @@ runs:
     - name: Register local recipes remote
       shell: bash
       run: |
-        conan remote add orion-local "$GITHUB_WORKSPACE/conan/recipes" \
+        conan remote add orion-local "$GITHUB_WORKSPACE/conan" \
           -t local-recipes-index --index 0 -f
 
     - name: Install dependencies
@@ -78,3 +101,9 @@ runs:
           --profile=${{ inputs.conan-profile }} \
           --lockfile=conan.lock \
           -c tools.system.package_manager:mode=check
+
+    - name: Save Conan packages
+      uses: actions/cache/save@v5
+      with:
+        path: ~/.conan2/p
+        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('conan.lock') }}-${{ inputs.conan-profile }}

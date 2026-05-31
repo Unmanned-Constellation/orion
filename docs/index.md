@@ -19,6 +19,14 @@ architecture
 
 ```{toctree}
 :maxdepth: 1
+:caption: Hardware Reference
+:glob:
+
+hardware/*
+```
+
+```{toctree}
+:maxdepth: 1
 :caption: Architecture Decision Records
 :glob:
 

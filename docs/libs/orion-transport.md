@@ -36,7 +36,7 @@ auto session = orion::transport::Session::create({
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `vehicle_id` | `std::string` | Vehicle identifier — second segment of every per-vehicle topic. |
+| `vehicle_id` | `std::string` | Vehicle identifier - second segment of every per-vehicle topic. |
 | `service_name` | `std::string` | Stamped as `MessageHeader::source_id` on every outbound message. |
 | `config_path` | `std::optional<std::string>` | Path to a backend-specific config file. Uses built-in defaults when absent. |
 
@@ -46,7 +46,7 @@ Obtained from `Session::advertise<T>()`. Non-copyable; movable.
 
 | Method | Description |
 |--------|-------------|
-| `publish(msg, captured_at_ns)` | Wraps `msg` in an `Envelope` and transmits it. `captured_at_ns` is the time the underlying data was captured — supplied by the calling service, not the transport layer. |
+| `publish(msg, captured_at_ns)` | Wraps `msg` in an `Envelope` and transmits it. `captured_at_ns` is the time the underlying data was captured - supplied by the calling service, not the transport layer. |
 
 ```cpp
 auto pub = session.advertise<orion::v1::NavState>("orion/alpha/nav/state");
@@ -71,8 +71,8 @@ void(const T& msg, const orion::transport::MessageHeader& hdr)
 auto sub = session.subscribe<orion::v1::NavState>(
     "orion/alpha/nav/state",
     [](const orion::v1::NavState& msg, const orion::transport::MessageHeader& hdr) {
-        // hdr.captured_at_ns — when the data was captured
-        // hdr.source_id      — which service published it
+        // hdr.captured_at_ns - when the data was captured
+        // hdr.source_id      - which service published it
     });
 ```
 
@@ -105,6 +105,6 @@ Subscribers silently drop messages whose `type_url` does not match the expected 
   reference and supply `captured_at_ns` at point of hardware capture. The transport layer
   is fully time-agnostic.
 - Backend types (Zenoh session, publisher, subscriber handles) never appear in public
-  headers — the pimpl pattern keeps all backend includes confined to `zenoh_session.cpp`.
+  headers - the pimpl pattern keeps all backend includes confined to `zenoh_session.cpp`.
 - `PublisherBackend` and `SubscriberBackend` are abstract interfaces; tests can substitute
   fake backends without any Zenoh dependency.

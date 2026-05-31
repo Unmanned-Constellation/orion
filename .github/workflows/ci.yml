@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  packages: read
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -17,21 +21,14 @@ jobs:
   format:
     name: Format
     runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install clang-format-18
-        run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
-            | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get -o Acquire::http::Timeout=60 update -qq
-          sudo apt-get install -y clang-format-18
-
-      - name: Install gersemi
-        run: pip install gersemi
 
       - name: Check C++ formatting
         run: |
@@ -45,17 +42,16 @@ jobs:
   proto:
     name: Proto schema
     runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
-      - name: Install buf
-        run: |
-          curl -fsSL "https://github.com/bufbuild/buf/releases/download/v1.69.0/buf-Linux-$(uname -m)" \
-            -o /usr/local/bin/buf
-          chmod +x /usr/local/bin/buf
 
       - name: Lint
         run: buf lint
@@ -72,19 +68,18 @@ jobs:
             echo "No main branch on remote — skipping breaking-change check"
           fi
 
-# ── API documentation coverage ───────────────────────────────────────────
+  # ── API documentation coverage ───────────────────────────────────────────
   docs:
     name: Docs coverage
     runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install Doxygen
-        run: sudo apt-get -o Acquire::http::Timeout=60 update -qq && sudo apt-get install -y --no-install-recommends doxygen
-
-      - name: Install Sphinx dependencies
-        run: pip install -r docs/requirements.txt
 
       - name: Run Doxygen
         run: |
@@ -99,16 +94,21 @@ jobs:
     name: Build and lint (debug)
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 60
     env:
       CC: clang-18
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/debug
-          extra-packages: clang-tidy-18
 
       - name: Configure
         run: cmake --preset debug --no-warn-unused-cli
@@ -124,18 +124,30 @@ jobs:
           run-clang-tidy-18 -p build/Debug \
             "^${GITHUB_WORKSPACE}/(libs|proto|tests)/"
 
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
+
   # ── Release build + test ──────────────────────────────────────────────────
   build-release:
     name: Build and test (release)
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 45
     env:
       CC: clang-18
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/release
 
@@ -148,21 +160,32 @@ jobs:
       - name: Test
         run: ctest --preset release
 
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
+
   # ── AddressSanitizer + UndefinedBehaviorSanitizer ─────────────────────────
   sanitize:
     name: Sanitize (ASan + UBSan)
-    needs: [format, docs, proto]
+    needs: [build]
     runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 45
     env:
       CC: clang-18
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/debug
-          extra-packages: libclang-rt-18-dev
 
       - name: Configure
         run: cmake --preset sanitize --no-warn-unused-cli
@@ -173,21 +196,32 @@ jobs:
       - name: Test
         run: ctest --preset sanitize
 
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
+
   # ── ThreadSanitizer ───────────────────────────────────────────────────────
   tsan:
     name: Thread Sanitizer
-    needs: [format, docs, proto]
+    needs: [build]
     runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 45
     env:
       CC: clang-18
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/debug
-          extra-packages: libclang-rt-18-dev
 
       - name: Configure
         run: cmake --preset tsan --no-warn-unused-cli
@@ -198,21 +232,32 @@ jobs:
       - name: Test
         run: ctest --preset tsan
 
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
+
   # ── Coverage ──────────────────────────────────────────────────────────────
   coverage:
     name: Coverage
-    needs: [format, docs, proto]
+    needs: [build]
     runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 60
     env:
       CC: clang-18
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/debug
-          extra-packages: libclang-rt-18-dev llvm-18
 
       - name: Configure
         run: cmake --preset coverage --no-warn-unused-cli
@@ -252,6 +297,12 @@ jobs:
             exit 1
           fi
 
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
+
   # ── Native ARM64 build + test ─────────────────────────────────────────────
   build-arm64:
     name: Build and test (ARM64)
@@ -263,10 +314,12 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/arm64/debug
           cache-key-prefix: conan-arm64
+          install-toolchain: "true"
 
       - name: Configure
         run: cmake --preset debug --no-warn-unused-cli
@@ -277,21 +330,32 @@ jobs:
       - name: Test
         run: ctest --preset debug
 
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
+
   # ── libFuzzer smoke test ──────────────────────────────────────────────────
   fuzz:
     name: Fuzz (smoke test)
-    needs: [format, docs, proto]
+    needs: [build]
     runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 30
     env:
       CC: clang-18
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/debug
-          extra-packages: libclang-rt-18-dev
 
       - name: Configure
         run: cmake --preset fuzz --no-warn-unused-cli
@@ -311,3 +375,9 @@ jobs:
             -max_len=65536 \
             -timeout=10 \
             2>&1
+
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
