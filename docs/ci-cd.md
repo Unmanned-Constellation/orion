@@ -54,8 +54,9 @@ native ARM64 runner (which has no container) it also installs the toolchain via 
 | Install Conan | `install-toolchain == true` | `pip install conan` |
 | Cache pip | `install-toolchain == true` | `~/.cache/pip` keyed on OS |
 | Configure ccache | always | Sets `CMAKE_C_COMPILER_LAUNCHER=ccache`, `cache_dir=$HOME/.cache/ccache`, `base_dir=$GITHUB_WORKSPACE`, caps at 1 GB |
-| Cache ccache | always | `~/.cache/ccache` keyed on `<prefix>-<os>-<sha>`, restores from most recent prior run |
-| Cache Conan packages | always | `~/.conan2/p` keyed on `<prefix>-<os>-<conan.lock hash>-<conan-profile>`; `save-always: true` so packages are cached even if tests fail downstream |
+| Restore ccache | always | `~/.cache/ccache` keyed on `<prefix>-<os>-<sha>`, restores from most recent prior run |
+| Restore Conan packages | always | `~/.conan2/p` keyed on `<prefix>-<os>-<conan.lock hash>-<conan-profile>` |
+| Save Conan packages | always | Saves immediately after `conan install` — packages are fully populated at this point regardless of whether downstream build/test steps fail |
 | Configure Conan profile | always | `conan profile detect --force` - picks up clang-18 via `CC`/`CXX` |
 | Register local recipes remote | always | Adds `conan/` as `orion-local` (priority 0, `local-recipes-index` type); root must be `conan/`, not `conan/recipes/` |
 | Install dependencies | always | `conan install --profile=<conan-profile> --lockfile=conan.lock` |
@@ -227,8 +228,10 @@ When `conan.lock` changes the Conan cache misses and all packages rebuild from s
 ccache always restores from the most recent prior entry and saves a new entry per commit, so
 only changed translation units recompile. `sanitize`, `tsan`, `coverage`, and `fuzz` run after
 `build` completes and restore its Conan cache - they never perform a cold dependency rebuild.
-Both caches use `save-always: true` so packages and compiled objects are cached even when
-downstream steps (tests, lint) fail.
+The Conan cache is saved inside `setup-builder` immediately after `conan install`, so packages
+are always persisted regardless of whether the subsequent build or test steps fail. The ccache
+save runs as the final step of each job (after the build), so compiled objects are captured even
+if tests or lint fail — `actions/cache/save` always runs unless the job is cancelled.
 
 The ccache `cache_dir` is explicitly set to `~/.cache/ccache` in `setup-builder` to override
 the `CCACHE_DIR=/ccache` environment variable baked into the container image (which is a volume

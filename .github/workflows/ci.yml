@@ -105,7 +105,8 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/debug
 
@@ -123,6 +124,12 @@ jobs:
           run-clang-tidy-18 -p build/Debug \
             "^${GITHUB_WORKSPACE}/(libs|proto|tests)/"
 
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
+
   # ── Release build + test ──────────────────────────────────────────────────
   build-release:
     name: Build and test (release)
@@ -139,7 +146,8 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/release
 
@@ -151,6 +159,12 @@ jobs:
 
       - name: Test
         run: ctest --preset release
+
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
 
   # ── AddressSanitizer + UndefinedBehaviorSanitizer ─────────────────────────
   sanitize:
@@ -168,7 +182,8 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/debug
 
@@ -180,6 +195,12 @@ jobs:
 
       - name: Test
         run: ctest --preset sanitize
+
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
 
   # ── ThreadSanitizer ───────────────────────────────────────────────────────
   tsan:
@@ -197,7 +218,8 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/debug
 
@@ -209,6 +231,12 @@ jobs:
 
       - name: Test
         run: ctest --preset tsan
+
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
 
   # ── Coverage ──────────────────────────────────────────────────────────────
   coverage:
@@ -226,7 +254,8 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/debug
 
@@ -268,6 +297,12 @@ jobs:
             exit 1
           fi
 
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
+
   # ── Native ARM64 build + test ─────────────────────────────────────────────
   build-arm64:
     name: Build and test (ARM64)
@@ -279,7 +314,8 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/arm64/debug
           cache-key-prefix: conan-arm64
@@ -293,6 +329,12 @@ jobs:
 
       - name: Test
         run: ctest --preset debug
+
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
 
   # ── libFuzzer smoke test ──────────────────────────────────────────────────
   fuzz:
@@ -310,7 +352,8 @@ jobs:
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-builder
+      - id: setup
+        uses: ./.github/actions/setup-builder
         with:
           conan-profile: conan/profiles/x86_64/debug
 
@@ -332,3 +375,9 @@ jobs:
             -max_len=65536 \
             -timeout=10 \
             2>&1
+
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}

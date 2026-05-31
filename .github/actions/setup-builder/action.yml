@@ -18,6 +18,11 @@ inputs:
     required: false
     default: "false"
 
+outputs:
+  ccache-key:
+    description: Exact cache key to use when saving ccache after the build step
+    value: ${{ steps.ccache-key.outputs.key }}
+
 runs:
   using: composite
   steps:
@@ -55,23 +60,28 @@ runs:
         echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
         echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
 
-    - name: Cache ccache
-      uses: actions/cache@v5
+    - name: Compute ccache key
+      id: ccache-key
+      shell: bash
+      run: echo "key=ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore ccache
+      id: ccache-restore
+      uses: actions/cache/restore@v5
       with:
         path: ~/.cache/ccache
         key: ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.sha }}
         restore-keys: ccache-${{ inputs.cache-key-prefix }}-${{ runner.os }}-
-        save-always: true
 
-    - name: Cache Conan packages
-      uses: actions/cache@v5
+    - name: Restore Conan packages
+      id: conan-restore
+      uses: actions/cache/restore@v5
       with:
         path: ~/.conan2/p
         key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('conan.lock') }}-${{ inputs.conan-profile }}
         restore-keys: |
           ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('conan.lock') }}-
           ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
-        save-always: true
 
     - name: Configure Conan profile
       shell: bash
@@ -91,3 +101,9 @@ runs:
           --profile=${{ inputs.conan-profile }} \
           --lockfile=conan.lock \
           -c tools.system.package_manager:mode=check
+
+    - name: Save Conan packages
+      uses: actions/cache/save@v5
+      with:
+        path: ~/.conan2/p
+        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('conan.lock') }}-${{ inputs.conan-profile }}
