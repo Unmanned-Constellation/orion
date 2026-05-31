@@ -308,6 +308,11 @@ jobs:
     name: Build and test (ARM64)
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04-arm
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 60
     env:
       CC: clang-18
@@ -319,7 +324,6 @@ jobs:
         with:
           conan-profile: conan/profiles/arm64/debug
           cache-key-prefix: conan-arm64
-          install-toolchain: "true"
 
       - name: Configure
         run: cmake --preset debug --no-warn-unused-cli
