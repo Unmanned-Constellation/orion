@@ -4,7 +4,7 @@
 Accepted - Clock Service implementation is Phase 3 (future); SimClock SIL is available now.
 
 ## Context
-Orion services hold a `Clock` reference and call `clock->nowNs()` at the point of data
+Orion services hold a `TimeSource` reference and call `clock->nowNs()` at the point of data
 capture and `clock->sleepUntil()` inside `FrameScheduler`. Three clock implementations
 exist (ADR-0009): `WallClock` (production), `SimClock` (scaled real-time), and
 `CoordinatedClock` (lockstep sim, Phase 3 stub). The clock is injected at construction -
@@ -68,7 +68,7 @@ config) at launch:
 | `sim:<scale>` | `SimClock(scale)` | Scaled real-time SIL |
 | `coordinated` | `CoordinatedClock` | Lockstep SIL (requires clock_service) |
 
-The `FrameScheduler` receives the constructed `Clock` - no scheduler change is needed
+The `FrameScheduler` receives the constructed `TimeSource` - no scheduler change is needed
 between production and simulation. The swap is entirely at the service entry point.
 
 ### Simulation parity guarantee (periodic domain)
