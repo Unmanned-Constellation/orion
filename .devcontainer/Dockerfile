@@ -1,6 +1,6 @@
 # Architecture-aware base selection. BuildKit sets TARGETARCH automatically
 FROM ubuntu:22.04 AS base-amd64
-FROM nvcr.io/nvidia/deepstream:7.1-triton-l4t AS base-arm64
+FROM nvcr.io/nvidia/deepstream-l4t:7.1-triton-multiarch AS base-arm64
 
 ARG TARGETARCH
 FROM base-${TARGETARCH}
