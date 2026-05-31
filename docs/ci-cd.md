@@ -4,79 +4,115 @@ Continuous integration runs on GitHub Actions. Three workflows exist:
 
 | Workflow file | Triggers | Purpose |
 |---|---|---|
-| `.github/workflows/ci.yml` | Push to `main`, all PRs | Build, test, lint, sanitize, coverage, fuzz, docs, proto schema |
+| `.github/workflows/ci.yml` | All PRs | Build, test, lint, sanitize, coverage, fuzz, docs, proto schema |
 | `.github/workflows/changelog.yml` | Push of `v*` tag | Generate CHANGELOG and create GitHub Release |
 | `.github/workflows/docs.yml` | Push to `main`, manual dispatch | Build Sphinx/Doxygen site and deploy to GitHub Pages |
 
 ## CI container image
 
-All x86_64 jobs run inside a pre-built container image published to GitHub Container
+All jobs run inside a pre-built container image published to GitHub Container
 Registry (GHCR):
 
 ```
 ghcr.io/unmanned-constellation/orion/ci:latest
 ```
 
-The image is built from `.devcontainer/Dockerfile` (amd64 target only - the arm64
-target uses an NVIDIA L4T base that is not suitable for GitHub runners). It contains
-the full toolchain: clang-18, cmake, ninja, ccache, conan, clang-tidy, clang-format,
-libclang-rt, llvm, doxygen, sphinx, gersemi, and buf.
+The image is built from `.devcontainer/Dockerfile` and published as a multi-platform manifest
+covering both `linux/amd64` and `linux/arm64`. The Dockerfile selects the base automatically
+via `TARGETARCH`: `ubuntu:22.04` for amd64, `nvcr.io/nvidia/deepstream:7.1-triton-l4t` for
+arm64. The same toolchain layer (clang-18, cmake, ninja, ccache, conan, clang-tidy,
+clang-format, libclang-rt, llvm, doxygen, sphinx, gersemi, buf) is installed on top of
+whichever base is selected.
 
-The image is rebuilt by `.github/workflows/ci-image.yml` whenever `.devcontainer/Dockerfile`
-or `ci-image.yml` changes. Docker layer caching (`type=gha`) keeps rebuilds fast when only
-lower layers change.
+`ci-image.yml` runs three jobs: `build-amd64` on an `ubuntu-22.04` runner, `build-arm64`
+natively on an `ubuntu-22.04-arm` runner (avoiding slow QEMU emulation for the L4T layer),
+and `merge` which combines the two platform digests into the `orion/ci:latest` manifest.
+Docker GHA layer caching is scoped per-platform (`scope=amd64`, `scope=arm64`) to prevent
+cross-platform cache collisions.
 
-**Push policy:** on `pull_request`, the workflow builds the image to validate the Dockerfile
-but does not push - it only pushes to `:latest` on merge to `main`. This prevents an
-unreviewed Dockerfile change from overwriting the image used by concurrent CI runs.
+**Push policy:** on `pull_request`, both build jobs run to validate the Dockerfile on each
+platform but do not push — the `merge` job is skipped entirely on PRs. Pushes to `:latest`
+only happen on merge to `main`. This prevents an unreviewed Dockerfile change from
+overwriting the image used by concurrent CI runs.
+
+```{mermaid}
+flowchart LR
+    classDef trigger fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef action fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    classDef merge fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+
+    T1["Dockerfile Changed<br/>(or Manual Run)"]:::trigger --> B1("Build amd64<br/>(ubuntu-22.04)"):::action
+    T1 --> B2("Build arm64 / L4T<br/>(ubuntu-22.04-arm)"):::action
+    B1 & B2 --> M("Merge manifest<br/>orion/ci:latest"):::merge
+```
 
 ## Custom actions
 
 ### `.github/actions/setup-builder`
 
-Composite action used by every build job. It configures ccache and Conan; for the
-native ARM64 runner (which has no container) it also installs the toolchain via apt.
+Composite action used by every build job. It configures ccache and Conan inside the CI
+container.
 
 **Inputs**
 
 | Input | Required | Default | Description |
 |---|---|---|---|
 | `conan-profile` | yes | - | Path to the Conan host profile (e.g. `conan/profiles/x86_64/debug`) |
-| `extra-packages` | no | `""` | Extra apt packages (only used when `install-toolchain` is true) |
 | `cache-key-prefix` | no | `conan` | Prefix used for Conan package and ccache cache keys |
-| `install-toolchain` | no | `"false"` | Set to `"true"` for non-containerized runners (ARM64 native runner) |
 
 **Steps (in order)**
 
-| Step | Condition | What it does |
-|---|---|---|
-| Install toolchain | `install-toolchain == true` | Installs clang-18, cmake, ninja, ccache from the LLVM apt repository |
-| Install Conan | `install-toolchain == true` | `pip install conan` |
-| Cache pip | `install-toolchain == true` | `~/.cache/pip` keyed on OS |
-| Configure ccache | always | Sets `CMAKE_C_COMPILER_LAUNCHER=ccache`, `cache_dir=$HOME/.cache/ccache`, `base_dir=$GITHUB_WORKSPACE`, caps at 1 GB |
-| Restore ccache | always | `~/.cache/ccache` keyed on `<prefix>-<os>-<sha>`, restores from most recent prior run |
-| Restore Conan packages | always | `~/.conan2/p` keyed on `<prefix>-<os>-<conan.lock hash>-<conan-profile>` |
-| Save Conan packages | always | Saves immediately after `conan install` — packages are fully populated at this point regardless of whether downstream build/test steps fail |
-| Configure Conan profile | always | `conan profile detect --force` - picks up clang-18 via `CC`/`CXX` |
-| Register local recipes remote | always | Adds `conan/` as `orion-local` (priority 0, `local-recipes-index` type); root must be `conan/`, not `conan/recipes/` |
-| Install dependencies | always | `conan install --profile=<conan-profile> --lockfile=conan.lock` |
+| Step | What it does |
+|---|---|
+| Configure ccache | Sets `CMAKE_C_COMPILER_LAUNCHER=ccache`, `cache_dir=$HOME/.cache/ccache`, `base_dir=$GITHUB_WORKSPACE`, caps at 1 GB |
+| Compute ccache key | Writes the exact cache key to `$GITHUB_OUTPUT` so the calling job can save ccache after the build |
+| Restore ccache | `~/.cache/ccache` keyed on `<prefix>-<os>-<sha>`, restores from most recent prior run |
+| Restore Conan packages | `~/.conan2/p` keyed on `<prefix>-<os>-<conan.lock hash>-<conan-profile>` |
+| Configure Conan profile | `conan profile detect --force` - picks up clang-18 via `CC`/`CXX` |
+| Register local recipes remote | Adds `conan/` as `orion-local` (priority 0, `local-recipes-index` type); root must be `conan/`, not `conan/recipes/` |
+| Install dependencies | `conan install --profile=<conan-profile> --lockfile=conan.lock` |
+| Save Conan packages | Saves immediately after `conan install` — packages are fully populated at this point regardless of whether downstream build/test steps fail |
+
+Each calling job adds a **Save ccache** step as its final step (after the build), using
+`steps.setup.outputs.ccache-key`. This ensures compiled objects are captured even if tests
+or lint fail — `actions/cache/save` always runs unless the job is cancelled.
+
+The ccache `cache_dir` is explicitly set to `~/.cache/ccache` to override the
+`CCACHE_DIR=/ccache` environment variable baked into the container image (which is a volume
+mount path in the devcontainer, not available in CI).
 
 ## CI jobs
 
 The job dependency graph is:
 
-```
-format ─┐
-docs   ─┼─► build ─────────► sanitize
-proto  ─┘        └──────────► tsan
-                 └──────────► coverage
-                 └──────────► fuzz
-         ├──────► build-release
-         └──────► build-arm64
+```{mermaid}
+flowchart LR
+    classDef trigger fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef container fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    classDef gate fill:#f5f5f5,stroke:#9e9e9e,stroke-width:2px,color:#000
+
+    Trigger["Push to main / PR"]:::trigger
+
+    Trigger --> Fmt["Format<br/>(C++ & CMake)"]:::container
+    Trigger --> Pro["Proto Schema<br/>(Lint & Break)"]:::container
+    Trigger --> Doc["Docs Coverage<br/>(Doxygen/Sphinx)"]:::container
+
+    Gate1(("All<br/>Pass")):::gate
+
+    Fmt & Pro & Doc --> Gate1
+
+    Gate1 --> BldDbg["Build & Lint<br/>(Debug)"]:::container
+    Gate1 --> BldRel["Build & Test<br/>(Release)"]:::container
+    Gate1 --> BldArm["Build & Test<br/>(ARM64)"]:::container
+
+    BldDbg --> San["Sanitize<br/>(ASan + UBSan)"]:::container
+    BldDbg --> TSan["ThreadSanitizer"]:::container
+    BldDbg --> Cov["Coverage<br/>(Min 60%)"]:::container
+    BldDbg --> Fuz["Fuzz<br/>(Smoke Test)"]:::container
 ```
 
 `format`, `docs`, and `proto` run in parallel. `build` and `build-release` start once all
-three pass. `sanitize`, `tsan`, `coverage`, and `fuzz` all `needs: [build]` - they start
+three pass. `sanitize`, `tsan`, `coverage`, and `fuzz` all `needs: [build]` — they start
 after the debug build completes and restore its warm Conan cache, avoiding a cold dependency
 rebuild on every run.
 
@@ -84,8 +120,9 @@ Every build job sets `CC=clang-18` and `CXX=clang++-18` so Conan and CMake use c
 than the runner's default GCC - required because Conan injects `-stdlib=libstdc++` and GCC
 rejects that flag.
 
-All x86_64 jobs (including format, proto, and docs) run inside the CI container image.
-Only `build-arm64` runs on a bare `ubuntu-22.04-arm` runner with `install-toolchain: true`.
+All jobs run inside the CI container image. The multi-platform manifest means Docker
+automatically pulls the correct variant — amd64 on `ubuntu-22.04` runners, arm64 (L4T) on
+`ubuntu-22.04-arm` runners.
 
 ### Format
 
@@ -173,10 +210,10 @@ suite grows.
 
 ### Build and test (ARM64)
 
-Runs on a native `ubuntu-22.04-arm` runner. Uses `conan/profiles/arm64/debug` (single-profile
-install) and `cmake --preset debug`. Includes a full `ctest` step - native execution means tests
-actually run on ARM64. ARM64 Conan packages and ccache are cached separately under keys prefixed
-`conan-arm64-` and `ccache-conan-arm64-`.
+Runs on a native `ubuntu-22.04-arm` runner inside the arm64 variant of the CI container image
+(L4T base). Uses `conan/profiles/arm64/debug` and `cmake --preset debug`. Native execution means
+tests actually run on ARM64 hardware. Conan packages and ccache are cached separately under keys
+prefixed `conan-arm64-` to keep them isolated from the x86_64 caches.
 
 ### Fuzz (smoke test)
 
@@ -204,6 +241,15 @@ cmake --preset fuzz && cmake --build --preset fuzz
 1. Uses `orhun/git-cliff-action` with `cliff.toml` to generate the changelog for the current tag
 2. Creates a GitHub Release with the generated body
 
+```{mermaid}
+flowchart LR
+    classDef trigger fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef release fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+
+    T3["Tag Pushed<br/>(v*.*.*)"]:::trigger --> R1("Generate Changelog<br/>(git-cliff)"):::release
+    R1 --> R2("Publish GitHub Release"):::release
+```
+
 See [versioning.md](versioning.md) for how to create a release tag.
 
 ## Node.js runtime
@@ -221,9 +267,6 @@ Two layers of caching are active on build jobs:
 | Conan packages | `~/.conan2/p` | `conan-<os>-<conan.lock hash>-<conan-profile>` |
 | ccache objects | `~/.cache/ccache` | `ccache-conan-<os>-<commit SHA>` |
 
-The pip cache is only active on `build-arm64` (the only job that runs `pip install conan`).
-The CI container image has Conan pre-installed, so pip is not invoked on x86_64 jobs.
-
 When `conan.lock` changes the Conan cache misses and all packages rebuild from source. The
 ccache always restores from the most recent prior entry and saves a new entry per commit, so
 only changed translation units recompile. `sanitize`, `tsan`, `coverage`, and `fuzz` run after
@@ -232,10 +275,6 @@ The Conan cache is saved inside `setup-builder` immediately after `conan install
 are always persisted regardless of whether the subsequent build or test steps fail. The ccache
 save runs as the final step of each job (after the build), so compiled objects are captured even
 if tests or lint fail — `actions/cache/save` always runs unless the job is cancelled.
-
-The ccache `cache_dir` is explicitly set to `~/.cache/ccache` in `setup-builder` to override
-the `CCACHE_DIR=/ccache` environment variable baked into the container image (which is a volume
-mount path in the devcontainer, not available in CI).
 
 ## What blocks a merge
 
