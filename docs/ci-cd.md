@@ -35,6 +35,14 @@ platform but do not push — the `merge` job is skipped entirely on PRs. Pushes 
 only happen on merge to `main`. This prevents an unreviewed Dockerfile change from
 overwriting the image used by concurrent CI runs.
 
+**Conan packages are baked into the image.** During the image build, `conan install` runs
+for all profiles relevant to that platform (amd64: debug + release; arm64: debug). Packages
+are stored in `CONAN_HOME=/opt/conan`, which is outside `$HOME` and therefore unaffected by
+GitHub Actions' home-directory mount (`/github/home`). CI jobs find pre-built packages
+instantly — `conan install` takes ~2 seconds instead of 20-30 minutes. The image is
+automatically rebuilt whenever `conanfile.py`, `conan.lock`, or anything under `conan/`
+changes.
+
 ```{mermaid}
 flowchart LR
     classDef trigger fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
@@ -58,24 +66,23 @@ container.
 | Input | Required | Default | Description |
 |---|---|---|---|
 | `conan-profile` | yes | - | Path to the Conan host profile (e.g. `conan/profiles/x86_64/debug`) |
-| `cache-key-prefix` | no | `conan` | Prefix used for Conan package and ccache cache keys |
+| `cache-key-prefix` | no | `conan` | Prefix used for ccache keys |
 
 **Steps (in order)**
 
 | Step | What it does |
 |---|---|
+| Pin CONAN_HOME | Writes `CONAN_HOME=/opt/conan` to `$GITHUB_ENV` — GitHub Actions overrides `HOME=/github/home` inside containers, which causes Conan to ignore the Docker `ENV` and fall back to `$HOME/.conan2`; this step re-pins it |
 | Configure ccache | Sets `CMAKE_C_COMPILER_LAUNCHER=ccache`, `cache_dir=$HOME/.cache/ccache`, `base_dir=$GITHUB_WORKSPACE`, caps at 1 GB |
 | Compute ccache key | Writes the exact cache key to `$GITHUB_OUTPUT` so the calling job can save ccache after the build |
 | Restore ccache | `~/.cache/ccache` keyed on `<prefix>-<os>-<sha>`, restores from most recent prior run |
-| Restore Conan packages | `~/.conan2/p` keyed on `<prefix>-<os>-<conan.lock hash>-<conan-profile>` |
 | Configure Conan profile | `conan profile detect --force` - picks up clang-18 via `CC`/`CXX` |
-| Register local recipes remote | Adds `conan/` as `orion-local` (priority 0, `local-recipes-index` type); root must be `conan/`, not `conan/recipes/` |
-| Install dependencies | `conan install --profile=<conan-profile> --lockfile=conan.lock` |
-| Save Conan packages | Saves immediately after `conan install` — packages are fully populated at this point regardless of whether downstream build/test steps fail |
+| Register local recipes remote | Adds `conan/` as `orion-local` (priority 0, `local-recipes-index` type) |
+| Install dependencies | `conan install --profile=<conan-profile> --lockfile=conan.lock` — completes in ~2 seconds against the pre-baked image cache |
 
 Each calling job adds a **Save ccache** step as its final step (after the build), using
-`steps.setup.outputs.ccache-key`. This ensures compiled objects are captured even if tests
-or lint fail — `actions/cache/save` always runs unless the job is cancelled.
+`steps.setup.outputs.ccache-key`. This ensures compiled object files are cached even if
+tests or lint fail.
 
 The ccache `cache_dir` is explicitly set to `~/.cache/ccache` to override the
 `CCACHE_DIR=/ccache` environment variable baked into the container image (which is a volume
@@ -260,21 +267,20 @@ their Node.js 24 releases once they ship those versions.
 
 ## Dependency caching
 
-Two layers of caching are active on build jobs:
+Conan packages are baked into the CI container image — there is no per-run Conan cache.
+Only ccache (for project source compilation) uses GitHub Actions cache:
 
 | Cache | Path | Key |
 |---|---|---|
-| Conan packages | `~/.conan2/p` | `conan-<os>-<conan.lock hash>-<conan-profile>` |
 | ccache objects | `~/.cache/ccache` | `ccache-conan-<os>-<commit SHA>` |
 
-When `conan.lock` changes the Conan cache misses and all packages rebuild from source. The
-ccache always restores from the most recent prior entry and saves a new entry per commit, so
-only changed translation units recompile. `sanitize`, `tsan`, `coverage`, and `fuzz` run after
-`build` completes and restore its Conan cache - they never perform a cold dependency rebuild.
-The Conan cache is saved inside `setup-builder` immediately after `conan install`, so packages
-are always persisted regardless of whether the subsequent build or test steps fail. The ccache
-save runs as the final step of each job (after the build), so compiled objects are captured even
-if tests or lint fail — `actions/cache/save` always runs unless the job is cancelled.
+The ccache always restores from the most recent prior entry and saves a new entry per commit,
+so only changed translation units recompile. The save runs as the final step of each job
+(after the build) so compiled objects are captured even if tests or lint fail.
+
+When `conanfile.py`, `conan.lock`, or `conan/**` changes, `ci-image.yml` automatically
+rebuilds the image with fresh packages baked in. All subsequent CI runs pick up the new
+packages with zero per-job overhead.
 
 ## What blocks a merge
 
