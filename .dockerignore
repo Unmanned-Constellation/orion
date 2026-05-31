@@ -1,0 +1,7 @@
+build/
+.git/
+.devcontainer/
+docs/_build/
+**/__pycache__/
+*.profraw
+*.profdata
