@@ -304,38 +304,21 @@ jobs:
           key: ${{ steps.setup.outputs.ccache-key }}
 
   # ── Native ARM64 build + test ─────────────────────────────────────────────
-  # Bare runner until ci:latest arm64 manifest is published after this PR merges.
   build-arm64:
     name: Build and test (ARM64)
     needs: [format, docs, proto]
     runs-on: ubuntu-22.04-arm
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 60
     env:
       CC: clang-18
       CXX: clang++-18
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install toolchain
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends \
-            curl ca-certificates gpg
-          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
-            | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
-            > /etc/apt/sources.list.d/llvm-18.list
-          curl -fsSL https://apt.kitware.com/keys/kitware-archive-latest.asc \
-            | gpg --dearmor - \
-            | tee /usr/share/keyrings/kitware-archive-keyring.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main" \
-            > /etc/apt/sources.list.d/kitware.list
-          apt-get update && apt-get install -y --no-install-recommends \
-            cmake ccache make ninja-build git python3-pip \
-            clang-18 libclang-rt-18-dev
-          pip3 install --no-cache-dir conan==2.28.1
-          update-alternatives --install /usr/bin/cc  cc  /usr/bin/clang-18   100
-          update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-18 100
-
       - id: setup
         uses: ./.github/actions/setup-builder
         with:
