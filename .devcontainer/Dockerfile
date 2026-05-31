@@ -1,6 +1,6 @@
 # Architecture-aware base selection. BuildKit sets TARGETARCH automatically
 FROM ubuntu:22.04 AS base-amd64
-FROM nvcr.io/nvidia/deepstream:7.1-triton-l4t AS base-arm64
+FROM nvcr.io/nvidia/deepstream-l4t:7.1-triton-multiarch AS base-arm64
 
 ARG TARGETARCH
 FROM base-${TARGETARCH}
@@ -59,6 +59,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PATH="/usr/lib/ccache:/usr/local/bin:${PATH}" \
     CCACHE_DIR=/ccache \
     CCACHE_BASEDIR=/workspace \
-    CCACHE_SLOPPINESS=pch_defines,time_macros
+    CCACHE_SLOPPINESS=pch_defines,time_macros \
+    CONAN_HOME=/opt/conan
+
+# Bake Conan dependency packages into the image so CI jobs never cold-build them.
+# /opt/conan is outside $HOME so GitHub Actions' home-directory mount won't shadow it.
+ARG TARGETARCH
+COPY conanfile.py conan.lock /workspace/
+COPY conan/ /workspace/conan/
+RUN mkdir -p /opt/conan && chmod 777 /opt/conan \
+    && conan profile detect --force \
+    && conan remote add orion-local /workspace/conan -t local-recipes-index --index 0 -f \
+    && if [ "$TARGETARCH" = "amd64" ]; then \
+         conan install /workspace --build=missing \
+             -pr=/workspace/conan/profiles/x86_64/debug \
+             --lockfile=/workspace/conan.lock; \
+         conan install /workspace --build=missing \
+             -pr=/workspace/conan/profiles/x86_64/release \
+             --lockfile=/workspace/conan.lock; \
+       elif [ "$TARGETARCH" = "arm64" ]; then \
+         conan install /workspace --build=missing \
+             -pr=/workspace/conan/profiles/arm64/debug \
+             --lockfile=/workspace/conan.lock; \
+       fi \
+    && rm -rf /workspace/*
 
 WORKDIR /workspace
