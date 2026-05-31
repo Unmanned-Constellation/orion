@@ -77,7 +77,7 @@ local recipes under `conan/recipes/` - see
 
 | Target | Type | Responsibility |
 |---|---|---|
-| `orion_clock` | INTERFACE | Abstract `Clock` interface + `WallClock`, `ManualClock`, `SimClock`, `CoordinatedClock`. Zero deps beyond stdlib. |
+| `orion_clock` | INTERFACE | Abstract `TimeSource` interface + `WallClock`, `ManualClock`, `SimClock`, `CoordinatedClock`. Zero deps beyond stdlib. |
 | `orion_proto` | STATIC | Compiled protobuf message bindings for all `.proto` files under `proto/orion/v1/`. |
 | `orion_app` | INTERFACE | `ShutdownLatch`, `FrameScheduler`, `CrashHandler` (M2), `LoggerFactory` (M2). Depends on `orion_clock`. |
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
@@ -86,7 +86,7 @@ local recipes under `conan/recipes/` - see
 
 ## Why `orion_clock` and `orion_transport` have no dependency on each other
 
-Services hold their own `Clock` reference and call `clock->nowNs()` at the point
+Services hold their own `TimeSource` reference and call `clock->nowNs()` at the point
 of data capture, passing the result to `Publisher<T>::publish(msg, captured_at_ns)`.
 The transport layer is fully time-agnostic - it forwards the timestamp into the
 `Envelope` header without knowing or caring what clock produced it.
@@ -94,7 +94,7 @@ The transport layer is fully time-agnostic - it forwards the timestamp into the
 This means the two libraries are structurally independent:
 
 ```
-orion_clock      (Clock, WallClock, ManualClock, SimClock, CoordinatedClock)
+orion_clock      (TimeSource, WallClock, ManualClock, SimClock, CoordinatedClock)
 orion_transport  (Session, Publisher, Subscriber)
 services         link both independently
 ```

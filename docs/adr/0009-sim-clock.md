@@ -18,7 +18,7 @@ but not for continuous simulation. Two additional clock implementations are need
 Both scenarios share the same requirement: `sleepUntil` must block until simulated time reaches
 the target, not wall time.
 
-Services own their own `Clock` reference and pass `captured_at_ns` to `Publisher::publish()`
+Services own their own `TimeSource` reference and pass `captured_at_ns` to `Publisher::publish()`
 directly (ADR-0004). The clock implementation is therefore swappable per-service at startup
 with no transport changes required.
 

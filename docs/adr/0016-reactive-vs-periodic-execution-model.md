@@ -39,7 +39,7 @@ Orion services are divided into two execution domains separated by the Zenoh bus
 Control, decision, and telemetry services register on a `FrameScheduler` and run at
 deterministic integer sub-multiples of the minor frame rate. These services:
 
-- Are driven by a `Clock` (wall or simulated)
+- Are driven by a `TimeSource` (wall or simulated)
 - Run all components sequentially on one thread
 - Never block on external I/O or hardware events
 - Read the latest published state from Zenoh on each tick
