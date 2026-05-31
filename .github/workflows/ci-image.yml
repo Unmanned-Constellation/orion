@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - .devcontainer/Dockerfile
+  pull_request:
+    paths:
+      - .devcontainer/Dockerfile
+      - .github/workflows/ci-image.yml
   workflow_dispatch:
 
 env:
