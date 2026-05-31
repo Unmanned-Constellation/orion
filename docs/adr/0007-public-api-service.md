@@ -2,19 +2,19 @@
 
 ## Status
 
-Deferred — architecture decided, implementation not yet scheduled.
+Deferred - architecture decided, implementation not yet scheduled.
 
 ## Context
 
 Orion needs a well-defined integration surface for three distinct external audiences:
 
-- **Commercial partners** — third-party software vendors building payload control, mission
+- **Commercial partners** - third-party software vendors building payload control, mission
   planning, or analytics products on top of Orion. They need a stable, versioned, documented API
   with broad language support and low integration friction.
-- **Military / government integrators** — program offices and defence contractors integrating
+- **Military / government integrators** - program offices and defence contractors integrating
   Orion into a larger system of systems. They need strong typing, auditability, and clear
   versioning guarantees.
-- **Internal team** — the team building the operator-facing ground interface (GCS / ground UI),
+- **Internal team** - the team building the operator-facing ground interface (GCS / ground UI),
   treating Orion as a backend. The UI may be browser-based, native desktop, or both.
 
 The edge network service (ADR-0006) already handles communication with traditional GCS software
@@ -31,10 +31,10 @@ Research into how major UAV platforms expose customer APIs reveals a consistent 
 | DJI Cloud API | HTTPS REST | MQTT / WebSocket |
 | Autel | HTTPS REST | MQTT / WebSocket |
 | Parrot | HTTP REST | WebSocket |
-| Skydio | REST + webhooks | — |
+| Skydio | REST + webhooks | - |
 | MAVSDK (PX4) | gRPC (internally) | gRPC streaming |
 
-The commercial mainstream — the platforms customers already integrate with — uses **REST for
+The commercial mainstream - the platforms customers already integrate with - uses **REST for
 discrete operations and WebSocket for continuous telemetry push**. gRPC appears in
 developer-focused robotics tooling (MAVSDK) but not in customer-facing commercial APIs.
 Adopting gRPC at the customer boundary would impose tooling and conceptual overhead that the
@@ -58,7 +58,7 @@ The API service (`orion_api`) exposes two complementary interfaces:
                                               [nav] [control] [perception] [system] services
 ```
 
-`orion_api` is an ordinary Orion microservice internally — it uses the `Session` API to publish
+`orion_api` is an ordinary Orion microservice internally - it uses the `Session` API to publish
 and subscribe on the Zenoh bus. Externally it is a standard HTTPS server with WebSocket upgrade
 support.
 
@@ -91,8 +91,8 @@ JSON schemas and OpenAPI definitions for the public API live in a distinct `sche
 directory, separate from the internal `proto/orion/` definitions. This separation is
 load-bearing:
 
-- `schema/api/` is the **public contract** — versioned, stable, subject to a deprecation policy.
-- `proto/orion/` is the **internal contract** — free to evolve without affecting external consumers.
+- `schema/api/` is the **public contract** - versioned, stable, subject to a deprecation policy.
+- `proto/orion/` is the **internal contract** - free to evolve without affecting external consumers.
 
 The API service translates between the two. No external consumer ever sees an internal
 `orion/` field name or type.

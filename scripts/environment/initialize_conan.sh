@@ -7,14 +7,17 @@ case "$(uname -m)" in
     *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 
-conan profile detect --force
+PROFILES_DIR="$(cd "$(dirname "$0")/../../conan/profiles" && pwd)"
+cp "${PROFILES_DIR}/${ARCH}/release" "$(conan config home)/profiles/default"
 
 # Register vendored recipes as a local-recipes-index remote so Conan reads them
 # directly from the filesystem without a conan export step. Timestamp stability
 # in conan.lock is achieved by passing --lockfile as input to conan lock create
 # (see the Conan: Create Lockfile VS Code task).
 RECIPES_PATH="$(cd "$(dirname "$0")/../../conan" && pwd)"
-conan remote add orion-local "$RECIPES_PATH" -t local-recipes-index --index 0 -f
+if ! conan remote list | grep -q "^orion-local:"; then
+    conan remote add orion-local "$RECIPES_PATH" -t local-recipes-index --index 0
+fi
 
 LOCKFILE_ARG=""
 if [ -f conan.lock ]; then

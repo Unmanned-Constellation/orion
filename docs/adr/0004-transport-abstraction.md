@@ -1,7 +1,7 @@
 # ADR 0004: Transport abstraction layer
 
 ## Status
-Accepted (amended — see timestamp ownership revision below)
+Accepted (amended - see timestamp ownership revision below)
 
 ## Context
 Zenoh was chosen as the IPC transport (ADR-0001). Microservices need a stable API to publish and
@@ -29,7 +29,7 @@ compile-time type safety: it is impossible to publish the wrong message type on 
 Service authors never create or read envelopes directly.
 
 **Timestamp ownership belongs to services.** `Publisher<T>::publish` accepts `captured_at_ns`
-explicitly — the time the underlying data was captured, supplied by the calling service.
+explicitly - the time the underlying data was captured, supplied by the calling service.
 Services hold their own `orion::clock::Clock` reference and call `clock->nowNs()` at the point
 of hardware or data capture, not at publish time. This ensures timestamps reflect data age
 rather than transport latency.
@@ -47,9 +47,9 @@ and include domain-specific proto headers directly; they do not see `Envelope` o
 ## Consequences
 
 - All inter-service communication goes through `Session::advertise<T>` / `Session::subscribe<T>`.
-- `Session::create(SessionConfig)` takes no Clock parameter — the transport is time-agnostic.
+- `Session::create(SessionConfig)` takes no Clock parameter - the transport is time-agnostic.
 - Services are responsible for capturing and passing timestamps at the right moment.
 - Adding a new transport backend requires replacing `session_impl.cpp` only.
-- `orion_clock` and `orion_transport` have no dependency on each other — circular dependency
+- `orion_clock` and `orion_transport` have no dependency on each other - circular dependency
   is structurally impossible.
 - Request-reply (Zenoh queryables) is deferred; the abstraction is currently pub-sub only.

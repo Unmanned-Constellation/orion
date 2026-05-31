@@ -179,7 +179,7 @@
       "label": "CI: Docs Check",
       "detail": "Run Doxygen (undoc warnings as errors) then Sphinx — mirrors the CI docs job",
       "type": "shell",
-      "command": "mkdir -p docs/_build/doxygen && doxygen docs/Doxyfile && LC_ALL=C.UTF-8 LANG=C.UTF-8 sphinx-build -W -b html docs docs/_build/html",
+      "command": "rm -rf docs/api && mkdir -p docs/_build/doxygen && doxygen docs/Doxyfile && LC_ALL=C.UTF-8 LANG=C.UTF-8 sphinx-build -W -b html docs docs/_build/html",
       "group": "test",
       "presentation": {
         "reveal": "always",
@@ -199,7 +199,7 @@
     },
     {
       "label": "CI: Check All",
-      "detail": "Run all fast CI checks in parallel (format, proto lint, proto breaking changes, docs)",
+      "detail": "Run all fast CI checks in parallel (format, lint, proto lint, proto breaking changes, docs)",
       "type": "shell",
       "command": "echo 'All checks passed.'",
       "dependsOn": [
@@ -207,7 +207,9 @@
         "CI: Check Format (CMake)",
         "CI: Proto Lint",
         "CI: Proto Breaking Changes",
-        "CI: Docs Check"
+        "CI: Docs Check",
+        "Lint: C++",
+        "CMake: Run Tests"
       ],
       "dependsOrder": "parallel",
       "group": {

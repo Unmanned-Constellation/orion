@@ -186,10 +186,10 @@ namespace
 bool waitFor(const std::atomic<bool>&  flag,
              std::chrono::milliseconds timeout = std::chrono::milliseconds{500})
 {
-    const auto DEADLINE = std::chrono::steady_clock::now() + timeout;
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
     while (!flag.load())
     {
-        if (std::chrono::steady_clock::now() >= DEADLINE)
+        if (std::chrono::steady_clock::now() >= deadline)
         {
             return false;
         }
