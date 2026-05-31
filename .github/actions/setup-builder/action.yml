@@ -18,6 +18,10 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Pin CONAN_HOME to pre-baked cache
+      shell: bash
+      run: echo "CONAN_HOME=/opt/conan" >> "$GITHUB_ENV"
+
     - name: Configure ccache
       shell: bash
       run: |

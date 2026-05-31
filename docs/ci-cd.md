@@ -72,6 +72,7 @@ container.
 
 | Step | What it does |
 |---|---|
+| Pin CONAN_HOME | Writes `CONAN_HOME=/opt/conan` to `$GITHUB_ENV` — GitHub Actions overrides `HOME=/github/home` inside containers, which causes Conan to ignore the Docker `ENV` and fall back to `$HOME/.conan2`; this step re-pins it |
 | Configure ccache | Sets `CMAKE_C_COMPILER_LAUNCHER=ccache`, `cache_dir=$HOME/.cache/ccache`, `base_dir=$GITHUB_WORKSPACE`, caps at 1 GB |
 | Compute ccache key | Writes the exact cache key to `$GITHUB_OUTPUT` so the calling job can save ccache after the build |
 | Restore ccache | `~/.cache/ccache` keyed on `<prefix>-<os>-<sha>`, restores from most recent prior run |
