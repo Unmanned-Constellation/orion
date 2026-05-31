@@ -46,6 +46,7 @@ if(CCACHE)
 endif()
 
 include(cmake/tools.cmake)
+include(cmake/DebugSymbols.cmake)
 
 find_package(protobuf CONFIG REQUIRED)
 find_package(zenohcxx REQUIRED)

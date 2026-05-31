@@ -22,8 +22,11 @@ Checks: >-
   performance-*,
   readability-*,
   -cppcoreguidelines-avoid-magic-numbers,
+  -hicpp-deprecated-headers,
   -hicpp-named-parameter,
+  -hicpp-signed-bitwise,
   -misc-non-private-member-variables-in-classes,
+  -modernize-deprecated-headers,
   -modernize-use-trailing-return-type,
   -readability-magic-numbers,
   -readability-named-parameter

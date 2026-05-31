@@ -50,19 +50,6 @@ For first-time setup on a Jetson Orin Nano, see [docs/orin-setup.md](docs/orin-s
 | `scripts/` | Environment setup scripts (`initialize_conan.sh`) |
 | `tests/` | GoogleTest unit tests and libFuzzer fuzz targets (`tests/fuzz/`) |
 
-## Commit conventions
-
-All commits must follow [Conventional Commits](https://www.conventionalcommits.org). The
-allowed types are: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`, `build`,
-`revert`. Header max length is 200 characters.
-
-Examples:
-```
-feat(transport): add subscriber reconnection with exponential backoff
-fix(proto): handle zero-length payload in detection metadata parse
-test(transport): add fuzz target for topic key-expression parsing
-```
-
 ## Documentation
 
 - [Development environment](docs/development-environment.md) - devcontainer internals, volume

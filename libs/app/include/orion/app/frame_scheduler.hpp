@@ -83,7 +83,7 @@ class FrameScheduler
 
         if (rt_priority_ > 0)
         {
-            sched_param param{};
+            auto param           = sched_param{};
             param.sched_priority = rt_priority_;
             const int result     = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
             rt_priority_applied_.store(result == 0, std::memory_order_relaxed);

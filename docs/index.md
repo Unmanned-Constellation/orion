@@ -44,6 +44,7 @@ api/library_root
 :maxdepth: 1
 :caption: Libraries
 
+libs/orion-app
 libs/orion-clock
 libs/orion-transport
 ```

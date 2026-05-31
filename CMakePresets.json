@@ -140,22 +140,22 @@
         {
             "name": "release",
             "configurePreset": "release",
-            "output": { "outputOnFailure": true }
+            "output": { "outputOnFailure": true, "verbosity": "verbose" }
         },
         {
             "name": "debug",
             "configurePreset": "debug",
-            "output": { "outputOnFailure": true }
+            "output": { "outputOnFailure": true, "verbosity": "verbose" }
         },
         {
             "name": "sanitize",
             "configurePreset": "sanitize",
-            "output": { "outputOnFailure": true }
+            "output": { "outputOnFailure": true, "verbosity": "verbose" }
         },
         {
             "name": "tsan",
             "configurePreset": "tsan",
-            "output": { "outputOnFailure": true },
+            "output": { "outputOnFailure": true, "verbosity": "verbose" },
             "environment": {
                 "TSAN_OPTIONS": "suppressions=${sourceDir}/cmake/tsan_suppressions.txt"
             }
@@ -163,7 +163,7 @@
         {
             "name": "coverage",
             "configurePreset": "coverage",
-            "output": { "outputOnFailure": true },
+            "output": { "outputOnFailure": true, "verbosity": "verbose" },
             "environment": {
                 "LLVM_PROFILE_FILE": "${sourceDir}/build/Coverage/cov-%p.profraw"
             }
