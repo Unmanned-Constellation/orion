@@ -46,7 +46,7 @@ release asset name.
 **`zenoh-cpp`** (`conan/recipes/zenoh-cpp/all/conanfile.py`)
 Header-only; downloads the source tarball from GitHub. Declares a dependency on `zenoh-c`.
 
-`initialize_conan.sh` registers `conan/recipes/` as a `local-recipes-index` remote (`orion-local`)
+`initialize_conan.sh` registers `conan/` as a `local-recipes-index` remote (`orion-local`)
 at priority 0 so Conan reads recipes directly from the filesystem. No `conan export` step is
 needed - this avoids the timestamp churn that `conan export` causes in the lockfile.
 
@@ -131,8 +131,9 @@ running install first against a missing or inconsistent lockfile will fail.
 
 1. Detects architecture via `uname -m` → sets `ARCH` to `x86_64` or `arm64`
 2. Runs `conan profile detect --force` to (re)generate the default Conan profile for the host
-3. Registers `conan/recipes/` as a `local-recipes-index` remote named `orion-local` at priority 0
-   (checked before ConanCenter). The `-f` flag makes this idempotent on re-runs.
+3. Registers `conan/` as a `local-recipes-index` remote named `orion-local` at priority 0
+   (checked before ConanCenter). The remote root must be `conan/`, not `conan/recipes/` - the
+   `local-recipes-index` type expects the parent directory that contains `recipes/`.
 4. Wipes `build/` entirely to ensure a clean slate - pass `--no-clean` to skip this
 5. Installs the **Release** profile: `conan install . --profile=conan/profiles/${ARCH}/release`
 6. Installs the **Debug** profile: `conan install . --profile=conan/profiles/${ARCH}/debug`

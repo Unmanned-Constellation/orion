@@ -23,12 +23,12 @@ the full toolchain: clang-18, cmake, ninja, ccache, conan, clang-tidy, clang-for
 libclang-rt, llvm, doxygen, sphinx, gersemi, and buf.
 
 The image is rebuilt by `.github/workflows/ci-image.yml` whenever `.devcontainer/Dockerfile`
-changes on `main`, or on manual dispatch. Docker layer caching (`type=gha`) keeps rebuilds
-fast when only lower layers change.
+or `ci-image.yml` changes. Docker layer caching (`type=gha`) keeps rebuilds fast when only
+lower layers change.
 
-**Sequencing requirement:** the image must exist in GHCR before ci.yml jobs can pull it.
-Merge changes to `ci-image.yml` first and confirm the image push succeeds before merging
-changes that add `container:` to `ci.yml`.
+**Push policy:** on `pull_request`, the workflow builds the image to validate the Dockerfile
+but does not push - it only pushes to `:latest` on merge to `main`. This prevents an
+unreviewed Dockerfile change from overwriting the image used by concurrent CI runs.
 
 ## Custom actions
 
@@ -55,18 +55,33 @@ native ARM64 runner (which has no container) it also installs the toolchain via 
 | Cache pip | `install-toolchain == true` | `~/.cache/pip` keyed on OS |
 | Configure ccache | always | Sets `CMAKE_C_COMPILER_LAUNCHER=ccache`, `cache_dir=$HOME/.cache/ccache`, `base_dir=$GITHUB_WORKSPACE`, caps at 1 GB |
 | Cache ccache | always | `~/.cache/ccache` keyed on `<prefix>-<os>-<sha>`, restores from most recent prior run |
-| Cache Conan packages | always | `~/.conan2/p` keyed on `<prefix>-<os>-<conan.lock hash>` |
+| Cache Conan packages | always | `~/.conan2/p` keyed on `<prefix>-<os>-<conan.lock hash>-<conan-profile>`; `save-always: true` so packages are cached even if tests fail downstream |
 | Configure Conan profile | always | `conan profile detect --force` - picks up clang-18 via `CC`/`CXX` |
-| Register local recipes remote | always | Adds `conan/recipes/` as `orion-local` (priority 0, `local-recipes-index` type) |
+| Register local recipes remote | always | Adds `conan/` as `orion-local` (priority 0, `local-recipes-index` type); root must be `conan/`, not `conan/recipes/` |
 | Install dependencies | always | `conan install --profile=<conan-profile> --lockfile=conan.lock` |
 
 ## CI jobs
 
-The fast-check jobs (format, proto, docs) run in parallel with each other. All
-build, test, sanitizer, coverage, and fuzz jobs depend on those three via `needs:` and only
-start after they all pass. Every build job sets `CC=clang-18` and `CXX=clang++-18` so Conan and
-CMake use clang rather than the runner's default GCC - required because Conan injects
-`-stdlib=libstdc++` and GCC rejects that flag.
+The job dependency graph is:
+
+```
+format ─┐
+docs   ─┼─► build ─────────► sanitize
+proto  ─┘        └──────────► tsan
+                 └──────────► coverage
+                 └──────────► fuzz
+         ├──────► build-release
+         └──────► build-arm64
+```
+
+`format`, `docs`, and `proto` run in parallel. `build` and `build-release` start once all
+three pass. `sanitize`, `tsan`, `coverage`, and `fuzz` all `needs: [build]` - they start
+after the debug build completes and restore its warm Conan cache, avoiding a cold dependency
+rebuild on every run.
+
+Every build job sets `CC=clang-18` and `CXX=clang++-18` so Conan and CMake use clang rather
+than the runner's default GCC - required because Conan injects `-stdlib=libstdc++` and GCC
+rejects that flag.
 
 All x86_64 jobs (including format, proto, and docs) run inside the CI container image.
 Only `build-arm64` runs on a bare `ubuntu-22.04-arm` runner with `install-toolchain: true`.
@@ -97,7 +112,7 @@ Runs two `buf` checks against the `proto/` directory. Runs in the CI container;
 
 Validates that all public C++ symbols are documented and that the Sphinx site
 builds without warnings. Runs in the CI container; doxygen and all Sphinx packages
-are pre-installed. All downstream jobs gate on these via `needs: [format, docs, proto]`.
+are pre-installed. All downstream jobs gate on `format`, `docs`, and `proto` via `needs:`.
 
 | Step | Command |
 |---|---|
@@ -132,17 +147,20 @@ behaviour that Debug masks.
 
 ### Sanitize (ASan + UBSan)
 
-Builds and tests with `-fsanitize=address,undefined -fno-sanitize-recover=all`. Catches
-heap/stack overflows, use-after-free, and undefined behaviour that clang-tidy cannot see
-statically. Uses the debug Conan install (same packages, separate build directory).
+Runs after `build` (`needs: [build]`). Builds and tests with
+`-fsanitize=address,undefined -fno-sanitize-recover=all`. Catches heap/stack overflows,
+use-after-free, and undefined behaviour that clang-tidy cannot see statically. Restores the
+debug Conan cache saved by `build` - no cold dependency rebuild.
 
 ### Thread Sanitizer
 
-Builds and tests with `-fsanitize=thread`. Finds data races in concurrent code. Incompatible
-with ASan - runs as a separate job. Uses the debug Conan install.
+Runs after `build` (`needs: [build]`). Builds and tests with `-fsanitize=thread`. Finds data
+races in concurrent code. Incompatible with ASan - runs as a separate job. Restores the debug
+Conan cache saved by `build`.
 
 ### Coverage
 
+Runs after `build` (`needs: [build]`). Restores the debug Conan cache saved by `build`.
 Builds and tests with `-fprofile-instr-generate -fcoverage-mapping`. After the test run:
 
 1. Merges raw profile data with `llvm-profdata-18`
@@ -161,6 +179,7 @@ actually run on ARM64. ARM64 Conan packages and ccache are cached separately und
 
 ### Fuzz (smoke test)
 
+Runs after `build` (`needs: [build]`). Restores the debug Conan cache saved by `build`.
 Builds the fuzz preset (`ORION_FUZZING=ON`, ASan enabled), then runs each fuzz target for
 10 000 iterations. Catches immediate crashes and memory errors.
 
@@ -198,7 +217,7 @@ Two layers of caching are active on build jobs:
 
 | Cache | Path | Key |
 |---|---|---|
-| Conan packages | `~/.conan2/p` | `conan-<os>-<conan.lock hash>` |
+| Conan packages | `~/.conan2/p` | `conan-<os>-<conan.lock hash>-<conan-profile>` |
 | ccache objects | `~/.cache/ccache` | `ccache-conan-<os>-<commit SHA>` |
 
 The pip cache is only active on `build-arm64` (the only job that runs `pip install conan`).
@@ -206,9 +225,10 @@ The CI container image has Conan pre-installed, so pip is not invoked on x86_64 
 
 When `conan.lock` changes the Conan cache misses and all packages rebuild from source. The
 ccache always restores from the most recent prior entry and saves a new entry per commit, so
-only changed translation units recompile. The `sanitize`, `tsan`, `coverage`, and `fuzz` jobs
-share the same x86_64 Conan cache bucket as `build` since they install identical packages from
-the same debug profile.
+only changed translation units recompile. `sanitize`, `tsan`, `coverage`, and `fuzz` run after
+`build` completes and restore its Conan cache - they never perform a cold dependency rebuild.
+Both caches use `save-always: true` so packages and compiled objects are cached even when
+downstream steps (tests, lint) fail.
 
 The ccache `cache_dir` is explicitly set to `~/.cache/ccache` in `setup-builder` to override
 the `CCACHE_DIR=/ccache` environment variable baked into the container image (which is a volume

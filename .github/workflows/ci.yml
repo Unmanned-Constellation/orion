@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  packages: read
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -151,7 +155,7 @@ jobs:
   # ── AddressSanitizer + UndefinedBehaviorSanitizer ─────────────────────────
   sanitize:
     name: Sanitize (ASan + UBSan)
-    needs: [format, docs, proto]
+    needs: [build]
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/unmanned-constellation/orion/ci:latest
@@ -180,7 +184,7 @@ jobs:
   # ── ThreadSanitizer ───────────────────────────────────────────────────────
   tsan:
     name: Thread Sanitizer
-    needs: [format, docs, proto]
+    needs: [build]
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/unmanned-constellation/orion/ci:latest
@@ -209,7 +213,7 @@ jobs:
   # ── Coverage ──────────────────────────────────────────────────────────────
   coverage:
     name: Coverage
-    needs: [format, docs, proto]
+    needs: [build]
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/unmanned-constellation/orion/ci:latest
@@ -293,7 +297,7 @@ jobs:
   # ── libFuzzer smoke test ──────────────────────────────────────────────────
   fuzz:
     name: Fuzz (smoke test)
-    needs: [format, docs, proto]
+    needs: [build]
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/unmanned-constellation/orion/ci:latest
