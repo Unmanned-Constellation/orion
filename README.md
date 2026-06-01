@@ -1,7 +1,11 @@
 # Orion
 
-Autonomy platform for the NVIDIA Jetson Orin Nano, developed in a VS Code devcontainer with a
-Conan 2 / CMake / Ninja toolchain.
+Orion is a real-time autonomy platform targeting the NVIDIA Jetson Orin Nano. It provides a
+deterministic frame-scheduled execution model, a Zenoh-based publish/subscribe transport layer,
+gimbal control with MAVLink v2 integration, a simulation clock for scaled real-time replay, and
+a reactive perception pipeline. The project is developed in a VS Code devcontainer with a
+Conan 2 / CMake / Ninja toolchain and targets both x86_64 development workstations and the
+arm64 Jetson Orin Nano.
 
 ## Hardware targets
 

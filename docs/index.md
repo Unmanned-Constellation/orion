@@ -4,6 +4,7 @@
 :maxdepth: 1
 :caption: Developer Guide
 
+roadmap
 development-environment
 building-and-testing
 documentation
