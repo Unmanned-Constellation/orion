@@ -6,12 +6,6 @@
 
 #include "orion/app/crash_handler.hpp"
 
-// Death tests involving crash signals must use threadsafe style to avoid
-// collisions with GoogleTest's internal SIGABRT interceptor.
-static const auto
-    DEATH_TEST_STYLE_INIT = // NOLINT(cert-err58-cpp,cppcoreguidelines-interfaces-global-init)
-    (::testing::FLAGS_gtest_death_test_style = "threadsafe", 0);
-
 // ── Registration / restoration ────────────────────────────────────────────────
 
 TEST(CrashHandlerTest, InstallsHandlerOnConstruction)
