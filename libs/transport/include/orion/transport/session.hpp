@@ -58,15 +58,27 @@ class Session
     /// @endcond
 
   private:
+    /// @brief Wraps a fully-constructed SessionImpl; called only by create().
+    /// @param impl  Fully-constructed backend implementation.
     explicit Session(std::unique_ptr<SessionImpl> impl);
 
-    // Non-template internals — implemented in session_impl.cpp.
+    /// @brief Creates a PublisherBackend for @p topic; implemented in session_impl.cpp.
+    /// @param topic  Full topic key.
+    /// @return Heap-allocated PublisherBackend bound to the topic.
     auto makePublisherBackend(std::string_view topic) -> std::unique_ptr<PublisherBackend>;
+
+    /// @brief Creates a SubscriberBackend for @p topic with the given raw callback; implemented in
+    /// session_impl.cpp.
+    /// @param topic     Full topic key expression.
+    /// @param callback  Type-erased callback invoked on each received message.
+    /// @return Heap-allocated SubscriberBackend holding the active subscription.
     auto makeSubscriberBackend(std::string_view topic,
                                RawCallback      callback) -> std::unique_ptr<SubscriberBackend>;
 
+    /// @brief Pimpl holding the transport backend state.
     std::unique_ptr<SessionImpl> impl_;
-    std::string                  source_id_{};
+    /// @brief Unique source identifier for this session, stamped into every envelope.
+    std::string source_id_{};
 };
 
 } // namespace orion::transport

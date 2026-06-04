@@ -38,7 +38,7 @@ class ShutdownLatch
         pthread_sigmask(SIG_BLOCK, &mask_, nullptr);
 
         watcher_ = std::thread([this] {
-            int sig = 0;
+            auto sig = 0;
             sigwait(&mask_, &sig);
             stop();
         });
@@ -59,15 +59,17 @@ class ShutdownLatch
     ShutdownLatch& operator=(ShutdownLatch&&)      = delete;
 
     /// Blocks until stop() is called or a shutdown signal is received.
-    void wait() const
+    /// @return Always true; present so callers can use the result in assertions.
+    auto wait() const -> bool
     {
         std::unique_lock lock(mu_);
         cv_.wait(lock, [this] { return stopped_; });
+        return true;
     }
 
     /// Returns true if shutdown has been requested.
     /// @return True once stop() has been called or a shutdown signal received.
-    [[nodiscard]] bool stopped() const
+    [[nodiscard]] auto stopped() const -> bool
     {
         std::lock_guard lock(mu_);
         return stopped_;
@@ -76,7 +78,7 @@ class ShutdownLatch
     /// Triggers shutdown programmatically. Idempotent.
     void stop()
     {
-        bool was_stopped = false;
+        auto was_stopped = false;
         {
             std::lock_guard lock(mu_);
             was_stopped = stopped_;
@@ -88,16 +90,22 @@ class ShutdownLatch
         // sigwait so the destructor's join() doesn't hang indefinitely.
         if (!was_stopped && watcher_.joinable() && std::this_thread::get_id() != watcher_.get_id())
         {
-            pthread_kill(watcher_.native_handle(), SIGTERM);
+            auto sig = SIGTERM;
+            pthread_kill(watcher_.native_handle(), sig);
         }
     }
 
   private:
-    sigset_t                        mask_{};
-    mutable std::mutex              mu_;
+    /// @brief Signal set containing SIGINT and SIGTERM.
+    sigset_t mask_{};
+    /// @brief Guards stopped_.
+    mutable std::mutex mu_;
+    /// @brief Notified by stop(); waited on by wait().
     mutable std::condition_variable cv_;
-    bool                            stopped_{false};
-    std::thread                     watcher_;
+    /// @brief True once shutdown has been requested.
+    bool stopped_{false};
+    /// @brief Background thread that calls sigwait() and then stop().
+    std::thread watcher_;
 };
 
 } // namespace orion::app

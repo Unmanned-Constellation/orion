@@ -46,18 +46,27 @@ class CrashHandler
     auto operator=(CrashHandler&&)      = delete;
 
   private:
-    // SA_SIGINFO handler — runs on the alternate stack.
+    /// @brief SA_SIGINFO handler — runs on the alternate stack.
+    /// @param signo    Signal number received.
+    /// @param info     Signal metadata provided by the kernel.
+    /// @param context  Opaque CPU context pointer (unused).
     static void handleSignal(int signo, siginfo_t* info, void* context);
 
+    /// @brief Allocates and registers the alternate signal stack via mmap.
     void setupAltStack();
+    /// @brief Installs SA_SIGINFO actions for each signal in SIGNALS.
     void registerHandlers();
 
-    static constexpr std::array<int, 5> SIGNALS    = {SIGSEGV, SIGABRT, SIGFPE, SIGILL, SIGBUS};
-    static constexpr std::size_t        STACK_SIZE = 128UL * 1024UL; // 128 KB
+    /// @brief Crash signals handled by this handler.
+    static constexpr std::array<int, 5> SIGNALS = {SIGSEGV, SIGABRT, SIGFPE, SIGILL, SIGBUS};
+    /// @brief Size of the alternate signal stack in bytes.
+    static constexpr std::size_t STACK_SIZE = 128UL * 1024UL; // 128 KB
 
-    void*       alt_stack_base_{nullptr};
+    /// @brief Base address of the mmap-allocated alternate stack region.
+    void* alt_stack_base_{nullptr};
+    /// @brief Total size of the mmap region, including the guard page.
     std::size_t alt_stack_total_size_{0};
-
+    /// @brief Previous signal actions, restored in the destructor.
     std::array<struct sigaction, 5> old_actions_{};
 };
 

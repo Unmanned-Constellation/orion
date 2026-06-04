@@ -112,6 +112,8 @@ void CrashHandler::setupAltStack()
 
 void CrashHandler::registerHandlers()
 {
+    // NOLINTNEXTLINE(modernize-use-auto) — 'sigaction' names the POSIX function, not the struct;
+    // struct tag required to disambiguate
     struct sigaction action
     {
     };
