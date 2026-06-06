@@ -11,7 +11,7 @@ The goal is a codebase where defects are caught as early as possible. The order 
 1. **Compile-time** - clang-tidy rules out entire classes of error before the binary exists
 2. **Sanitizer runs** - ASan/UBSan/TSan catch memory and concurrency bugs at test time
 3. **Fuzzing** - libFuzzer finds crash-inducing inputs that hand-written tests miss
-4. **Coverage** - the 60% floor is a floor, not a target; it catches test suite regressions
+4. **Coverage** - the 80% floor is a floor, not a target; it catches test suite regressions
 
 None of these tools replaces the others. All four run in CI on every PR.
 
@@ -180,17 +180,17 @@ The three coverage percentages are:
 
 Line coverage is the primary metric enforced by CI.
 
-### The 60% floor
+### The 80% floor
 
-CI fails if total line coverage falls below **60%**. This floor exists to detect test suite
+CI fails if total line coverage falls below **80%**. This floor exists to detect test suite
 regressions - a sharp drop signals that new code shipped without tests. It is not a quality
-target. As the test suite matures, raise it in `.github/workflows/ci.yml`:
+target. Raise the threshold in `.github/workflows/ci.yml` as the test suite matures:
 
 ```yaml
 - name: Enforce minimum coverage
   run: |
     ...
-    if awk "BEGIN { exit !(${COVERAGE}+0 < 80) }"; then   # raise 60 → 80
+    if awk "BEGIN { exit !(${COVERAGE}+0 < 80) }"; then
 ```
 
 Aim for high branch coverage on safety-critical paths (message parsing, state machines),
@@ -318,7 +318,7 @@ once real logic is added to the function under test.
 | Build and test (release) | `release` | Release-mode UB exposed by NDEBUG, optimisation bugs |
 | Sanitize (ASan + UBSan) | `sanitize` | Memory errors, undefined behaviour |
 | Thread Sanitizer | `tsan` | Data races |
-| Coverage | `coverage` | Test suite regressions (< 60% line coverage fails) |
+| Coverage | `coverage` | Test suite regressions (< 80% line coverage fails) |
 | Fuzz (smoke test) | `fuzz` | Immediate crashes in fuzz targets (10 000 iterations) |
 
 All six jobs must pass before a PR can be merged. See [ci-cd.md](ci-cd.md) for job details.

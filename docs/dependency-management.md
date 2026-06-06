@@ -58,11 +58,20 @@ def requirements(self):
     self.requires("zenoh-c/1.9.0")
     self.requires("zenoh-cpp/1.9.0")
     self.requires("abseil/20240722.0", force=True)
+    self.requires("backward-cpp/1.6", options={"stack_details": "dw"})
 
 def build_requirements(self):
     self.tool_requires("protobuf/5.29.3")
     self.test_requires("gtest/1.17.0")
 ```
+
+`backward-cpp` uses the `dw` backend for full DWARF symbolization — function
+names, file names, line numbers, and inlined frames. This requires `libdw-dev`
+to be installed in the devcontainer (via `apt`) and on the Jetson deployment
+sysroot. The `elfutils` and `xz_utils` transitive dependencies are resolved from
+ConanCenter. The `orion-local` remote must be registered with the correct path
+(`/workspaces/orion/conan`) for ConanCenter fallthrough to work — `initialize_conan.sh`
+handles this automatically.
 
 `tool_requires("protobuf/5.29.3")` causes Conan's `VirtualBuildEnv` generator to add protobuf's
 `bin/` directory to `PATH` via `conanbuild.sh`. CMake uses this during the build via the

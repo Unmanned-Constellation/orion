@@ -292,8 +292,8 @@ jobs:
             n=0; for(i=1;i<=NF;i++) if($i~/[0-9]%$/) { n++; if(n==3) { gsub(/%/,"",$i); print $i; break } }
           }' /tmp/coverage-summary.txt)
           echo "Line coverage: ${COVERAGE}%"
-          if awk "BEGIN { exit !(${COVERAGE}+0 < 60) }"; then
-            echo "Coverage ${COVERAGE}% is below the 60% minimum — add tests."
+          if awk "BEGIN { exit !(${COVERAGE}+0 < 80) }"; then
+            echo "Coverage ${COVERAGE}% is below the 80% minimum — add tests."
             exit 1
           fi
 

@@ -29,6 +29,7 @@ runs:
         ccache --set-config=base_dir="$GITHUB_WORKSPACE"
         ccache --set-config=max_size=1G
         ccache --set-config=compression=true
+        echo "CCACHE_DIR=$HOME/.cache/ccache" >> $GITHUB_ENV
         echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
         echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
 

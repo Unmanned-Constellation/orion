@@ -83,9 +83,9 @@ class FrameScheduler
 
         if (rt_priority_ > 0)
         {
-            sched_param param{};
+            auto param           = sched_param{};
             param.sched_priority = rt_priority_;
-            const int result     = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
+            const auto result    = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
             rt_priority_applied_.store(result == 0, std::memory_order_relaxed);
         }
 
@@ -98,7 +98,7 @@ class FrameScheduler
                 break;
             }
 
-            const uint64_t tick_start = clock_->nowNs();
+            const auto tick_start = clock_->nowNs();
             for (auto& entry : callbacks_)
             {
                 if (tick_count_ % entry.divisor == 0)
@@ -106,8 +106,8 @@ class FrameScheduler
                     entry.callback();
                 }
             }
-            const uint64_t tick_end = clock_->nowNs();
-            const uint64_t elapsed  = tick_end - tick_start;
+            const auto tick_end = clock_->nowNs();
+            const auto elapsed  = tick_end - tick_start;
 
             if (elapsed > period_ns_)
             {
@@ -137,12 +137,18 @@ class FrameScheduler
     }
 
   private:
+    /// @brief Registered callback with its tick divisor.
     struct Entry
     {
-        uint64_t              divisor;
+        /// @brief Tick divisor; callback fires when tick_count_ % divisor == 0.
+        uint64_t divisor;
+        /// @brief Callable invoked on matching ticks.
         std::function<void()> callback;
     };
 
+    /// @brief Converts rate_hz to a nanosecond period; throws if rate_hz is not a positive integer.
+    /// @param rate_hz  Minor frame rate in Hz.
+    /// @return Period in nanoseconds.
     static auto periodNsFrom(double rate_hz) -> uint64_t
     {
         if (rate_hz <= 0.0 || std::floor(rate_hz) != rate_hz)
@@ -153,6 +159,9 @@ class FrameScheduler
         return static_cast<uint64_t>(1e9 / rate_hz);
     }
 
+    /// @brief Returns clock after asserting it is non-null.
+    /// @param clock  Time source to validate.
+    /// @return The same shared_ptr.
     static auto clockFrom(std::shared_ptr<orion::clock::TimeSource> clock)
         -> std::shared_ptr<orion::clock::TimeSource>
     {
@@ -163,6 +172,9 @@ class FrameScheduler
         return clock;
     }
 
+    /// @brief Returns latch after asserting it is non-null.
+    /// @param latch  Shutdown latch to validate.
+    /// @return The same pointer.
     static auto latchFrom(ShutdownLatch* latch) -> ShutdownLatch*
     {
         if (latch == nullptr)
@@ -172,17 +184,28 @@ class FrameScheduler
         return latch;
     }
 
-    const uint64_t                            period_ns_;
-    const uint64_t                            frame_ticks_;
+    /// @brief Tick interval in nanoseconds, derived from rate_hz.
+    const uint64_t period_ns_;
+    /// @brief Number of ticks per minor frame (== rate_hz).
+    const uint64_t frame_ticks_;
+    /// @brief Injected time source.
     std::shared_ptr<orion::clock::TimeSource> clock_;
-    ShutdownLatch* const                      latch_;
-    const int                                 rt_priority_;
-    uint64_t                                  next_tick_;
-    // starts at 1: divisor-N callbacks first fire on tick N, 2N, 3N…
-    uint64_t              tick_count_{1};
-    std::vector<Entry>    callbacks_;
-    std::atomic<bool>     running_{false};
-    std::atomic<bool>     rt_priority_applied_{false};
+    /// @brief Shutdown signal; run() exits when latch_->stopped().
+    ShutdownLatch* const latch_;
+    /// @brief SCHED_FIFO priority requested at run() entry; 0 = no change.
+    const int rt_priority_;
+    /// @brief Absolute deadline for the next tick in nanoseconds.
+    uint64_t next_tick_;
+    /// @brief Monotonically increasing tick counter; starts at 1 so divisor-N callbacks first fire
+    /// on tick N, 2N, 3N…
+    uint64_t tick_count_{1};
+    /// @brief Registered callbacks in registration order.
+    std::vector<Entry> callbacks_;
+    /// @brief True once run() has been entered; guards against double-call.
+    std::atomic<bool> running_{false};
+    /// @brief Set by run() after a successful pthread_setschedparam.
+    std::atomic<bool> rt_priority_applied_{false};
+    /// @brief Cumulative count of ticks whose combined callback time exceeded period_ns_.
     std::atomic<uint64_t> overrun_count_{0};
 };
 

@@ -65,9 +65,9 @@ void stopAndJoin(ShutdownLatch& latch, ManualClock& clock, std::thread& runner)
 
 TEST(FrameSchedulerTest, SingleCallbackFiresEveryTick)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> count{0};
 
     sched.every(1, [&] { ++count; });
@@ -83,9 +83,9 @@ TEST(FrameSchedulerTest, SingleCallbackFiresEveryTick)
 
 TEST(FrameSchedulerTest, CallbackEvery10FiresOncePerTenTicks)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> fast{0}; // every(1) — used as the tick sentinel
     std::atomic<int> slow{0}; // every(10)
 
@@ -116,9 +116,9 @@ TEST(FrameSchedulerTest, CallbackEvery10FiresOncePerTenTicks)
 
 TEST(FrameSchedulerTest, MultipleRatesFireCorrectCountsOver100Ticks)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> every1{0};
     std::atomic<int> every10{0};
     std::atomic<int> every100{0};
@@ -148,9 +148,9 @@ TEST(FrameSchedulerTest, MultipleRatesFireCorrectCountsOver100Ticks)
 
 TEST(FrameSchedulerTest, CallbacksFireInRegistrationOrder)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> count{0};
     // Written only on the scheduler thread; read only after join — no data race.
     int last{0};
@@ -176,9 +176,9 @@ TEST(FrameSchedulerTest, CallbacksFireInRegistrationOrder)
 
 TEST(FrameSchedulerTest, StopsWhenLatchStopped)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> count{0};
 
     sched.every(1, [&] { ++count; });
@@ -196,9 +196,9 @@ TEST(FrameSchedulerTest, StopsWhenLatchStopped)
 
 TEST(FrameSchedulerTest, NoOverrunOnNormalTick)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> count{0};
 
     sched.every(1, [&] { ++count; });
@@ -214,9 +214,9 @@ TEST(FrameSchedulerTest, NoOverrunOnNormalTick)
 
 TEST(FrameSchedulerTest, OverrunDetectedWhenCallbackExceedsPeriod)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> count{0};
 
     // Callback advances the clock past the next deadline — simulates a slow tick.
@@ -236,9 +236,9 @@ TEST(FrameSchedulerTest, OverrunDetectedWhenCallbackExceedsPeriod)
 
 TEST(FrameSchedulerTest, OverrunCatchesUpThenResumesSchedule)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> count{0};
 
     // Tick 1 overruns by 5 periods: clock jumps to 6 * period inside the callback.
@@ -277,11 +277,11 @@ TEST(FrameSchedulerTest, OverrunCatchesUpThenResumesSchedule)
 
 TEST(FrameSchedulerTest, TwoSchedulersShareManualClockAndBothFire)
 {
-    ShutdownLatch    latch_a;
-    ShutdownLatch    latch_b;
-    auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched_a(100.0, clock, &latch_a);
-    FrameScheduler   sched_b(100.0, clock, &latch_b);
+    auto             latch_a = ShutdownLatch{};
+    auto             latch_b = ShutdownLatch{};
+    auto             clock   = std::make_shared<ManualClock>(0);
+    auto             sched_a = FrameScheduler{100.0, clock, &latch_a};
+    auto             sched_b = FrameScheduler{100.0, clock, &latch_b};
     std::atomic<int> count_a{0};
     std::atomic<int> count_b{0};
 
@@ -308,9 +308,9 @@ TEST(FrameSchedulerTest, TwoSchedulersShareManualClockAndBothFire)
 
 TEST(FrameSchedulerTest, RtPriorityAppliedFalseWhenNotRequested)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch); // rt_priority defaults to 0
+    auto             sched = FrameScheduler{100.0, clock, &latch}; // rt_priority defaults to 0
     std::atomic<int> count{0};
 
     EXPECT_FALSE(sched.rtPriorityApplied()); // false before run()
@@ -328,9 +328,9 @@ TEST(FrameSchedulerTest, RtPriorityAppliedFalseWhenNotRequested)
 
 TEST(FrameSchedulerTest, EmptySchedulerRunsAndStopsCleanly)
 {
-    ShutdownLatch  latch;
-    auto           clock = std::make_shared<ManualClock>(0);
-    FrameScheduler sched(100.0, clock, &latch);
+    auto latch = ShutdownLatch{};
+    auto clock = std::make_shared<ManualClock>(0);
+    auto sched = FrameScheduler{100.0, clock, &latch};
 
     auto runner = std::thread([&] { sched.run(); });
     stopAndJoin(latch, *clock, runner);
@@ -340,9 +340,9 @@ TEST(FrameSchedulerTest, EmptySchedulerRunsAndStopsCleanly)
 
 TEST(FrameSchedulerTest, FirstTickAlignmentFiresOnTickN)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> fast{0}; // every(1) — tick sentinel
     std::atomic<int> slow{0}; // every(5)
 
@@ -366,71 +366,63 @@ TEST(FrameSchedulerTest, FirstTickAlignmentFiresOnTickN)
 
 // --- Programming-error preconditions ---------------------------------------
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, ZeroDivisorThrows)
 {
-    ShutdownLatch  latch;
-    auto           clock = std::make_shared<ManualClock>(0);
-    FrameScheduler sched(100.0, clock, &latch);
+    auto latch = ShutdownLatch{};
+    auto clock = std::make_shared<ManualClock>(0);
+    auto sched = FrameScheduler{100.0, clock, &latch};
 
     EXPECT_THROW(sched.every(0, [] {}), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, NonDivisorThrows)
 {
-    ShutdownLatch  latch;
-    auto           clock = std::make_shared<ManualClock>(0);
-    FrameScheduler sched(100.0, clock, &latch);
+    auto latch = ShutdownLatch{};
+    auto clock = std::make_shared<ManualClock>(0);
+    auto sched = FrameScheduler{100.0, clock, &latch};
 
     // 3 does not evenly divide 100.
     EXPECT_THROW(sched.every(3, [] {}), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, NullClockThrows)
 {
-    ShutdownLatch latch;
+    auto latch = ShutdownLatch{};
     EXPECT_THROW(FrameScheduler(100.0, nullptr, &latch), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, NullLatchThrows)
 {
     auto clock = std::make_shared<ManualClock>(0);
     EXPECT_THROW(FrameScheduler(100.0, clock, nullptr), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, ZeroRateThrows)
 {
-    ShutdownLatch latch;
-    auto          clock = std::make_shared<ManualClock>(0);
+    auto latch = ShutdownLatch{};
+    auto clock = std::make_shared<ManualClock>(0);
     EXPECT_THROW(FrameScheduler(0.0, clock, &latch), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, NegativeRateThrows)
 {
-    ShutdownLatch latch;
-    auto          clock = std::make_shared<ManualClock>(0);
+    auto latch = ShutdownLatch{};
+    auto clock = std::make_shared<ManualClock>(0);
     EXPECT_THROW(FrameScheduler(-100.0, clock, &latch), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, NonIntegerRateThrows)
 {
-    ShutdownLatch latch;
-    auto          clock = std::make_shared<ManualClock>(0);
+    auto latch = ShutdownLatch{};
+    auto clock = std::make_shared<ManualClock>(0);
     EXPECT_THROW(FrameScheduler(99.5, clock, &latch), std::invalid_argument);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, EveryAfterRunThrows)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> count{0};
 
     sched.every(1, [&] { ++count; });
@@ -443,12 +435,11 @@ TEST(FrameSchedulerPreconditionTest, EveryAfterRunThrows)
     stopAndJoin(latch, *clock, runner);
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 TEST(FrameSchedulerPreconditionTest, RunCalledTwiceThrows)
 {
-    ShutdownLatch    latch;
+    auto             latch = ShutdownLatch{};
     auto             clock = std::make_shared<ManualClock>(0);
-    FrameScheduler   sched(100.0, clock, &latch);
+    auto             sched = FrameScheduler{100.0, clock, &latch};
     std::atomic<int> count{0};
 
     sched.every(1, [&] { ++count; });

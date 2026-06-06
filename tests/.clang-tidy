@@ -1,0 +1,15 @@
+---
+# Test-specific overrides — inherits all root checks then relaxes three that
+# are calibrated for production code and generate only noise in test bodies:
+#
+#   misc-include-cleaner           — POSIX IWYU mappings are incomplete; tests
+#                                    use POSIX APIs directly and get false positives
+#   readability-function-size      — test bodies are intentionally verbose
+#   readability-function-cognitive-complexity — GoogleTest macros expand to
+#                                    branches that inflate the metric artificially
+
+InheritParentConfig: true
+Checks: >-
+  -misc-include-cleaner,
+  -readability-function-cognitive-complexity,
+  -readability-function-size

@@ -116,14 +116,169 @@ dedicated topic:
 orion/{vehicle_id}/system/health/{service_name}
 ```
 
-A future `HealthPublisher` type (part of `orion_app`) wraps `Session::advertise<Health>()` and
-is called by services when their operational state changes. A Health Monitor microservice
-subscribes to `orion/{vehicle_id}/system/health/**` and aggregates system-wide status for
-operators and the decision service.
+A `HealthPublisher` type (part of `orion_app`) wraps `Session::advertise<Health>()` and
+manages fault state on behalf of the service. A Health Monitor microservice subscribes to
+`orion/{vehicle_id}/system/health/**` and aggregates system-wide status for operators and
+the decision service.
 
 The spdlog CRITICAL level maps to "service is degraded or non-functional." Logging at
-CRITICAL always accompanies a `HealthPublisher::report(State::DEGRADED, ...)` call.
-The two are paired by convention, not enforced mechanically in this iteration.
+CRITICAL always accompanies a `health.raise(...)` call. The two are paired by convention,
+not enforced mechanically in this iteration.
+
+---
+
+### Service health state machine
+
+```
+INITIALIZING → OPERATIONAL ↔ DEGRADED ↔ FAULTED
+                                         ↓
+                                    latch.stop()   (unrecoverable init failure)
+```
+
+State is **derived** from the active fault set — services never set state directly:
+
+| Active faults | Derived state |
+|---|---|
+| None | `OPERATIONAL` |
+| Any `DEGRADED` severity, no `FAULT` severity | `DEGRADED` |
+| Any `FAULT` severity | `FAULTED` |
+
+`INITIALIZING` is the state from `HealthPublisher` construction until the first
+`health.operational()` call (successful init) or first `health.raise()` call (init failure).
+
+---
+
+### Fault code system
+
+Each service defines its own scoped fault code enum. The proto carries the code as a
+`uint32` so the Health Monitor can forward events without needing to know their meaning.
+The description string carries human-readable context for operators.
+
+```cpp
+// Per-service fault code enum - defined in the service, not in orion_app
+enum class FaultCode : uint32_t {
+    IMU_TIMEOUT      = 1,
+    GPS_DATA_STALE   = 2,
+    OVERRUN_THRESHOLD = 3,
+    INIT_FAILED      = 4,
+};
+```
+
+Severity is separate from the fault code and controls state derivation:
+
+```cpp
+enum class Severity {
+    DEGRADED,   // service is impaired but still performing its function
+    FAULT,      // service is not performing its function
+};
+```
+
+A fault registry (a static `std::map<uint32_t, std::string>`) maps codes to names for
+log formatting. Services register their map with `HealthPublisher` at construction. The
+Health Monitor does not interpret codes — it republishes them verbatim.
+
+---
+
+### Control flow: raising and clearing faults
+
+**Raise (from a FrameScheduler tick or subscriber callback):**
+
+```
+service detects IMU timeout
+  → health.raise(FaultCode::IMU_TIMEOUT, Severity::FAULT, "no response for 50 ms")
+      → add to active_faults_
+      → re-derive state (e.g. OPERATIONAL → FAULTED)
+      → publish FaultEvent{RAISED, code, severity, description, timestamp} immediately
+  → logger->critical("IMU timeout - no response for 50 ms")
+```
+
+**Clear (service detects recovery):**
+
+```
+service tick: IMU responds again
+  → health.clear(FaultCode::IMU_TIMEOUT)
+      → remove from active_faults_
+      → re-derive state (e.g. FAULTED → OPERATIONAL, if no other faults remain)
+      → publish FaultEvent{CLEARED, code, timestamp} immediately
+```
+
+Fault events are published immediately — they are discrete occurrences and timeliness
+matters for the audit trail. The heartbeat (see below) is the periodic snapshot.
+
+Services must not call `raise()` and `clear()` for the same fault code in the same tick.
+If that seems necessary, the fault code is too coarse — split it.
+
+---
+
+### Heartbeat
+
+`HealthPublisher` publishes a `ServiceHealth` snapshot at a low fixed rate (default 1 Hz)
+on the service's health topic. This allows a subscriber that joins mid-flight to
+reconstruct current state without replaying the full fault event history.
+
+```proto
+message ServiceHealth {
+  enum State {
+    INITIALIZING = 0;
+    OPERATIONAL  = 1;
+    DEGRADED     = 2;
+    FAULTED      = 3;
+  }
+
+  State              state          = 1;
+  uint64             reported_at_ns = 2;
+  repeated ActiveFault active_faults = 3;
+}
+
+message ActiveFault {
+  uint32 fault_code    = 1;
+  uint32 severity      = 2;
+  string description   = 3;
+  uint64 raised_at_ns  = 4;
+}
+
+message FaultEvent {
+  enum Kind { RAISED = 0; CLEARED = 1; }
+  Kind   kind          = 1;
+  uint32 fault_code    = 2;
+  uint32 severity      = 3;
+  string description   = 4;
+  uint64 event_at_ns   = 5;
+}
+```
+
+`ServiceHealth` is published on `orion/{vehicle_id}/system/health/{service_name}`.
+`FaultEvent` is published on `orion/{vehicle_id}/system/health/{service_name}/events`.
+
+---
+
+### Initialization flow
+
+```
+main()
+  → HealthPublisher constructed → state = INITIALIZING, heartbeat starts
+  → init sensors, open devices...
+
+  success path:
+    → health.operational()
+    → state = OPERATIONAL (no active faults)
+
+  failure path:
+    → health.raise(FaultCode::INIT_FAILED, Severity::FAULT, reason)
+    → logger->critical(reason)
+    → latch.stop()     ← clean exit; supervisor policy handles restart
+```
+
+---
+
+### Threading model
+
+`raise()` and `clear()` may be called from both the `FrameScheduler` tick thread and Zenoh
+subscriber callback threads concurrently. `HealthPublisher` protects `active_faults_` with
+an internal mutex. The mutex scope covers fault set mutation and state derivation only —
+the Zenoh publish call is outside the lock (Zenoh is independently thread-safe).
+
+---
 
 ### What services must not do
 
@@ -131,6 +286,7 @@ The two are paired by convention, not enforced mechanically in this iteration.
 - Throw exceptions that propagate out of a `FrameScheduler` callback (the scheduler has no
   catch - an uncaught exception terminates the process).
 - Use `std::cerr` directly - all diagnostic output goes through the spdlog logger.
+- Set service state directly - derive it from the fault set via `raise()`/`clear()` only.
 
 ## Consequences
 
@@ -141,12 +297,18 @@ The two are paired by convention, not enforced mechanically in this iteration.
 - `orion_app` gains a `LoggerFactory` type that encapsulates root logger construction
   (thread pool, sinks) and vends named child loggers. Components accept
   `std::shared_ptr<spdlog::logger>` - they do not call `spdlog::get` or construct sinks.
-- Services gain a new startup dependency: constructing `LoggerFactory` before any component
-  that takes a logger, and before `FrameScheduler`.
-- The `orion/system/health/**` topic namespace is reserved. The `Health` proto message and
-  `HealthPublisher` type are deferred to the implementation PR.
+- Services gain a new startup dependency: constructing `LoggerFactory` and `HealthPublisher`
+  before any component that takes a logger, and before `FrameScheduler`.
+- Two new proto messages are added: `ServiceHealth` and `FaultEvent`. Two topic suffixes are
+  reserved per service: `/health/{service_name}` (heartbeat) and
+  `/health/{service_name}/events` (fault raise/clear stream).
+- Each service defines its own `FaultCode` enum (scoped, `uint32_t` underlying type).
+  `orion_app` provides the `Severity` enum and `HealthPublisher` — it does not own fault codes.
+- The Health Monitor is a separate reactive microservice subscribing to
+  `orion/{vehicle_id}/system/health/**`. It aggregates system-wide state and is out of scope
+  for this ADR.
 - Off-board consumers can subscribe to health topics over the existing Zenoh connection -
   no additional bridge or sidecar required.
 - Services that fail initialization (e.g. cannot open a sensor) should log CRITICAL,
-  publish a FAILED health event, and then exit cleanly via `latch.stop()`. A supervisor
+  publish a FAULTED health event, and then exit cleanly via `latch.stop()`. A supervisor
   restart policy handles re-launch. This avoids both silent failure and panic-style crashes.

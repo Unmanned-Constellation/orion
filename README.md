@@ -1,7 +1,11 @@
 # Orion
 
-Autonomy platform for the NVIDIA Jetson Orin Nano, developed in a VS Code devcontainer with a
-Conan 2 / CMake / Ninja toolchain.
+Orion is a real-time autonomy platform targeting the NVIDIA Jetson Orin Nano. It provides a
+deterministic frame-scheduled execution model, a Zenoh-based publish/subscribe transport layer,
+gimbal control with MAVLink v2 integration, a simulation clock for scaled real-time replay, and
+a reactive perception pipeline. The project is developed in a VS Code devcontainer with a
+Conan 2 / CMake / Ninja toolchain and targets both x86_64 development workstations and the
+arm64 Jetson Orin Nano.
 
 ## Hardware targets
 
@@ -49,19 +53,6 @@ For first-time setup on a Jetson Orin Nano, see [docs/orin-setup.md](docs/orin-s
 | `proto/` | Protobuf schema definitions |
 | `scripts/` | Environment setup scripts (`initialize_conan.sh`) |
 | `tests/` | GoogleTest unit tests and libFuzzer fuzz targets (`tests/fuzz/`) |
-
-## Commit conventions
-
-All commits must follow [Conventional Commits](https://www.conventionalcommits.org). The
-allowed types are: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`, `build`,
-`revert`. Header max length is 200 characters.
-
-Examples:
-```
-feat(transport): add subscriber reconnection with exponential backoff
-fix(proto): handle zero-length payload in detection metadata parse
-test(transport): add fuzz target for topic key-expression parsing
-```
 
 ## Documentation
 

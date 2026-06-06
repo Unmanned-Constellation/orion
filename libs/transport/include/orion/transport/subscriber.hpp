@@ -53,10 +53,11 @@ class Subscriber
     /// @endcond
 
   private:
+    /// @brief Transport backend holding the subscription handle and raw callback.
     std::unique_ptr<SubscriberBackend> backend_;
 };
 
 } // namespace orion::transport
 
-// Template implementation — decodes Envelope framing for makeRawCallback<T>.
+// IWYU pragma: keep — exposes makeRawCallback<T> to consumers of Subscriber<T>.
 #include "orion/transport/subscriber_impl.hpp"

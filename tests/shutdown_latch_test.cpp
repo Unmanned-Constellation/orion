@@ -12,20 +12,20 @@
 
 TEST(ShutdownLatchTest, InitiallyNotStopped)
 {
-    const orion::app::ShutdownLatch latch;
+    const auto latch = orion::app::ShutdownLatch{};
     EXPECT_FALSE(latch.stopped());
 }
 
 TEST(ShutdownLatchTest, StopMakesStoppedTrue)
 {
-    orion::app::ShutdownLatch latch;
+    auto latch = orion::app::ShutdownLatch{};
     latch.stop();
     EXPECT_TRUE(latch.stopped());
 }
 
 TEST(ShutdownLatchTest, StopIsIdempotent)
 {
-    orion::app::ShutdownLatch latch;
+    auto latch = orion::app::ShutdownLatch{};
     latch.stop();
     latch.stop();
     EXPECT_TRUE(latch.stopped());
@@ -33,7 +33,7 @@ TEST(ShutdownLatchTest, StopIsIdempotent)
 
 TEST(ShutdownLatchTest, WaitReturnsAfterStop)
 {
-    orion::app::ShutdownLatch latch;
+    auto latch = orion::app::ShutdownLatch{};
 
     std::thread stopper([&] {
         std::this_thread::sleep_for(std::chrono::milliseconds{10});
@@ -52,7 +52,7 @@ TEST(ShutdownLatchTest, WaitReturnsAfterStop)
 
 TEST(ShutdownLatchTest, WaitReturnsImmediatelyIfAlreadyStopped)
 {
-    orion::app::ShutdownLatch latch;
+    auto latch = orion::app::ShutdownLatch{};
     latch.stop();
 
     const auto start = std::chrono::steady_clock::now();
@@ -64,8 +64,8 @@ TEST(ShutdownLatchTest, WaitReturnsImmediatelyIfAlreadyStopped)
 
 TEST(ShutdownLatchTest, MultipleWaitersAllWake)
 {
-    orion::app::ShutdownLatch latch;
-    std::atomic<int>          woken{0};
+    auto             latch = orion::app::ShutdownLatch{};
+    std::atomic<int> woken{0};
 
     std::vector<std::thread> waiters;
     waiters.reserve(4);
@@ -90,11 +90,11 @@ TEST(ShutdownLatchTest, MultipleWaitersAllWake)
 
 TEST(ShutdownLatchTest, SigtermTriggersShutdown)
 {
-    const orion::app::ShutdownLatch latch;
+    const auto latch = orion::app::ShutdownLatch{};
 
     std::thread sender([] {
         std::this_thread::sleep_for(std::chrono::milliseconds{10});
-        kill(getpid(), SIGTERM); // NOLINT(misc-include-cleaner)
+        kill(getpid(), SIGTERM);
     });
 
     latch.wait();

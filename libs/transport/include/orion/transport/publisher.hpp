@@ -12,9 +12,7 @@ namespace orion::transport
 class PublisherBackend
 {
   public:
-    /// @cond
     virtual ~PublisherBackend() = default;
-    /// @endcond
 
     /// Transmits a serialized Envelope on the underlying transport.
     /// @param[in] bytes  Serialized Envelope bytes to transmit.
@@ -51,8 +49,10 @@ class Publisher
     void publish(const T& msg, uint64_t captured_at_ns);
 
   private:
+    /// @brief Transport backend that serializes and transmits the envelope.
     std::unique_ptr<PublisherBackend> backend_;
-    std::string                       source_id_;
+    /// @brief Source identifier stamped into every published envelope.
+    std::string source_id_;
 };
 
 } // namespace orion::transport

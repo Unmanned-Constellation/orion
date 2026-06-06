@@ -43,7 +43,7 @@ TEST(WallClockTest, NowNsMatchesSystemClock)
 
 TEST(WallClockTest, SleepUntilPastTargetReturnsImmediately)
 {
-    WallClock      clock;
+    auto           clock   = WallClock{};
     const uint64_t past_ns = clock.nowNs() - 1'000'000; // 1 ms in the past
     const auto     start   = std::chrono::steady_clock::now();
     clock.sleepUntil(past_ns);
@@ -53,7 +53,7 @@ TEST(WallClockTest, SleepUntilPastTargetReturnsImmediately)
 
 TEST(WallClockTest, SleepUntilFutureTargetWakesAtOrAfterTarget)
 {
-    WallClock      clock;
+    auto           clock     = WallClock{};
     const uint64_t target_ns = clock.nowNs() + 20'000'000; // 20 ms ahead
     clock.sleepUntil(target_ns);
     EXPECT_GE(clock.nowNs(), target_ns);
@@ -75,7 +75,7 @@ TEST(ManualClockTest, DefaultInitialTimeIsZero)
 
 TEST(ManualClockTest, AdvanceIncrementsTime)
 {
-    ManualClock clock(1'000);
+    auto clock = ManualClock{1'000};
     clock.advance(500);
     EXPECT_EQ(clock.nowNs(), 1'500U);
     clock.advance(500);
@@ -84,20 +84,20 @@ TEST(ManualClockTest, AdvanceIncrementsTime)
 
 TEST(ManualClockTest, SetNowOverridesTime)
 {
-    ManualClock clock(1'000);
+    auto clock = ManualClock{1'000};
     clock.setNow(9'999);
     EXPECT_EQ(clock.nowNs(), 9'999U);
 }
 
 TEST(ManualClockTest, SetNowBackwardsThrows)
 {
-    ManualClock clock(1'000);
+    auto clock = ManualClock{1'000};
     EXPECT_THROW(clock.setNow(500), std::invalid_argument);
 }
 
 TEST(ManualClockTest, WakeUnblocksSleeperWithoutAdvancingTime)
 {
-    ManualClock clock(0);
+    auto clock = ManualClock{0};
 
     bool        woken = false;
     std::thread waiter([&] {
@@ -116,8 +116,8 @@ TEST(ManualClockTest, WakeUnblocksSleeperWithoutAdvancingTime)
 
 TEST(ManualClockTest, SleepUntilAlreadyPassedReturnsImmediately)
 {
-    ManualClock clock(1'000);
-    const auto  start = std::chrono::steady_clock::now();
+    auto       clock = ManualClock{1'000};
+    const auto start = std::chrono::steady_clock::now();
     clock.sleepUntil(500); // target is in the past
     const auto elapsed = std::chrono::steady_clock::now() - start;
     EXPECT_LT(elapsed, std::chrono::milliseconds{5});
@@ -125,7 +125,7 @@ TEST(ManualClockTest, SleepUntilAlreadyPassedReturnsImmediately)
 
 TEST(ManualClockTest, SleepUntilBlocksUntilAdvanced)
 {
-    ManualClock clock(0);
+    auto clock = ManualClock{0};
 
     bool        woken = false;
     std::thread waiter([&] {
@@ -143,7 +143,7 @@ TEST(ManualClockTest, SleepUntilBlocksUntilAdvanced)
 
 TEST(ManualClockTest, SleepUntilBlocksUntilSetNow)
 {
-    ManualClock clock(0);
+    auto clock = ManualClock{0};
 
     bool        woken = false;
     std::thread waiter([&] {
@@ -168,11 +168,11 @@ TEST(CoordinatedClockTest, DefaultConstructs)
 
 TEST(CoordinatedClockTest, UpdateThrowsLogicError)
 {
-    CoordinatedClock clock;
+    auto clock = CoordinatedClock{};
     EXPECT_THROW(clock.update(0), std::logic_error);
 }
 
-TEST(CoordinatedClockTest, NowNsThrowsLogicError) // NOLINT(readability-function-size)
+TEST(CoordinatedClockTest, NowNsThrowsLogicError)
 {
     const CoordinatedClock clock;
     EXPECT_THROW({ (void)clock.nowNs(); }, std::logic_error);
@@ -180,29 +180,29 @@ TEST(CoordinatedClockTest, NowNsThrowsLogicError) // NOLINT(readability-function
 
 TEST(CoordinatedClockTest, SleepUntilThrowsLogicError)
 {
-    CoordinatedClock clock;
+    auto clock = CoordinatedClock{};
     EXPECT_THROW(clock.sleepUntil(0), std::logic_error);
 }
 
 // --- SimClock ---
 
-TEST(SimClockTest, ZeroScaleThrows) // NOLINT(readability-function-size)
+TEST(SimClockTest, ZeroScaleThrows)
 {
     EXPECT_THROW({ const SimClock clock(0.0); }, std::invalid_argument);
 }
 
-TEST(SimClockTest, NegativeScaleThrows) // NOLINT(readability-function-size)
+TEST(SimClockTest, NegativeScaleThrows)
 {
     EXPECT_THROW({ const SimClock clock(-1.0); }, std::invalid_argument);
 }
 
-TEST(SimClockTest, NaNScaleThrows) // NOLINT(readability-function-size)
+TEST(SimClockTest, NaNScaleThrows)
 {
     const double nan_val = std::numeric_limits<double>::quiet_NaN();
     EXPECT_THROW({ const SimClock clock(nan_val); }, std::invalid_argument);
 }
 
-TEST(SimClockTest, InfScaleThrows) // NOLINT(readability-function-size)
+TEST(SimClockTest, InfScaleThrows)
 {
     const double inf_val = std::numeric_limits<double>::infinity();
     EXPECT_THROW({ const SimClock clock(inf_val); }, std::invalid_argument);
@@ -252,7 +252,7 @@ TEST(SimClockTest, NowNsIsMonotonic)
 
 TEST(SimClockTest, SleepUntilPastTargetReturnsImmediately)
 {
-    SimClock   clock(1.0, 0);
+    auto       clock = SimClock{1.0, 0};
     const auto start = std::chrono::steady_clock::now();
     clock.sleepUntil(0); // already past
     const auto elapsed = std::chrono::steady_clock::now() - start;
@@ -261,7 +261,7 @@ TEST(SimClockTest, SleepUntilPastTargetReturnsImmediately)
 
 TEST(SimClockTest, SleepUntilNeverReturnsBeforeTarget)
 {
-    SimClock           clock(10.0, 0);
+    auto               clock     = SimClock{10.0, 0};
     constexpr uint64_t target_ns = 50'000'000ULL; // 50 ms sim = 5 ms wall at 10×
     clock.sleepUntil(target_ns);
     EXPECT_GE(clock.nowNs(), target_ns);
@@ -269,7 +269,7 @@ TEST(SimClockTest, SleepUntilNeverReturnsBeforeTarget)
 
 TEST(SimClockTest, SleepUntilWallTimeScalesWithFactor)
 {
-    SimClock           clock(10.0, 0);
+    auto               clock     = SimClock{10.0, 0};
     constexpr uint64_t target_ns = 100'000'000ULL; // 100 ms sim = ~10 ms wall at 10×
     const auto         start     = std::chrono::steady_clock::now();
     clock.sleepUntil(target_ns);
@@ -282,7 +282,7 @@ TEST(SimClockTest, SleepUntilWallTimeScalesWithFactor)
 
 TEST(ManualClockTest, SleepUntilAfterWakeReturnsImmediately)
 {
-    ManualClock clock(0);
+    auto clock = ManualClock{0};
     clock.wake();
 
     const auto start = std::chrono::steady_clock::now();
@@ -293,7 +293,7 @@ TEST(ManualClockTest, SleepUntilAfterWakeReturnsImmediately)
 
 TEST(ManualClockTest, MultipleWaitersAllWakeOnAdvance)
 {
-    ManualClock      clock(0);
+    auto             clock       = ManualClock{0};
     constexpr int    num_waiters = 4;
     std::atomic<int> woken{0};
 

@@ -114,7 +114,7 @@ flowchart LR
 
     BldDbg --> San["Sanitize<br/>(ASan + UBSan)"]:::container
     BldDbg --> TSan["ThreadSanitizer"]:::container
-    BldDbg --> Cov["Coverage<br/>(Min 60%)"]:::container
+    BldDbg --> Cov["Coverage<br/>(Min 80%)"]:::container
     BldDbg --> Fuz["Fuzz<br/>(Smoke Test)"]:::container
 ```
 
@@ -210,7 +210,7 @@ Builds and tests with `-fprofile-instr-generate -fcoverage-mapping`. After the t
 
 1. Merges raw profile data with `llvm-profdata-18`
 2. Generates a line-coverage report with `llvm-cov-18` and appends it to the GitHub Step Summary
-3. Fails the job if total line coverage falls below **60%**
+3. Fails the job if total line coverage falls below **80%**
 
 Raise the threshold in the **Enforce minimum coverage** step of the `coverage` job as the test
 suite grows.
@@ -293,7 +293,7 @@ Every job must pass before a PR can be merged. In particular:
 - Build or test failure → any of the build/test jobs fails
 - clang-tidy finding → **Build and lint (debug)** fails
 - Sanitizer crash or error → **Sanitize** or **Thread Sanitizer** fails
-- Coverage below 60% → **Coverage** fails
+- Coverage below 80% → **Coverage** fails
 - ARM64 build or test failure → **Build and test (ARM64)** fails
 - Fuzzer crash → **Fuzz** fails
 
