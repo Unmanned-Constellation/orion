@@ -42,3 +42,6 @@ Thumbs.db
 
 # Dev container generated lock file
 .devcontainer/devcontainer-lock.json
+
+# clangd compile database symlink (points to build/Debug/compile_commands.json)
+compile_commands.json
