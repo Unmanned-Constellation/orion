@@ -84,7 +84,7 @@ present on the Jetson deployment sysroot.
 |---|---|---|
 | `orion_clock` | INTERFACE | Abstract `TimeSource` interface + `WallClock`, `ManualClock`, `SimClock`, `CoordinatedClock`. Zero deps beyond stdlib. |
 | `orion_proto` | STATIC | Compiled protobuf message bindings for all `.proto` files under `proto/orion/v1/`. |
-| `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`. `LoggerFactory` (M2), `HealthPublisher` (M2). Depends on `orion_clock` + `backward-cpp`. |
+| `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`. `LoggerFactory` (M2). Depends on `orion_clock` + `backward-cpp`. |
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
 
 ---
@@ -132,5 +132,5 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 |---|---|---|---|
 | Baseline | Done | `orion_clock`, `orion_proto`, `orion_app`, `orion_transport` | protobuf, zenoh-c, zenoh-cpp, abseil, gtest |
 | M1 - Core Runtime | Done | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
-| M2 - Observability | In progress | `CrashHandler` ✓; `LoggerFactory`, `HealthPublisher` in `orion_app` | backward-cpp ✓, libdw (pending), spdlog (pending) |
+| M2 - Observability | In progress | `CrashHandler` ✓; `LoggerFactory` in `orion_app` | backward-cpp ✓, libdw ✓, spdlog (pending) |
 | M3 - Simulation | Planned | `CoordinatedClock` Phase 3 full implementation; Clock Service publisher | none |

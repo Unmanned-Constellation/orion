@@ -43,7 +43,7 @@ trace on crash and structured log output are the minimum bar before deploying to
 | Epic | ADR | Description |
 |------|-----|-------------|
 | [#12 CrashHandler](https://github.com/Unmanned-Constellation/orion/issues/12) | [ADR-0010](adr/0010-crash-handler.md) | Symbolized stack traces on fault signals via backward-cpp |
-| [#13 Structured logging and health reporting](https://github.com/Unmanned-Constellation/orion/issues/13) | [ADR-0011](adr/0011-logging-and-health-reporting.md) | spdlog-based structured logging and health publisher |
+| — | [ADR-0011](adr/0011-structured-logging.md) | Async structured logging via spdlog and `LoggerFactory` |
 
 ---
 
