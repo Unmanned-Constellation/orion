@@ -1,7 +1,9 @@
-add_library(orion_app INTERFACE)
+find_package(Backward REQUIRED CONFIG)
 
-target_include_directories(orion_app INTERFACE include)
+add_library(orion_app STATIC src/crash_handler.cpp)
 
-target_compile_features(orion_app INTERFACE cxx_std_20)
+target_include_directories(orion_app PUBLIC include)
 
-target_link_libraries(orion_app INTERFACE orion_clock)
+target_compile_features(orion_app PUBLIC cxx_std_20)
+
+target_link_libraries(orion_app PUBLIC orion_clock PRIVATE Backward::Backward)

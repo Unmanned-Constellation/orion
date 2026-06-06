@@ -4,6 +4,7 @@
 :maxdepth: 1
 :caption: Developer Guide
 
+roadmap
 development-environment
 building-and-testing
 documentation
@@ -44,6 +45,7 @@ api/library_root
 :maxdepth: 1
 :caption: Libraries
 
+libs/orion-app
 libs/orion-clock
 libs/orion-transport
 ```

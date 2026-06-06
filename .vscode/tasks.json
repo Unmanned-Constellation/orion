@@ -126,7 +126,18 @@
       "label": "Lint: C++",
       "detail": "Run clang-tidy static analysis on all project source",
       "type": "shell",
-      "command": "/usr/bin/cmake --build ${command:cmake.buildDirectory} --target tidy",
+      "command": "/usr/bin/cmake --build --preset debug --target tidy",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "CI: Run Tests",
+      "detail": "Build and run all tests against the debug preset (used by CI: Check All)",
+      "type": "shell",
+      "command": "/usr/bin/cmake --build --preset debug && /usr/bin/ctest --preset debug",
+      "group": "test",
       "presentation": {
         "reveal": "always",
         "panel": "shared"
@@ -199,26 +210,17 @@
     },
     {
       "label": "CI: Check All",
-      "detail": "Run all fast CI checks in parallel (format, lint, proto lint, proto breaking changes, docs)",
+      "detail": "Run all CI checks in parallel — format, lint, proto, docs, tests",
       "type": "shell",
-      "command": "echo 'All checks passed.'",
-      "dependsOn": [
-        "CI: Check Format (C++)",
-        "CI: Check Format (CMake)",
-        "CI: Proto Lint",
-        "CI: Proto Breaking Changes",
-        "CI: Docs Check",
-        "Lint: C++",
-        "CMake: Run Tests"
-      ],
-      "dependsOrder": "parallel",
+      "command": "bash scripts/ci/check_all.sh",
       "group": {
         "kind": "test",
         "isDefault": true
       },
       "presentation": {
         "reveal": "always",
-        "panel": "shared"
+        "panel": "dedicated",
+        "clear": true
       }
     }
   ],

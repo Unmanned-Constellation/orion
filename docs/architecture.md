@@ -23,9 +23,9 @@ flowchart LR
         zenohcpp(["zenoh-cpp/1.9.0 ①"]):::external
         abseil(["abseil/20240722.0"]):::external
         gtest(["gtest/1.17.0"]):::external
+        backwardcpp(["backward-cpp/1.6"]):::external
 
-        backwardcpp(["backward-cpp (M2)"]):::planned
-        libdw(["libdw (M2)"]):::planned
+        libdw(["libdw (M2) ②"]):::planned
         spdlog(["spdlog (M2)"]):::planned
     end
 
@@ -33,7 +33,7 @@ flowchart LR
         direction TB
         orion_clock["orion_clock<br/>(INTERFACE)"]:::interface
         orion_proto["orion_proto<br/>(STATIC)"]:::staticLib
-        orion_app["orion_app<br/>(INTERFACE)"]:::interface
+        orion_app["orion_app<br/>(STATIC)"]:::staticLib
         orion_transport["orion_transport<br/>(SHARED)"]:::sharedLib
     end
 
@@ -48,7 +48,7 @@ flowchart LR
     zenohc      --> orion_transport
     zenohcpp    --> orion_transport
 
-    backwardcpp -.-> orion_app
+    backwardcpp --> orion_app
     libdw       -.-> orion_app
     spdlog      -.-> orion_app
 
@@ -71,6 +71,11 @@ flowchart LR
 local recipes under `conan/recipes/` - see
 [Dependency Management](dependency-management.md).
 
+② `libdw` (from `libdw-dev`) is a system library used by `backward-cpp` for
+full DWARF symbolization (file names, line numbers, inlined frames). The `dw`
+backend is active. `libdw-dev` is installed in the devcontainer and must be
+present on the Jetson deployment sysroot.
+
 ---
 
 ## Library responsibilities
@@ -79,7 +84,7 @@ local recipes under `conan/recipes/` - see
 |---|---|---|
 | `orion_clock` | INTERFACE | Abstract `TimeSource` interface + `WallClock`, `ManualClock`, `SimClock`, `CoordinatedClock`. Zero deps beyond stdlib. |
 | `orion_proto` | STATIC | Compiled protobuf message bindings for all `.proto` files under `proto/orion/v1/`. |
-| `orion_app` | INTERFACE | `ShutdownLatch`, `FrameScheduler`, `CrashHandler` (M2), `LoggerFactory` (M2). Depends on `orion_clock`. |
+| `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`. `LoggerFactory` (M2), `HealthPublisher` (M2). Depends on `orion_clock` + `backward-cpp`. |
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
 
 ---
@@ -115,8 +120,8 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 | zenoh-cpp | 1.9.0 | Local recipe ① | `orion_transport` | Header-only C++ wrapper |
 | abseil | 20240722.0 | ConanCenter | `orion_proto` | Pinned to avoid symbol conflict with Triton runtime |
 | gtest | 1.17.0 | ConanCenter | `orion_tests` | Test only |
-| backward-cpp | TBD | ConanCenter (M2) | `orion_app` | Header-only; crash symbolization |
-| libdw | system | APT (M2) | `orion_app` | DWARF symbol resolution for backward-cpp |
+| backward-cpp | 1.6 | ConanCenter | `orion_app` | Crash symbolization; `dw` backend — full DWARF (see ②) |
+| libdw | system | APT ② | `orion_app` | DWARF symbol resolution for backward-cpp |
 | spdlog | TBD | ConanCenter (M2) | `orion_app` | Async structured logging |
 
 ---
@@ -127,5 +132,5 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 |---|---|---|---|
 | Baseline | Done | `orion_clock`, `orion_proto`, `orion_app`, `orion_transport` | protobuf, zenoh-c, zenoh-cpp, abseil, gtest |
 | M1 - Core Runtime | Done | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
-| M2 - Observability | Planned | `CrashHandler`, `LoggerFactory`, `HealthPublisher` in `orion_app` | backward-cpp, libdw, spdlog |
+| M2 - Observability | In progress | `CrashHandler` ✓; `LoggerFactory`, `HealthPublisher` in `orion_app` | backward-cpp ✓, libdw (pending), spdlog (pending) |
 | M3 - Simulation | Planned | `CoordinatedClock` Phase 3 full implementation; Clock Service publisher | none |

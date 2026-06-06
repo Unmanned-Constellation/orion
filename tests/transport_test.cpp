@@ -10,7 +10,7 @@
 #include "fake_transport.hpp"
 #include "orion/transport/message_header.hpp"
 #include "orion/transport/publisher.hpp"
-#include "orion/transport/session.hpp" // NOLINT(misc-include-cleaner)
+#include "orion/transport/session.hpp"
 #include "orion/transport/subscriber.hpp"
 #include "orion/v1/envelope.pb.h"
 #include "orion/v1/header.pb.h"
@@ -200,7 +200,7 @@ bool waitFor(const std::atomic<bool>&  flag,
 
 } // namespace
 
-TEST(ZenohSessionTest, RoundtripDelivery) // NOLINT(readability-function-cognitive-complexity)
+TEST(ZenohSessionTest, RoundtripDelivery)
 {
     auto session = orion::transport::Session::create({
         .vehicle_id   = "test-vehicle",

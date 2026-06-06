@@ -34,7 +34,7 @@ class TimeSource
 
     /// Returns the current time as nanoseconds since the Unix epoch.
     /// @return Nanoseconds since the Unix epoch.
-    [[nodiscard]] virtual uint64_t nowNs() const = 0;
+    [[nodiscard]] virtual auto nowNs() const -> uint64_t = 0;
 
     /// Blocks the calling thread until the clock reaches target_ns.
     ///
@@ -51,7 +51,7 @@ class WallClock final : public TimeSource
 {
   public:
     /// @copydoc TimeSource::nowNs
-    [[nodiscard]] uint64_t nowNs() const override
+    [[nodiscard]] auto nowNs() const -> uint64_t override
     {
         return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                          std::chrono::system_clock::now().time_since_epoch())
@@ -101,7 +101,7 @@ class ManualClock final : public TimeSource
     ManualClock& operator=(ManualClock&&)      = delete;
 
     /// @copydoc TimeSource::nowNs
-    [[nodiscard]] uint64_t nowNs() const override
+    [[nodiscard]] auto nowNs() const -> uint64_t override
     {
         std::lock_guard lock(mu_);
         return now_ns_;
@@ -155,10 +155,14 @@ class ManualClock final : public TimeSource
     }
 
   private:
-    mutable std::mutex      mu_;
+    /// @brief Guards now_ns_ and stopped_.
+    mutable std::mutex mu_;
+    /// @brief Notified by advance(), setNow(), and wake(); waited on by sleepUntil().
     std::condition_variable cv_;
-    uint64_t                now_ns_;
-    bool                    stopped_{false};
+    /// @brief Current simulated time in nanoseconds since the Unix epoch.
+    uint64_t now_ns_;
+    /// @brief Set by wake() and the destructor to unblock all sleepUntil() waiters.
+    bool stopped_{false};
 };
 
 /// TimeSource implementation for scaled real-time simulation.
@@ -195,10 +199,10 @@ class SimClock final : public TimeSource
     }
 
     /// @copydoc TimeSource::nowNs
-    [[nodiscard]] uint64_t nowNs() const override
+    [[nodiscard]] auto nowNs() const -> uint64_t override
     {
-        const auto ELAPSED = static_cast<double>(wallNowNs() - wall_start_);
-        return sim_start_ns_ + static_cast<uint64_t>(ELAPSED * scale_);
+        const auto elapsed = static_cast<double>(wallNowNs() - wall_start_);
+        return sim_start_ns_ + static_cast<uint64_t>(elapsed * scale_);
     }
 
     /// @copydoc TimeSource::sleepUntil
@@ -206,16 +210,19 @@ class SimClock final : public TimeSource
     {
         while (nowNs() < target_ns)
         {
-            const auto REMAINING_SIM = static_cast<double>(target_ns - nowNs());
-            const auto WALL_WAIT_NS  = static_cast<int64_t>(REMAINING_SIM / scale_);
-            if (WALL_WAIT_NS > 0)
+            const auto remaining_sim = static_cast<double>(target_ns - nowNs());
+            const auto wall_wait_ns  = static_cast<int64_t>(remaining_sim / scale_);
+            if (wall_wait_ns > 0)
             {
-                std::this_thread::sleep_for(std::chrono::nanoseconds{WALL_WAIT_NS});
+                std::this_thread::sleep_for(std::chrono::nanoseconds{wall_wait_ns});
             }
         }
     }
 
   private:
+    /// @brief Validates that scale is finite and positive; returns it on success.
+    /// @param scale  Value to validate.
+    /// @return The validated scale value.
     static auto validateScale(double scale) -> double
     {
         if (scale <= 0.0 || std::isnan(scale) || std::isinf(scale))
@@ -225,6 +232,8 @@ class SimClock final : public TimeSource
         return scale;
     }
 
+    /// @brief Returns the current wall time as nanoseconds since the Unix epoch.
+    /// @return Wall-clock nanoseconds since the Unix epoch.
     static auto wallNowNs() -> uint64_t
     {
         return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -232,8 +241,11 @@ class SimClock final : public TimeSource
                                          .count());
     }
 
-    double   scale_;
+    /// @brief Simulation speed multiplier relative to wall time.
+    double scale_;
+    /// @brief Wall time at construction in nanoseconds since the Unix epoch.
     uint64_t wall_start_;
+    /// @brief Sim time at construction in nanoseconds since the Unix epoch.
     uint64_t sim_start_ns_;
 };
 
@@ -271,7 +283,7 @@ class CoordinatedClock final : public TimeSource
 
     /// @copydoc TimeSource::nowNs
     /// @throws std::logic_error always — not yet implemented.
-    [[nodiscard]] uint64_t nowNs() const override
+    [[nodiscard]] auto nowNs() const -> uint64_t override
     {
         throw std::logic_error("CoordinatedClock not yet implemented");
     }
