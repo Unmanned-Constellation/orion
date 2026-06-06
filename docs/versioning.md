@@ -16,7 +16,7 @@ Releases are cut when a GitHub milestone closes. Each milestone maps to one
 | Milestone | Target version | Trigger |
 |---|---|---|
 | M1 - Core Runtime | `v0.1.0` | All M1 issues closed: `FrameScheduler`, `SimClock` Phase 1 |
-| M2 - Observability | `v0.2.0` | All M2 issues closed: `CrashHandler`, `LoggerFactory`, `HealthPublisher` |
+| M2 - Observability | `v0.2.0` | All M2 issues closed: `CrashHandler`, `LoggerFactory` |
 | M3 - Simulation | `v0.3.0` | All M3 issues closed: `CoordinatedClock` Phase 3 full implementation, Clock Service publisher |
 | M4 - External Interfaces | `v0.4.0` | Edge network and public API services shipped |
 | First stable release | `v1.0.0` | Public API frozen, all services deployable to production hardware |
