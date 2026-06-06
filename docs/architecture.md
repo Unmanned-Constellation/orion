@@ -26,7 +26,7 @@ flowchart LR
         backwardcpp(["backward-cpp/1.6"]):::external
 
         libdw(["libdw (M2) ②"]):::planned
-        spdlog(["spdlog (M2)"]):::planned
+        spdlog(["spdlog/1.17.0"]):::external
     end
 
     subgraph Modules ["CMake Targets"]
@@ -50,7 +50,7 @@ flowchart LR
 
     backwardcpp --> orion_app
     libdw       -.-> orion_app
-    spdlog      -.-> orion_app
+    spdlog      --> orion_app
 
     %% Internal Module Edges
     orion_proto --> orion_transport
@@ -84,7 +84,7 @@ present on the Jetson deployment sysroot.
 |---|---|---|
 | `orion_clock` | INTERFACE | Abstract `TimeSource` interface + `WallClock`, `ManualClock`, `SimClock`, `CoordinatedClock`. Zero deps beyond stdlib. |
 | `orion_proto` | STATIC | Compiled protobuf message bindings for all `.proto` files under `proto/orion/v1/`. |
-| `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`. `LoggerFactory` (M2). Depends on `orion_clock` + `backward-cpp`. |
+| `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`, `LoggerFactory`. Depends on `orion_clock` + `backward-cpp` + `spdlog`. |
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
 
 ---
@@ -122,7 +122,7 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 | gtest | 1.17.0 | ConanCenter | `orion_tests` | Test only |
 | backward-cpp | 1.6 | ConanCenter | `orion_app` | Crash symbolization; `dw` backend — full DWARF (see ②) |
 | libdw | system | APT ② | `orion_app` | DWARF symbol resolution for backward-cpp |
-| spdlog | TBD | ConanCenter (M2) | `orion_app` | Async structured logging |
+| spdlog | 1.17.0 | ConanCenter | `orion_app` | Async structured logging via `LoggerFactory` |
 
 ---
 
@@ -132,5 +132,5 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 |---|---|---|---|
 | Baseline | Done | `orion_clock`, `orion_proto`, `orion_app`, `orion_transport` | protobuf, zenoh-c, zenoh-cpp, abseil, gtest |
 | M1 - Core Runtime | Done | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
-| M2 - Observability | In progress | `CrashHandler` ✓; `LoggerFactory` in `orion_app` | backward-cpp ✓, libdw ✓, spdlog (pending) |
+| M2 - Observability | In progress | `CrashHandler` ✓; `LoggerFactory` ✓ in `orion_app` | backward-cpp ✓, libdw ✓, spdlog ✓ |
 | M3 - Simulation | Planned | `CoordinatedClock` Phase 3 full implementation; Clock Service publisher | none |
