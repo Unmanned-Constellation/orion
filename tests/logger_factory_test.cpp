@@ -1,3 +1,5 @@
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <string>
 
@@ -7,14 +9,9 @@
 
 #include "orion/app/logger_factory.hpp"
 
-// Each test reinitialises LoggerFactory with a fresh ostream sink so output
-// is synchronous and deterministic — no async thread-pool timing to contend with.
-
 namespace
 {
 
-// Initialise LoggerFactory with a synchronous ostream sink for the duration
-// of a test. Tears down on destruction so the next test gets a clean slate.
 struct LoggerFactoryFixture : ::testing::Test
 {
     std::ostringstream                              buf;
@@ -107,10 +104,64 @@ TEST_F(LoggerFactoryFixture, MessagesAppearAfterFlush)
 
 TEST_F(LoggerFactoryFixture, InjectedNameAppearsInOutput)
 {
-    // Simulates a component receiving its name at construction and logging under it.
-    const std::string injected = "autonomy.stabilizer.pid";
-    auto              log      = orion::app::LoggerFactory::get(injected);
+    const auto injected = std::string{"autonomy.stabilizer.pid"};
+    auto       log      = orion::app::LoggerFactory::get(injected);
     log->info("derivative term saturated");
     orion::app::LoggerFactory::flush();
     EXPECT_NE(output().find(injected), std::string::npos);
+}
+
+// ── Production init (filesystem) ─────────────────────────────────────────────
+
+namespace
+{
+
+constexpr auto INIT_SERVICE = std::string_view{"orion_test_init"};
+
+auto fileContents(const std::filesystem::path& path) -> std::string
+{
+    auto stream = std::ifstream{path};
+    auto buf    = std::ostringstream{};
+    buf << stream.rdbuf();
+    return buf.str();
+}
+
+struct LoggerFactoryInitFixture : ::testing::Test
+{
+    std::filesystem::path log_dir{std::filesystem::path{"/var/log/orion"} / INIT_SERVICE};
+
+    void TearDown() override
+    {
+        orion::app::LoggerFactory::shutdown();
+        std::filesystem::remove_all(log_dir);
+    }
+};
+
+} // namespace
+
+TEST_F(LoggerFactoryInitFixture, InitCreatesLogFile)
+{
+    orion::app::LoggerFactory::init(INIT_SERVICE);
+    orion::app::LoggerFactory::get("test.component")->info("startup");
+    orion::app::LoggerFactory::flush();
+
+    EXPECT_TRUE(std::filesystem::exists(log_dir / (std::string{INIT_SERVICE} + ".log")));
+}
+
+TEST_F(LoggerFactoryInitFixture, ReInitAfterShutdownAppendsToExistingLog)
+{
+    const auto log_file = log_dir / (std::string{INIT_SERVICE} + ".log");
+
+    orion::app::LoggerFactory::init(INIT_SERVICE);
+    orion::app::LoggerFactory::get("test")->info("first run");
+    orion::app::LoggerFactory::flush();
+    orion::app::LoggerFactory::shutdown();
+
+    orion::app::LoggerFactory::init(INIT_SERVICE);
+    orion::app::LoggerFactory::get("test")->info("second run");
+    orion::app::LoggerFactory::flush();
+
+    const auto contents = fileContents(log_file);
+    EXPECT_NE(contents.find("first run"), std::string::npos);
+    EXPECT_NE(contents.find("second run"), std::string::npos);
 }

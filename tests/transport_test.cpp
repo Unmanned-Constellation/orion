@@ -176,6 +176,28 @@ TEST(SubscriberTest, DropsMalformedBytes)
     EXPECT_FALSE(called);
 }
 
+TEST(SubscriberTest, DropsCorruptPayload)
+{
+    auto called = false;
+    auto raw    = makeRawCallback<orion::v1::Header>(
+        [&](const orion::v1::Header& /*msg*/, const MessageHeader& /*hdr*/) { called = true; });
+
+    auto  backend     = std::make_unique<FakeSubscriberBackend>(std::move(raw));
+    auto* backend_ptr = backend.get();
+    auto  sub         = Subscriber<orion::v1::Header>(std::move(backend));
+
+    // Envelope parses correctly (type_url matches) but payload is not a valid Header.
+    // Exercises the third guard in makeRawCallback: msg.ParseFromString failure.
+    auto env = orion::v1::Envelope{};
+    env.set_type_url("orion.v1.Header");
+    env.set_payload(std::string(1, '\xff')); // single 0xFF byte: incomplete varint
+    auto serialized = std::string{};
+    env.SerializeToString(&serialized);
+
+    backend_ptr->inject(serialized);
+    EXPECT_FALSE(called);
+}
+
 // ── Zenoh integration tests ───────────────────────────────────────────────────
 // Verify that the Zenoh backend wires publisher and subscriber end-to-end.
 // Transport logic is covered by the unit tests above — one roundtrip is enough here.

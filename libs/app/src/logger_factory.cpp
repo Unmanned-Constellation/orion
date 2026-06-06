@@ -31,11 +31,12 @@ constexpr std::size_t MAX_FILE_COUNT = 3;
 
 struct State
 {
-    std::vector<std::shared_ptr<spdlog::sinks::sink>>                sinks;
-    std::unordered_map<std::string, std::shared_ptr<spdlog::logger>> loggers;
-    spdlog::level::level_enum                                        level = spdlog::level::info;
-    bool                                                             initialised = false;
-    std::mutex                                                       mu;
+    std::vector<std::shared_ptr<spdlog::sinks::sink>> sinks; // NOLINT(hicpp-member-init)
+    std::unordered_map<std::string, std::shared_ptr<spdlog::logger>>
+                              loggers; // NOLINT(hicpp-member-init)
+    spdlog::level::level_enum level       = spdlog::level::info;
+    bool                      initialised = false;
+    std::mutex                mu; // NOLINT(hicpp-member-init)
 };
 
 auto state() -> State&
@@ -57,8 +58,8 @@ auto makeLogger(const std::string& name) -> std::shared_ptr<spdlog::logger>
 
 void LoggerFactory::init(std::string_view service_name, spdlog::level::level_enum level)
 {
-    auto&                 ctx = state();
-    const std::lock_guard lock(ctx.mu);
+    auto&      ctx  = state();
+    const auto lock = std::lock_guard{ctx.mu};
     assert(!ctx.initialised && "LoggerFactory::init called more than once");
 
     const auto log_dir = std::filesystem::path("/var/log/orion") / service_name;
@@ -82,8 +83,8 @@ void LoggerFactory::init(std::string_view service_name, spdlog::level::level_enu
 void LoggerFactory::initForTest(std::shared_ptr<spdlog::sinks::sink> sink,
                                 spdlog::level::level_enum            level)
 {
-    auto&                 ctx = state();
-    const std::lock_guard lock(ctx.mu);
+    auto&      ctx  = state();
+    const auto lock = std::lock_guard{ctx.mu};
     assert(!ctx.initialised && "LoggerFactory::initForTest called more than once");
 
     sink->set_pattern(LOG_PATTERN);
@@ -94,8 +95,8 @@ void LoggerFactory::initForTest(std::shared_ptr<spdlog::sinks::sink> sink,
 
 auto LoggerFactory::get(std::string_view name) -> std::shared_ptr<spdlog::logger>
 {
-    auto&                 ctx = state();
-    const std::lock_guard lock(ctx.mu);
+    auto&      ctx  = state();
+    const auto lock = std::lock_guard{ctx.mu};
     if (!ctx.initialised)
     {
         (void)std::fputs("LoggerFactory::get called before init\n", stderr);
@@ -116,9 +117,9 @@ auto LoggerFactory::get(std::string_view name) -> std::shared_ptr<spdlog::logger
 
 void LoggerFactory::setLevel(spdlog::level::level_enum level)
 {
-    auto&                 ctx = state();
-    const std::lock_guard lock(ctx.mu);
-    ctx.level = level;
+    auto&      ctx  = state();
+    const auto lock = std::lock_guard{ctx.mu};
+    ctx.level       = level;
     for (auto& [_, logger] : ctx.loggers)
     {
         logger->set_level(level);
@@ -127,8 +128,8 @@ void LoggerFactory::setLevel(spdlog::level::level_enum level)
 
 void LoggerFactory::flush()
 {
-    auto&                 ctx = state();
-    const std::lock_guard lock(ctx.mu);
+    auto&      ctx  = state();
+    const auto lock = std::lock_guard{ctx.mu};
     for (auto& [_, logger] : ctx.loggers)
     {
         logger->flush();
@@ -137,8 +138,8 @@ void LoggerFactory::flush()
 
 void LoggerFactory::shutdown()
 {
-    auto&                 ctx = state();
-    const std::lock_guard lock(ctx.mu);
+    auto&      ctx  = state();
+    const auto lock = std::lock_guard{ctx.mu};
     ctx.loggers.clear();
     ctx.sinks.clear();
     ctx.initialised = false;

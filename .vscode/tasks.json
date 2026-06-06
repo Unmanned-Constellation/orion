@@ -53,9 +53,9 @@
     },
     {
       "label": "CMake: Configure",
-      "detail": "Run cmake --preset for the selected build type",
+      "detail": "Install Conan deps for the selected preset then run cmake --preset",
       "type": "shell",
-      "command": "/usr/bin/cmake --preset ${input:buildType} --no-warn-unused-cli",
+      "command": "bash scripts/environment/conan_install_preset.sh ${input:buildType} && /usr/bin/cmake --preset ${input:buildType} --no-warn-unused-cli",
       "presentation": {
         "reveal": "always",
         "panel": "shared"
@@ -63,9 +63,9 @@
     },
     {
       "label": "CMake: Build All",
-      "detail": "Configure and build all targets for the selected build type",
+      "detail": "Install Conan deps, configure, and build all targets for the selected build type",
       "type": "shell",
-      "command": "/usr/bin/cmake --preset ${input:buildType} --no-warn-unused-cli && /usr/bin/cmake --build --preset ${input:buildType}",
+      "command": "bash scripts/environment/conan_install_preset.sh ${input:buildType} && /usr/bin/cmake --preset ${input:buildType} --no-warn-unused-cli && /usr/bin/cmake --build --preset ${input:buildType}",
       "group": {
         "kind": "build",
         "isDefault": true
@@ -77,9 +77,9 @@
     },
     {
       "label": "CMake: Build Target...",
-      "detail": "Configure then build a single named CMake target",
+      "detail": "Install Conan deps, configure, then build a single named CMake target",
       "type": "shell",
-      "command": "/usr/bin/cmake --preset ${input:buildType} --no-warn-unused-cli && /usr/bin/cmake --build --preset ${input:buildType} --target ${input:cmakeTarget}",
+      "command": "bash scripts/environment/conan_install_preset.sh ${input:buildType} && /usr/bin/cmake --preset ${input:buildType} --no-warn-unused-cli && /usr/bin/cmake --build --preset ${input:buildType} --target ${input:cmakeTarget}",
       "group": {
         "kind": "build"
       },
