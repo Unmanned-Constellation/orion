@@ -53,9 +53,9 @@ class LoggerFactory
     /// @brief Tear down the factory and drop all loggers. Used by tests.
     static void shutdown();
 
-    LoggerFactory()                                = delete;
-    LoggerFactory(const LoggerFactory&)            = delete;
-    LoggerFactory& operator=(const LoggerFactory&) = delete;
+    LoggerFactory()                                        = delete;
+    LoggerFactory(const LoggerFactory&)                    = delete;
+    auto operator=(const LoggerFactory&) -> LoggerFactory& = delete;
 };
 
 } // namespace orion::app
