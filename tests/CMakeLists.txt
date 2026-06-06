@@ -6,6 +6,7 @@ add_executable(
     clock_test.cpp
     crash_handler_test.cpp
     frame_scheduler_test.cpp
+    logger_factory_test.cpp
     shutdown_latch_test.cpp
     transport_test.cpp
 )

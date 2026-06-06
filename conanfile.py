@@ -13,6 +13,7 @@ class OrionConan(ConanFile):
         self.requires("zenoh-cpp/1.9.0")
         self.requires("abseil/20240722.0", force=True)
         self.requires("backward-cpp/1.6", options={"stack_details": "dw"})
+        self.requires("spdlog/1.17.0")
 
     def build_requirements(self):
         self.tool_requires("protobuf/5.29.3")
