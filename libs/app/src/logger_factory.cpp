@@ -2,6 +2,8 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <memory>
 #include <mutex>
@@ -94,7 +96,11 @@ auto LoggerFactory::get(std::string_view name) -> std::shared_ptr<spdlog::logger
 {
     auto&                 ctx = state();
     const std::lock_guard lock(ctx.mu);
-    assert(ctx.initialised && "LoggerFactory::get called before init");
+    if (!ctx.initialised)
+    {
+        (void)std::fputs("LoggerFactory::get called before init\n", stderr);
+        std::abort();
+    }
 
     auto key = std::string(name);
     auto pos = ctx.loggers.find(key);
