@@ -89,8 +89,8 @@ class ManualClock final : public TimeSource
     ~ManualClock() override
     {
         {
-            std::lock_guard lock(mu_);
-            stopped_ = true;
+            auto lock = std::lock_guard{mu_};
+            stopped_  = true;
         }
         cv_.notify_all();
     }
@@ -103,14 +103,14 @@ class ManualClock final : public TimeSource
     /// @copydoc TimeSource::nowNs
     [[nodiscard]] auto nowNs() const -> uint64_t override
     {
-        std::lock_guard lock(mu_);
+        auto lock = std::lock_guard{mu_};
         return now_ns_;
     }
 
     /// @copydoc TimeSource::sleepUntil
     void sleepUntil(uint64_t target_ns) override
     {
-        std::unique_lock lock(mu_);
+        auto lock = std::unique_lock{mu_};
         cv_.wait(lock, [&] { return stopped_ || now_ns_ >= target_ns; });
     }
 
@@ -119,7 +119,7 @@ class ManualClock final : public TimeSource
     void advance(uint64_t delta_ns)
     {
         {
-            std::lock_guard lock(mu_);
+            auto lock = std::lock_guard{mu_};
             now_ns_ += delta_ns;
         }
         cv_.notify_all();
@@ -132,8 +132,8 @@ class ManualClock final : public TimeSource
     void wake()
     {
         {
-            std::lock_guard lock(mu_);
-            stopped_ = true;
+            auto lock = std::lock_guard{mu_};
+            stopped_  = true;
         }
         cv_.notify_all();
     }
@@ -144,7 +144,7 @@ class ManualClock final : public TimeSource
     void setNow(uint64_t now_ns)
     {
         {
-            std::lock_guard lock(mu_);
+            auto lock = std::lock_guard{mu_};
             if (now_ns < now_ns_)
             {
                 throw std::invalid_argument("ManualClock::setNow: time cannot go backwards");
@@ -256,10 +256,6 @@ class SimClock final : public TimeSource
 /// broadcasts a new SimTimeUpdate. sleepUntil() blocks until update() advances past
 /// the target — identical condvar pattern to ManualClock.
 ///
-/// Phase 2 stub — nowNs() and sleepUntil() throw std::logic_error until Phase 3.
-/// update() and the constructor are structurally correct so Phase 3 is an in-place
-/// fill-in with no architectural changes.
-///
 /// @see ADR-0009
 class CoordinatedClock final : public TimeSource
 {
@@ -269,33 +265,72 @@ class CoordinatedClock final : public TimeSource
     auto operator=(const CoordinatedClock&) -> CoordinatedClock& = delete;
     CoordinatedClock(CoordinatedClock&&)                         = delete;
     auto operator=(CoordinatedClock&&) -> CoordinatedClock&      = delete;
-    ~CoordinatedClock() override                                 = default;
+
+    ~CoordinatedClock() override { wake(); }
+
+    /// Unblocks all sleepUntil waiters without advancing time.
+    ///
+    /// Call before joining any thread blocked in sleepUntil so the thread can
+    /// exit cleanly before the clock is destroyed. The destructor calls this
+    /// automatically, but callers must ensure all waiters have returned before
+    /// the clock's lifetime ends.
+    void wake()
+    {
+        {
+            auto lock = std::lock_guard{mu_};
+            stopped_  = true;
+        }
+        cv_.notify_all();
+    }
 
     /// Advances the clock to sim_time_ns and unblocks any sleepUntil waiters.
     /// Called by the service's SimTimeUpdate subscriber callback.
+    /// Silently drops updates where sim_time_ns is less than the current time.
     /// @param sim_time_ns  New simulated time, nanoseconds since the Unix epoch.
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void update(uint64_t sim_time_ns)
     {
-        (void)sim_time_ns;
-        throw std::logic_error("CoordinatedClock not yet implemented");
+        {
+            auto lock = std::lock_guard{mu_};
+            if (initialized_ && sim_time_ns < now_ns_)
+            {
+                return;
+            }
+            now_ns_      = sim_time_ns;
+            initialized_ = true;
+        }
+        cv_.notify_all();
     }
 
     /// @copydoc TimeSource::nowNs
-    /// @throws std::logic_error always — not yet implemented.
+    /// @throws std::logic_error if called before the first update().
     [[nodiscard]] auto nowNs() const -> uint64_t override
     {
-        throw std::logic_error("CoordinatedClock not yet implemented");
+        auto lock = std::lock_guard{mu_};
+        if (!initialized_)
+        {
+            throw std::logic_error("CoordinatedClock: nowNs() called before first update()");
+        }
+        return now_ns_;
     }
 
     /// @copydoc TimeSource::sleepUntil
-    /// @throws std::logic_error always — not yet implemented.
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void sleepUntil(uint64_t target_ns) override
     {
-        (void)target_ns;
-        throw std::logic_error("CoordinatedClock not yet implemented");
+        auto lock = std::unique_lock{mu_};
+        cv_.wait(lock, [&] { return stopped_ || (initialized_ && now_ns_ >= target_ns); });
     }
+
+  private:
+    /// @brief Guards now_ns_, stopped_, and initialized_.
+    mutable std::mutex mu_;
+    /// @brief Notified by update() and wake(); waited on by sleepUntil().
+    std::condition_variable cv_;
+    /// @brief Current simulated time in nanoseconds since the Unix epoch.
+    uint64_t now_ns_{};
+    /// @brief Set by wake() and the destructor to unblock all sleepUntil() waiters.
+    bool stopped_{false};
+    /// @brief False until the first update() call; guards nowNs() from throwing.
+    bool initialized_{false};
 };
 
 } // namespace orion::clock

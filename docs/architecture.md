@@ -35,11 +35,12 @@ flowchart LR
         orion_proto["orion_proto<br/>(STATIC)"]:::staticLib
         orion_app["orion_app<br/>(STATIC)"]:::staticLib
         orion_transport["orion_transport<br/>(SHARED)"]:::sharedLib
+        orion_clock_service["orion_clock_service<br/>(STATIC)"]:::staticLib
     end
 
     subgraph Executables ["Executables"]
         orion_tests{{"orion_tests"}}:::executable
-        clock_service{{"clock_service (M3)"}}:::planned
+        clock_service{{"clock_service"}}:::executable
     end
 
     %% External to Module Edges
@@ -63,8 +64,10 @@ flowchart LR
     orion_proto     --> orion_tests
     gtest           --> orion_tests
 
-    orion_transport -.-> clock_service
-    orion_proto     -.-> clock_service
+    orion_app            --> orion_clock_service
+    orion_transport      --> orion_clock_service
+    orion_proto          --> orion_clock_service
+    orion_clock_service  --> clock_service
 ```
 
 ① `zenoh-c` and `zenoh-cpp` are not in ConanCenter. They are maintained as
@@ -86,6 +89,7 @@ present on the Jetson deployment sysroot.
 | `orion_proto` | STATIC | Compiled protobuf message bindings for all `.proto` files under `proto/orion/v1/`. |
 | `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`, `LoggerFactory`. Depends on `orion_clock` + `backward-cpp` + `spdlog`. |
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
+| `orion_clock_service` | STATIC | `ClockService` — publishes `SimTimeUpdate` at `FrameScheduler` tick rate, backed by `SimClock`. Depends on `orion_app` + `orion_transport` + `orion_proto`. |
 
 ---
 
@@ -132,5 +136,5 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 |---|---|---|---|
 | Baseline | Done | `orion_clock`, `orion_proto`, `orion_app`, `orion_transport` | protobuf, zenoh-c, zenoh-cpp, abseil, gtest |
 | M1 - Core Runtime | Done | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
-| M2 - Observability | In progress | `CrashHandler` ✓; `LoggerFactory` ✓ in `orion_app` | backward-cpp ✓, libdw ✓, spdlog ✓ |
-| M3 - Simulation | Planned | `CoordinatedClock` Phase 3 full implementation; Clock Service publisher | none |
+| M2 - Observability | Done | `CrashHandler`, `LoggerFactory` in `orion_app` | backward-cpp, libdw, spdlog |
+| M3 - Simulation | Done | `CoordinatedClock` Phase 3; `orion_clock_service` + `clock_service` executable | none |

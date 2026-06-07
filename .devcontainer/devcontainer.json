@@ -49,6 +49,7 @@
           "editor.tabSize": 4,
           "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
         },
+        "editor.inlayHints.enabled": "off",
         "clangd.path": "/usr/bin/clangd",
         "clangd.arguments": [
           "--background-index",
