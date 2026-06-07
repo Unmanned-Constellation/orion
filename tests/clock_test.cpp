@@ -19,18 +19,18 @@ using orion::clock::WallClock;
 
 TEST(WallClockTest, NowNsIsMonotonic)
 {
-    const WallClock clock;
-    const uint64_t  first  = clock.nowNs();
-    const uint64_t  second = clock.nowNs();
+    const auto clock  = WallClock{};
+    const auto first  = clock.nowNs();
+    const auto second = clock.nowNs();
     EXPECT_GE(second, first);
 }
 
 TEST(WallClockTest, NowNsMatchesSystemClock)
 {
-    const WallClock clock;
-    const auto      before = std::chrono::system_clock::now();
-    const uint64_t  now_ns = clock.nowNs();
-    const auto      after  = std::chrono::system_clock::now();
+    const auto clock  = WallClock{};
+    const auto before = std::chrono::system_clock::now();
+    const auto now_ns = clock.nowNs();
+    const auto after  = std::chrono::system_clock::now();
 
     const auto before_ns = static_cast<uint64_t>(
         std::chrono::duration_cast<std::chrono::nanoseconds>(before.time_since_epoch()).count());
@@ -43,9 +43,9 @@ TEST(WallClockTest, NowNsMatchesSystemClock)
 
 TEST(WallClockTest, SleepUntilPastTargetReturnsImmediately)
 {
-    auto           clock   = WallClock{};
-    const uint64_t past_ns = clock.nowNs() - 1'000'000; // 1 ms in the past
-    const auto     start   = std::chrono::steady_clock::now();
+    auto       clock   = WallClock{};
+    const auto past_ns = clock.nowNs() - 1'000'000; // 1 ms in the past
+    const auto start   = std::chrono::steady_clock::now();
     clock.sleepUntil(past_ns);
     const auto elapsed = std::chrono::steady_clock::now() - start;
     EXPECT_LT(elapsed, std::chrono::milliseconds{5});
@@ -53,8 +53,8 @@ TEST(WallClockTest, SleepUntilPastTargetReturnsImmediately)
 
 TEST(WallClockTest, SleepUntilFutureTargetWakesAtOrAfterTarget)
 {
-    auto           clock     = WallClock{};
-    const uint64_t target_ns = clock.nowNs() + 20'000'000; // 20 ms ahead
+    auto       clock     = WallClock{};
+    const auto target_ns = clock.nowNs() + 20'000'000; // 20 ms ahead
     clock.sleepUntil(target_ns);
     EXPECT_GE(clock.nowNs(), target_ns);
 }
@@ -63,13 +63,13 @@ TEST(WallClockTest, SleepUntilFutureTargetWakesAtOrAfterTarget)
 
 TEST(ManualClockTest, InitialNowNsMatchesConstructorArg)
 {
-    const ManualClock clock(42'000);
+    const auto clock = ManualClock{42'000};
     EXPECT_EQ(clock.nowNs(), 42'000U);
 }
 
 TEST(ManualClockTest, DefaultInitialTimeIsZero)
 {
-    const ManualClock clock;
+    const auto clock = ManualClock{};
     EXPECT_EQ(clock.nowNs(), 0U);
 }
 
@@ -99,11 +99,11 @@ TEST(ManualClockTest, WakeUnblocksSleeperWithoutAdvancingTime)
 {
     auto clock = ManualClock{0};
 
-    bool        woken = false;
-    std::thread waiter([&] {
+    auto woken  = false;
+    auto waiter = std::thread{[&] {
         clock.sleepUntil(999'999'999); // far future
         woken = true;
-    });
+    }};
 
     std::this_thread::sleep_for(std::chrono::milliseconds{10});
     EXPECT_FALSE(woken);
@@ -127,11 +127,11 @@ TEST(ManualClockTest, SleepUntilBlocksUntilAdvanced)
 {
     auto clock = ManualClock{0};
 
-    bool        woken = false;
-    std::thread waiter([&] {
+    auto woken  = false;
+    auto waiter = std::thread{[&] {
         clock.sleepUntil(1'000);
         woken = true;
-    });
+    }};
 
     std::this_thread::sleep_for(std::chrono::milliseconds{10});
     EXPECT_FALSE(woken);
@@ -145,11 +145,11 @@ TEST(ManualClockTest, SleepUntilBlocksUntilSetNow)
 {
     auto clock = ManualClock{0};
 
-    bool        woken = false;
-    std::thread waiter([&] {
+    auto woken  = false;
+    auto waiter = std::thread{[&] {
         clock.sleepUntil(5'000);
         woken = true;
-    });
+    }};
 
     std::this_thread::sleep_for(std::chrono::milliseconds{10});
     EXPECT_FALSE(woken);
@@ -166,46 +166,122 @@ TEST(CoordinatedClockTest, DefaultConstructs)
     EXPECT_NO_THROW(CoordinatedClock clock); // NOLINT(misc-const-correctness)
 }
 
-TEST(CoordinatedClockTest, UpdateThrowsLogicError)
+TEST(CoordinatedClockTest, NowNsReturnsValueAfterUpdate)
 {
     auto clock = CoordinatedClock{};
-    EXPECT_THROW(clock.update(0), std::logic_error);
+    clock.update(42'000);
+    EXPECT_EQ(clock.nowNs(), 42'000U);
 }
 
-TEST(CoordinatedClockTest, NowNsThrowsLogicError)
+TEST(CoordinatedClockTest, NowNsThrowsBeforeFirstUpdate)
 {
-    const CoordinatedClock clock;
+    const auto clock = CoordinatedClock{};
     EXPECT_THROW({ (void)clock.nowNs(); }, std::logic_error);
 }
 
-TEST(CoordinatedClockTest, SleepUntilThrowsLogicError)
+TEST(CoordinatedClockTest, UpdateDropsBackwardsTime)
 {
     auto clock = CoordinatedClock{};
-    EXPECT_THROW(clock.sleepUntil(0), std::logic_error);
+    clock.update(1'000);
+    clock.update(500); // backwards — should be silently dropped
+    EXPECT_EQ(clock.nowNs(), 1'000U);
+}
+
+TEST(CoordinatedClockTest, SleepUntilReturnsImmediatelyWhenAlreadyPast)
+{
+    auto clock = CoordinatedClock{};
+    clock.update(1'000);
+    const auto start = std::chrono::steady_clock::now();
+    clock.sleepUntil(500); // target is in the past
+    const auto elapsed = std::chrono::steady_clock::now() - start;
+    EXPECT_LT(elapsed, std::chrono::milliseconds{5});
+}
+
+TEST(CoordinatedClockTest, SleepUntilBlocksUntilUpdate)
+{
+    auto clock = CoordinatedClock{};
+
+    auto woken  = false;
+    auto waiter = std::thread{[&] {
+        clock.sleepUntil(1'000);
+        woken = true;
+    }};
+
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    EXPECT_FALSE(woken);
+
+    clock.update(1'000);
+    waiter.join();
+    EXPECT_TRUE(woken);
+}
+
+TEST(CoordinatedClockTest, WakeUnblocksWaiters)
+{
+    auto clock = CoordinatedClock{};
+
+    auto woken  = false;
+    auto waiter = std::thread{[&] {
+        clock.sleepUntil(999'999'999);
+        woken = true;
+    }};
+
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    EXPECT_FALSE(woken);
+
+    clock.wake();
+    waiter.join();
+    EXPECT_TRUE(woken);
+}
+
+TEST(CoordinatedClockTest, MultipleWaitersAllWakeOnUpdate)
+{
+    auto          clock       = CoordinatedClock{};
+    constexpr int num_waiters = 4;
+    auto          woken       = std::atomic<int>{0};
+
+    auto threads = std::vector<std::thread>{};
+    threads.reserve(num_waiters);
+    for (int i = 0; i < num_waiters; ++i)
+    {
+        threads.emplace_back([&] {
+            clock.sleepUntil(500);
+            ++woken;
+        });
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    EXPECT_EQ(woken.load(), 0);
+
+    clock.update(500);
+    for (auto& thr : threads)
+    {
+        thr.join();
+    }
+    EXPECT_EQ(woken.load(), num_waiters);
 }
 
 // --- SimClock ---
 
 TEST(SimClockTest, ZeroScaleThrows)
 {
-    EXPECT_THROW({ const SimClock clock(0.0); }, std::invalid_argument);
+    EXPECT_THROW({ const auto clock = SimClock{0.0}; }, std::invalid_argument);
 }
 
 TEST(SimClockTest, NegativeScaleThrows)
 {
-    EXPECT_THROW({ const SimClock clock(-1.0); }, std::invalid_argument);
+    EXPECT_THROW({ const auto clock = SimClock{-1.0}; }, std::invalid_argument);
 }
 
 TEST(SimClockTest, NaNScaleThrows)
 {
-    const double nan_val = std::numeric_limits<double>::quiet_NaN();
-    EXPECT_THROW({ const SimClock clock(nan_val); }, std::invalid_argument);
+    const auto nan_val = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_THROW({ const auto clock = SimClock{nan_val}; }, std::invalid_argument);
 }
 
 TEST(SimClockTest, InfScaleThrows)
 {
-    const double inf_val = std::numeric_limits<double>::infinity();
-    EXPECT_THROW({ const SimClock clock(inf_val); }, std::invalid_argument);
+    const auto inf_val = std::numeric_limits<double>::infinity();
+    EXPECT_THROW({ const auto clock = SimClock{inf_val}; }, std::invalid_argument);
 }
 
 TEST(SimClockTest, SingleArgConstructorNowNsNearWallTime)
@@ -214,8 +290,8 @@ TEST(SimClockTest, SingleArgConstructorNowNsNearWallTime)
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                   std::chrono::system_clock::now().time_since_epoch())
                                   .count());
-    const SimClock clock(1.0);
-    const auto     after_ns =
+    const auto clock = SimClock{1.0};
+    const auto after_ns =
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                   std::chrono::system_clock::now().time_since_epoch())
                                   .count());
@@ -227,13 +303,13 @@ TEST(SimClockTest, SingleArgConstructorNowNsNearWallTime)
 TEST(SimClockTest, AnchoredNowNsMatchesSimStartAtConstruction)
 {
     constexpr uint64_t sim_start = 1'000'000'000ULL; // 1 s
-    const SimClock     clock(1.0, sim_start);
+    const auto         clock     = SimClock{1.0, sim_start};
     EXPECT_NEAR(static_cast<double>(clock.nowNs()), static_cast<double>(sim_start), 5e6);
 }
 
 TEST(SimClockTest, NowNsAdvancesAtScaledRate)
 {
-    const SimClock clock(2.0, 0);
+    const auto clock = SimClock{2.0, 0};
     std::this_thread::sleep_for(std::chrono::milliseconds{20});
     constexpr uint64_t expected_ns = 40'000'000ULL; // 40 ms at 2×
     constexpr uint64_t tolerance   = 10'000'000ULL; // ±10 ms
@@ -244,9 +320,9 @@ TEST(SimClockTest, NowNsAdvancesAtScaledRate)
 
 TEST(SimClockTest, NowNsIsMonotonic)
 {
-    const SimClock clock(1.0, 0);
-    const uint64_t first  = clock.nowNs();
-    const uint64_t second = clock.nowNs();
+    const auto clock  = SimClock{1.0, 0};
+    const auto first  = clock.nowNs();
+    const auto second = clock.nowNs();
     EXPECT_GE(second, first);
 }
 
@@ -293,11 +369,11 @@ TEST(ManualClockTest, SleepUntilAfterWakeReturnsImmediately)
 
 TEST(ManualClockTest, MultipleWaitersAllWakeOnAdvance)
 {
-    auto             clock       = ManualClock{0};
-    constexpr int    num_waiters = 4;
-    std::atomic<int> woken{0};
+    auto          clock       = ManualClock{0};
+    constexpr int num_waiters = 4;
+    auto          woken       = std::atomic<int>{0};
 
-    std::vector<std::thread> threads;
+    auto threads = std::vector<std::thread>{};
     threads.reserve(num_waiters);
     for (int i = 0; i < num_waiters; ++i)
     {
