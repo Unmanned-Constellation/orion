@@ -78,6 +78,7 @@ The third segment of a per-vehicle topic path. Groups related topics and enables
 | `control` | Actuator commands, flight mode                   |
 | `nav`     | Navigation state - position, velocity, attitude  |
 | `system`  | Health, diagnostics, service status              |
+| `clock`   | Simulation time infrastructure — `SimTimeUpdate` broadcasts |
 
 ---
 

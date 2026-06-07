@@ -4,6 +4,7 @@ include(GoogleTest)
 add_executable(
     orion_tests
     clock_test.cpp
+    clock_service_test.cpp
     crash_handler_test.cpp
     frame_scheduler_test.cpp
     logger_factory_test.cpp
@@ -13,7 +14,13 @@ add_executable(
 
 target_link_libraries(
     orion_tests
-    PRIVATE GTest::gmock_main orion_app orion_clock orion_transport orion_proto
+    PRIVATE
+        GTest::gmock_main
+        orion_app
+        orion_clock
+        orion_clock_service
+        orion_transport
+        orion_proto
 )
 
 target_compile_features(orion_tests PRIVATE cxx_std_20)

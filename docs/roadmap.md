@@ -63,6 +63,24 @@ runtime at arbitrary speeds.
 
 ---
 
+## M3.5 — Service Infrastructure ⏳
+
+**Status:** Deferred — architecture decided, implementation not yet scheduled
+
+Cross-cutting infrastructure that every microservice needs before deployment to
+hardware. Benchmarking validates the transport; CLI11 replaces the hand-rolled
+config stopgap in `clock_service` and establishes the pattern for all future
+services.
+
+| ADR | Description |
+|-----|-------------|
+| [ADR-0018](adr/0018-benchmarking-infrastructure.md) | Google Benchmark harness, same-process Zenoh latency and throughput |
+| [ADR-0019](adr/0019-cli-and-env-config.md) | CLI11 for argument and env var parsing; `orion_main` shared config library |
+
+---
+
+## M4 — Gimbal Subsystem 🔄
+
 ## M4 — Gimbal Subsystem 🔄
 
 **Status:** In progress (not yet on a GitHub milestone)  

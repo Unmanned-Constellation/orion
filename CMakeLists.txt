@@ -57,6 +57,7 @@ add_subdirectory(proto)
 add_subdirectory(libs/clock)
 add_subdirectory(libs/app)
 add_subdirectory(libs/transport)
+add_subdirectory(services/clock_service)
 
 enable_testing()
 add_subdirectory(tests)

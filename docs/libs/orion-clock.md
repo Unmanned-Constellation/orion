@@ -194,9 +194,6 @@ All services sharing a `CoordinatedClock` advance in lockstep when the Clock
 Service broadcasts a new timestamp. `sleepUntil` blocks on a condition variable
 until `update()` advances past the target - identical pattern to `ManualClock`.
 
-**Phase 2 stub:** `nowNs()` and `sleepUntil()` throw `std::logic_error` until
-Phase 3 is implemented. `update()` and the constructor compile correctly.
-
 ```cpp
 auto clock = std::make_shared<orion::clock::CoordinatedClock>();
 
@@ -210,9 +207,10 @@ auto sub = session.subscribe<orion::v1::SimTimeUpdate>(
 
 | Method | Description |
 |---|---|
-| `void update(uint64_t sim_time_ns)` | Advance clock to `sim_time_ns` and wake all `sleepUntil` waiters. |
-| `uint64_t nowNs() const` | Returns current sim time (Phase 3). |
-| `void sleepUntil(uint64_t target_ns)` | Blocks until `update()` advances past `target_ns` (Phase 3). |
+| `void update(uint64_t sim_time_ns)` | Advance clock to `sim_time_ns` and wake all `sleepUntil` waiters. Silently drops backwards updates. |
+| `uint64_t nowNs() const` | Returns current sim time. Throws `std::logic_error` if called before the first `update()`. |
+| `void sleepUntil(uint64_t target_ns)` | Blocks until `update()` advances past `target_ns`, or `wake()` is called, or the clock is destroyed. |
+| `void wake()` | Unblocks all `sleepUntil` callers immediately without advancing time. Call before joining any thread blocked in `sleepUntil`. The destructor calls this automatically. |
 
 ---
 
