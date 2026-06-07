@@ -166,22 +166,98 @@ TEST(CoordinatedClockTest, DefaultConstructs)
     EXPECT_NO_THROW(CoordinatedClock clock); // NOLINT(misc-const-correctness)
 }
 
-TEST(CoordinatedClockTest, UpdateThrowsLogicError)
+TEST(CoordinatedClockTest, NowNsReturnsValueAfterUpdate)
 {
     auto clock = CoordinatedClock{};
-    EXPECT_THROW(clock.update(0), std::logic_error);
+    clock.update(42'000);
+    EXPECT_EQ(clock.nowNs(), 42'000U);
 }
 
-TEST(CoordinatedClockTest, NowNsThrowsLogicError)
+TEST(CoordinatedClockTest, NowNsThrowsBeforeFirstUpdate)
 {
-    const CoordinatedClock clock;
+    const auto clock = CoordinatedClock{};
     EXPECT_THROW({ (void)clock.nowNs(); }, std::logic_error);
 }
 
-TEST(CoordinatedClockTest, SleepUntilThrowsLogicError)
+TEST(CoordinatedClockTest, UpdateDropsBackwardsTime)
 {
     auto clock = CoordinatedClock{};
-    EXPECT_THROW(clock.sleepUntil(0), std::logic_error);
+    clock.update(1'000);
+    clock.update(500); // backwards — should be silently dropped
+    EXPECT_EQ(clock.nowNs(), 1'000U);
+}
+
+TEST(CoordinatedClockTest, SleepUntilReturnsImmediatelyWhenAlreadyPast)
+{
+    auto clock = CoordinatedClock{};
+    clock.update(1'000);
+    const auto start = std::chrono::steady_clock::now();
+    clock.sleepUntil(500); // target is in the past
+    const auto elapsed = std::chrono::steady_clock::now() - start;
+    EXPECT_LT(elapsed, std::chrono::milliseconds{5});
+}
+
+TEST(CoordinatedClockTest, SleepUntilBlocksUntilUpdate)
+{
+    auto clock = CoordinatedClock{};
+
+    auto        woken = false;
+    std::thread waiter([&] {
+        clock.sleepUntil(1'000);
+        woken = true;
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    EXPECT_FALSE(woken);
+
+    clock.update(1'000);
+    waiter.join();
+    EXPECT_TRUE(woken);
+}
+
+TEST(CoordinatedClockTest, DestructorUnblocksWaiters)
+{
+    auto clock = std::make_unique<CoordinatedClock>();
+
+    auto        woken = false;
+    std::thread waiter([&] {
+        clock->sleepUntil(999'999'999);
+        woken = true;
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    EXPECT_FALSE(woken);
+
+    clock.reset(); // destroy the clock — waiter must unblock
+    waiter.join();
+    EXPECT_TRUE(woken);
+}
+
+TEST(CoordinatedClockTest, MultipleWaitersAllWakeOnUpdate)
+{
+    auto             clock       = CoordinatedClock{};
+    constexpr int    num_waiters = 4;
+    std::atomic<int> woken{0};
+
+    std::vector<std::thread> threads;
+    threads.reserve(num_waiters);
+    for (int i = 0; i < num_waiters; ++i)
+    {
+        threads.emplace_back([&] {
+            clock.sleepUntil(500);
+            ++woken;
+        });
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    EXPECT_EQ(woken.load(), 0);
+
+    clock.update(500);
+    for (auto& thr : threads)
+    {
+        thr.join();
+    }
+    EXPECT_EQ(woken.load(), num_waiters);
 }
 
 // --- SimClock ---

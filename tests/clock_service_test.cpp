@@ -1,0 +1,190 @@
+#include <atomic>
+#include <chrono>
+#include <memory>
+#include <string>
+#include <thread>
+
+#include <gtest/gtest.h>
+
+#include "fake_transport.hpp"
+#include "orion/app/clock_service.hpp"
+#include "orion/app/frame_scheduler.hpp"
+#include "orion/app/shutdown_latch.hpp"
+#include "orion/clock/clock.hpp"
+#include "orion/transport/publisher.hpp"
+#include "orion/transport/session.hpp"
+#include "orion/v1/envelope.pb.h"
+#include "orion/v1/sim_time_update.pb.h"
+
+using orion::app::ClockService;
+using orion::app::FrameScheduler;
+using orion::app::ShutdownLatch;
+using orion::clock::ManualClock;
+using orion::transport::Publisher;
+using orion::transport::test::FakePublisherBackend;
+
+namespace
+{
+
+constexpr uint64_t PERIOD_NS = 10'000'000; // 100 Hz
+
+auto parseSimTimeUpdate(const std::string& bytes) -> orion::v1::SimTimeUpdate
+{
+    auto env = orion::v1::Envelope{};
+    env.ParseFromString(bytes);
+    auto msg = orion::v1::SimTimeUpdate{};
+    msg.ParseFromString(env.payload());
+    return msg;
+}
+
+struct ClockServiceFixture
+{
+    FakePublisherBackend*        fake_ptr{nullptr};
+    std::shared_ptr<ManualClock> clock{std::make_shared<ManualClock>(0)};
+    ShutdownLatch                latch;
+    FrameScheduler               scheduler{100.0, clock, &latch};
+
+    auto makeService(double scale) -> ClockService
+    {
+        auto fake      = std::make_unique<FakePublisherBackend>();
+        fake_ptr       = fake.get();
+        auto publisher = Publisher<orion::v1::SimTimeUpdate>{std::move(fake), "clock-service"};
+        return ClockService{scale, std::move(publisher), scheduler};
+    }
+};
+
+} // namespace
+
+TEST(ClockServiceTest, NothingPublishedBeforeFirstTick)
+{
+    auto fix = ClockServiceFixture{};
+    auto svc = fix.makeService(1.0); // NOLINT(misc-const-correctness)
+    EXPECT_EQ(fix.fake_ptr->sentCount(), 0U);
+}
+
+TEST(ClockServiceTest, PublishesOneMessagePerTick)
+{
+    auto fix = ClockServiceFixture{};
+    auto svc = fix.makeService(1.0); // NOLINT(misc-const-correctness)
+
+    std::thread runner([&] { fix.scheduler.run(); });
+
+    fix.clock->advance(PERIOD_NS);
+    for (int i = 0; i < 100 && fix.fake_ptr->sentCount() < 1; ++i)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{1});
+    }
+    EXPECT_EQ(fix.fake_ptr->sentCount(), 1U);
+
+    fix.latch.stop();
+    fix.clock->wake();
+    runner.join();
+}
+
+TEST(ClockServiceTest, PublishedTimeIsMonotonic)
+{
+    auto fix = ClockServiceFixture{};
+    auto svc = fix.makeService(1.0); // NOLINT(misc-const-correctness)
+
+    std::thread runner([&] { fix.scheduler.run(); });
+
+    for (int i = 0; i < 3; ++i)
+    {
+        fix.clock->advance(PERIOD_NS);
+        for (int j = 0; j < 100 && fix.fake_ptr->sentCount() < i + 1; ++j)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds{1});
+        }
+    }
+
+    fix.latch.stop();
+    fix.clock->wake();
+    runner.join();
+
+    const auto& sent = fix.fake_ptr->sent();
+    ASSERT_EQ(sent.size(), 3U);
+
+    auto time_0 = parseSimTimeUpdate(sent[0]).sim_time_ns();
+    auto time_1 = parseSimTimeUpdate(sent[1]).sim_time_ns();
+    auto time_2 = parseSimTimeUpdate(sent[2]).sim_time_ns();
+    EXPECT_GT(time_1, time_0);
+    EXPECT_GT(time_2, time_1);
+}
+
+TEST(ClockServiceTest, PublishedScaleMatchesConstructorArg)
+{
+    auto fix = ClockServiceFixture{};
+    auto svc = fix.makeService(4.0); // NOLINT(misc-const-correctness)
+
+    std::thread runner([&] { fix.scheduler.run(); });
+
+    fix.clock->advance(PERIOD_NS);
+    for (int i = 0; i < 100 && fix.fake_ptr->sentCount() < 1; ++i)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{1});
+    }
+
+    fix.latch.stop();
+    fix.clock->wake();
+    runner.join();
+
+    const auto msg = parseSimTimeUpdate(fix.fake_ptr->sent()[0]);
+    EXPECT_DOUBLE_EQ(msg.scale(), 4.0);
+}
+
+// ── Zenoh integration test ────────────────────────────────────────────────────
+// Verifies ClockService publishes SimTimeUpdate over a real Zenoh session.
+// Transport correctness is covered above — one roundtrip is enough here.
+
+namespace
+{
+
+auto waitForFlag(const std::atomic<bool>&  flag,
+                 std::chrono::milliseconds timeout = std::chrono::milliseconds{500}) -> bool
+{
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (!flag.load())
+    {
+        if (std::chrono::steady_clock::now() >= deadline)
+        {
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds{5});
+    }
+    return true;
+}
+
+} // namespace
+
+TEST(ClockServiceZenohTest, SimTimeUpdateArrivesOverWire)
+{
+    auto session = orion::transport::Session::create({
+        .vehicle_id   = "test",
+        .service_name = "clock-service",
+    });
+
+    auto received = std::atomic<bool>{false}; // NOLINT(misc-const-correctness)
+    auto got      = orion::v1::SimTimeUpdate{};
+
+    auto sub = session.subscribe<orion::v1::SimTimeUpdate>(
+        "orion/test/clock/sim_time",
+        [&](const orion::v1::SimTimeUpdate& msg, const orion::transport::MessageHeader& /*hdr*/) {
+            got = msg;
+            received.store(true);
+        });
+
+    auto latch     = orion::app::ShutdownLatch{};
+    auto clock     = std::make_shared<orion::clock::WallClock>();
+    auto scheduler = orion::app::FrameScheduler{100.0, clock, &latch};
+    auto svc       = orion::app::ClockService::create(
+        2.0, "test", session, scheduler); // NOLINT(misc-const-correctness)
+
+    std::thread runner([&] { scheduler.run(); });
+
+    ASSERT_TRUE(waitForFlag(received)) << "SimTimeUpdate did not arrive within timeout";
+    EXPECT_GT(got.sim_time_ns(), 0U);
+    EXPECT_DOUBLE_EQ(got.scale(), 2.0);
+
+    latch.stop();
+    runner.join();
+}
