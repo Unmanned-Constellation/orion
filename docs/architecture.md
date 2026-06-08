@@ -36,6 +36,7 @@ flowchart LR
         orion_app["orion_app<br/>(STATIC)"]:::staticLib
         orion_transport["orion_transport<br/>(SHARED)"]:::sharedLib
         orion_clock_service["orion_clock_service<br/>(STATIC)"]:::staticLib
+        orion_main["orion_main<br/>(STATIC)"]:::staticLib
     end
 
     subgraph Executables ["Executables"]
@@ -52,22 +53,26 @@ flowchart LR
     backwardcpp --> orion_app
     libdw       -.-> orion_app
     spdlog      --> orion_app
+    cli11(["cli11/2.6.2"]):::external --> orion_main
 
     %% Internal Module Edges
     orion_proto --> orion_transport
     orion_clock --> orion_app
+    orion_app   --> orion_main
 
     %% Executable Edges
     orion_clock     --> orion_tests
     orion_app       --> orion_tests
     orion_transport --> orion_tests
     orion_proto     --> orion_tests
+    orion_main      --> orion_tests
     gtest           --> orion_tests
 
     orion_app            --> orion_clock_service
     orion_transport      --> orion_clock_service
     orion_proto          --> orion_clock_service
     orion_clock_service  --> clock_service
+    orion_main           --> clock_service
 ```
 
 ① `zenoh-c` and `zenoh-cpp` are not in ConanCenter. They are maintained as
@@ -90,6 +95,7 @@ present on the Jetson deployment sysroot.
 | `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`, `LoggerFactory`. Depends on `orion_clock` + `backward-cpp` + `spdlog`. |
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
 | `orion_clock_service` | STATIC | `ClockService` — publishes `SimTimeUpdate` at `FrameScheduler` tick rate, backed by `SimClock`. Depends on `orion_app` + `orion_transport` + `orion_proto`. |
+| `orion_main` | STATIC | `ServiceConfig`, `addServiceConfig` — CLI11-backed arg/env parsing for service `main.cpp` files. Provides `--help` and `--version`. Linked by executables only; never by libraries. |
 
 ---
 
@@ -127,6 +133,7 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 | backward-cpp | 1.6 | ConanCenter | `orion_app` | Crash symbolization; `dw` backend — full DWARF (see ②) |
 | libdw | system | APT ② | `orion_app` | DWARF symbol resolution for backward-cpp |
 | spdlog | 1.17.0 | ConanCenter | `orion_app` | Async structured logging via `LoggerFactory` |
+| cli11 | 2.6.2 | ConanCenter | `orion_main` | Header-only CLI arg + env var parsing; MIT licence |
 
 ---
 

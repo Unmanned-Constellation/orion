@@ -8,6 +8,7 @@ add_executable(
     crash_handler_test.cpp
     frame_scheduler_test.cpp
     logger_factory_test.cpp
+    service_config_test.cpp
     shutdown_latch_test.cpp
     transport_test.cpp
 )
@@ -16,6 +17,7 @@ target_link_libraries(
     orion_tests
     PRIVATE
         GTest::gmock_main
+        orion_main
         orion_app
         orion_clock
         orion_clock_service

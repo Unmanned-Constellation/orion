@@ -47,5 +47,6 @@ api/library_root
 
 libs/orion-app
 libs/orion-clock
+libs/orion-main
 libs/orion-transport
 ```
