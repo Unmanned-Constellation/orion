@@ -12,7 +12,7 @@ Orion services are deployed as Docker containers on the Jetson Orin Nano. The
 | Docker Engine 24+ with Compose v2 | `docker compose` (not `docker-compose`) |
 | NVIDIA Container Toolkit | Required for GPU access inside containers — `sudo apt install nvidia-container-toolkit` |
 | JetPack 6.1+ | DeepStream 7.1 L4T base image requires the matching JetPack version |
-| TensorRT engine file | Generated once on the Nano from the Ultralytics weights — see [below](#generating-the-engine-file) |
+| TensorRT engine file | Generated once on the Nano from the Ultralytics weights — see *Generating the engine file* below |
 
 ---
 
@@ -147,9 +147,9 @@ Override the destination with `STREAM_HOST` and `STREAM_PORT` in `deploy/.env`.
 
 ## Generating the engine file
 
-See [orion-perception.md](libs/orion-perception.md#rt-detr-custom-parser) for
-the full export procedure and notes on verifying tensor layout after an
-Ultralytics version upgrade.
+See [orion-perception.md](libs/orion-perception.md) for the full export
+procedure and notes on verifying tensor layout after an Ultralytics version
+upgrade.
 
 ---
 
