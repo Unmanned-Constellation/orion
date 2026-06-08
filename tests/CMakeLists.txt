@@ -8,6 +8,7 @@ add_executable(
     crash_handler_test.cpp
     frame_scheduler_test.cpp
     logger_factory_test.cpp
+    perception_test.cpp
     service_config_test.cpp
     shutdown_latch_test.cpp
     transport_test.cpp
@@ -23,6 +24,7 @@ target_link_libraries(
         orion_clock_service
         orion_transport
         orion_proto
+        orion_perception
 )
 
 target_compile_features(orion_tests PRIVATE cxx_std_20)

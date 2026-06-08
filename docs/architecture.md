@@ -38,6 +38,8 @@ flowchart LR
         orion_transport["orion_transport<br/>(SHARED)"]:::sharedLib
         orion_clock_service["orion_clock_service<br/>(STATIC)"]:::staticLib
         orion_main["orion_main<br/>(STATIC)"]:::staticLib
+        orion_perception["orion_perception<br/>(STATIC)"]:::staticLib
+        rtdetr_parser["rtdetr_parser<br/>(SHARED, DEEPSTREAM=ON)"]:::sharedLib
     end
 
     subgraph Executables ["Executables"]
@@ -79,6 +81,12 @@ flowchart LR
     gbench          --> orion_benchmarks
     orion_transport --> orion_benchmarks
     orion_proto     --> orion_benchmarks
+
+    %% orion_perception
+    orion_proto          --> orion_perception
+    orion_transport      --> orion_perception
+    orion_perception     --> orion_tests
+    orion_perception     -.-> rtdetr_parser
 ```
 
 ① `zenoh-c` and `zenoh-cpp` are not in ConanCenter. They are maintained as
@@ -102,6 +110,8 @@ present on the Jetson deployment sysroot.
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
 | `orion_clock_service` | STATIC | `ClockService` — publishes `SimTimeUpdate` at `FrameScheduler` tick rate, backed by `SimClock`. Depends on `orion_app` + `orion_transport` + `orion_proto`. |
 | `orion_main` | STATIC | `ServiceConfig`, `addServiceConfig` — CLI11-backed arg/env parsing for service `main.cpp` files. Provides `--help` and `--version`. Linked by executables only; never by libraries. |
+| `orion_perception` | STATIC | `PerceptionService`, `PerceptionBackend` interface, `FakePerceptionBackend`. With `ORION_ENABLE_DEEPSTREAM=ON`: `DeepStreamBackend` (GStreamer/DeepStream pipeline). Depends on `orion_proto` + `orion_transport`. |
+| `rtdetr_parser` | SHARED | Custom `nvinfer` bounding-box parser for Ultralytics RT-DETR-R18 FP16. Loaded by DeepStream at runtime via `dlopen`. Only built when `ORION_ENABLE_DEEPSTREAM=ON`. |
 
 ---
 
@@ -151,3 +161,4 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 | M1 - Core Runtime | Done | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
 | M2 - Observability | Done | `CrashHandler`, `LoggerFactory` in `orion_app` | backward-cpp, libdw, spdlog |
 | M3 - Simulation | Done | `CoordinatedClock` Phase 3; `orion_clock_service` + `clock_service` executable | none |
+| M4 - Perception | In Progress | `orion_perception`, `DeepStreamBackend`, `rtdetr_parser`; RT-DETR-R18 FP16 inference on Arducam Darksee via v4l2src | GStreamer (`gstreamer-1.0`, `gstreamer-app-1.0`), DeepStream SDK (Jetson only, `ORION_ENABLE_DEEPSTREAM=ON`) |

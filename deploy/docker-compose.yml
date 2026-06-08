@@ -1,0 +1,82 @@
+# Orion service stack
+#
+# All services use network_mode: host so Zenoh's multicast peer discovery works
+# without a router on the same Jetson node. For multi-host deployments, enable
+# the router profile and point each service at it via ZENOH_CONNECT.
+#
+# Profiles
+#   clock        — run clock-service only
+#   perception   — run perception-service only (Jetson + DeepStream required)
+#   router       — optional Zenoh router for multi-host / cross-network setups
+#
+# Quick start (single drone, both services):
+#   VEHICLE_ID=drone-1 \
+#   MODEL_ENGINE=/opt/orion/models/rtdetr-r18.engine \
+#   docker compose --profile clock --profile perception up
+#
+# Build images before first run:
+#   docker build -f docker/Dockerfile -t orion/builder:latest .
+#   docker compose build
+
+services:
+
+  # ── Zenoh router ─────────────────────────────────────────────────────────────
+  # Optional — enables cross-host communication. Run with --profile router.
+  # Compatible with zenoh-c 1.x used by orion_transport.
+  zenoh-router:
+    image: eclipse/zenoh:latest
+    profiles: [router]
+    network_mode: host
+    restart: unless-stopped
+    command: ["--no-multicast-scouting"]
+
+  # ── Clock service ─────────────────────────────────────────────────────────────
+  # Publishes simulated time on orion/{vehicle_id}/clock/sim_time.
+  clock-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.clock-service
+    image: orion/clock-service:latest
+    profiles: [clock]
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      VEHICLE_ID: ${VEHICLE_ID:?VEHICLE_ID is required}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SIM_SCALE: ${SIM_SCALE:-1.0}
+      SIM_RATE_HZ: ${SIM_RATE_HZ:-100}
+
+  # ── Perception service ────────────────────────────────────────────────────────
+  # Runs DeepStream RT-DETR-R18 inference and publishes DetectionFrames.
+  # Requires Jetson with JetPack 6.1+ and ORION_ENABLE_DEEPSTREAM=ON build.
+  perception-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.perception-service
+    image: orion/perception-service:latest
+    profiles: [perception]
+    network_mode: host
+    restart: unless-stopped
+    runtime: nvidia
+    devices:
+      # Add one entry per Arducam Darksee camera attached to the Nano.
+      - /dev/video0:/dev/video0
+      # - /dev/video1:/dev/video1
+    volumes:
+      # TensorRT engine — generated on the Nano via:
+      #   python3 -c "from ultralytics import RTDETR; RTDETR('rtdetr-r18.pt').export(format='engine', half=True)"
+      - ${MODEL_DIR:-/opt/orion/models}:/opt/orion/models:ro
+    environment:
+      VEHICLE_ID: ${VEHICLE_ID:?VEHICLE_ID is required}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CAMERA_DEVICE: ${CAMERA_DEVICE:-/dev/video0}
+      CAMERA_ID: ${CAMERA_ID:-forward}
+      CAPTURE_WIDTH: ${CAPTURE_WIDTH:-960}
+      CAPTURE_HEIGHT: ${CAPTURE_HEIGHT:-600}
+      CAPTURE_FPS: ${CAPTURE_FPS:-30}
+      MODEL_ENGINE: ${MODEL_ENGINE:?MODEL_ENGINE is required (path to .engine file)}
+      CUSTOM_LIB: ${CUSTOM_LIB:-/opt/orion/lib/rtdetr_parser.so}
+      NUM_CLASSES: ${NUM_CLASSES:-80}
+      CONF_THRESHOLD: ${CONF_THRESHOLD:-0.5}
+      STREAM_HOST: ${STREAM_HOST:-224.1.1.1}
+      STREAM_PORT: ${STREAM_PORT:-5000}

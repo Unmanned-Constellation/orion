@@ -1,0 +1,19 @@
+# Build the orion/builder base image first:
+#   docker build -f docker/Dockerfile -t orion/builder:latest .
+#
+# Then build this image:
+#   docker build -f deploy/Dockerfile.clock-service -t orion/clock-service:latest .
+
+FROM orion/builder:latest
+
+WORKDIR /workspace
+COPY . .
+
+RUN conan install . \
+        --output-folder=build/Release \
+        --build=missing \
+        -s build_type=Release \
+    && cmake --preset release \
+    && cmake --build --preset release --target clock_service
+
+ENTRYPOINT ["build/Release/services/clock_service/clock_service"]

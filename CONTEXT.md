@@ -12,8 +12,23 @@ The shared-memory pub-sub transport layer connecting microservices on the same J
 ## Perception Service
 The microservice responsible for camera ingestion, hardware-accelerated TensorRT inference via DeepStream, and publishing Detection Metadata to the Zenoh Bus.
 
+## Vision Camera
+The Arducam Darksee (AR0234 sensor, 1/2.6", global shutter). Connects to the Jetson Orin Nano via MIPI CSI but exposes a V4L2 device node through an on-board FPGA ISP (ImageEK). Output format is UYVY; operated at 960×600@30fps for the inference pipeline. Because the camera bypasses the Jetson's native Argus ISP stack, `v4l2src` is the GStreamer source element — not `nvarguscamerasrc`.
+
 ## Detection Metadata
-The structured output of the Perception Service: bounding boxes, class IDs, and confidence scores derived from `NvDsObjectMeta`. Serialized and published as a Zenoh topic.
+The structured output of the Perception Service. Published as a `DetectionFrame` on the Zenoh Bus once per inference frame. Each `DetectionFrame` contains: frame dimensions (`frame_width`, `frame_height`), and zero or more detections each carrying a bounding box in normalized coordinates [0,1], class ID, confidence score, and a persistent track ID. Track IDs are assigned by `nvtracker` (IOU tracker) and are stable across frames within a session. TensorRT engine runs at FP16 precision. Initial model is a COCO-pretrained RT-DETR-R18 (Ultralytics) used to validate the full pipeline; fine-tuned for drone detection in a later phase.
+
+## DetectionFrame
+The unit of output fired by a `PerceptionBackend` callback and published by `PerceptionService` as a single Zenoh message. Contains `frame_width`, `frame_height`, `camera_id` (identifies the source camera within a service instance), `pipeline_latency_ns` (elapsed time from V4L2 frame capture to appsink callback — computed as `appsink_time − captured_at_ns`), and a repeated list of `Detection` entries (normalized bbox, class ID, confidence, track ID). Designed to support multi-camera backends including future stereo/depth configurations.
+
+## PerceptionBackend
+An abstract interface internal to `PerceptionService`. Owns the camera pipeline and all hardware interaction. Fires a `DetectionFrame` callback when inference results are available. Has no knowledge of Zenoh or the transport layer. Two implementations: `DeepStreamBackend` (Jetson, conditionally compiled) and `FakePerceptionBackend` (x86/test). `captured_at_ns` reflects true frame capture time: `DeepStreamBackend` derives it from the V4L2 buffer PTS (`GST_BUFFER_PTS`) corrected by a `CLOCK_REALTIME − CLOCK_MONOTONIC` offset computed once at `start()`.
+
+## Inference Video Stream
+The `DeepStreamBackend` produces a second output in addition to `DetectionFrame`: a hardware-encoded H.264 video stream with `nvdsosd` overlays rendered before encoding. The `appsink` tee is placed before `nvdsosd` so `pipeline_latency_ns` measures capture-to-inference, not capture-to-encode. The OSD renders in the top-left corner in white text with black border: FPS, pipeline latency (ms), detection count, and per-detection bounding box labels (class name, confidence %, track ID). The stream is sent over UDP+RTP (`rtph264pay → udpsink`) to a configurable `--stream-host` and `--stream-port`. Any standard player (VLC, GStreamer) can receive it. RTSP is deferred until a frontend exists.
+
+## FakePerceptionBackend
+The test double for `PerceptionBackend`. Constructed with a `std::vector<DetectionFrame>` and a configurable emit interval. Replays the supplied frames sequentially at that interval when `start()` is called. Also exposes an `emit(DetectionFrame)` method for synchronous on-demand injection in unit tests. Produces fully deterministic output — no randomness.
 
 ## Decision Service
 A custom C++ microservice that subscribes to Detection Metadata from the Zenoh Bus and produces flight decisions or control commands.
