@@ -65,6 +65,7 @@ def requirements(self):
 def build_requirements(self):
     self.tool_requires("protobuf/5.29.3")
     self.test_requires("gtest/1.17.0")
+    self.test_requires("benchmark/1.9.5")
 ```
 
 `backward-cpp` uses the `dw` backend for full DWARF symbolization — function

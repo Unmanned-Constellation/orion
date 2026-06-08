@@ -12,6 +12,7 @@ The following presets are defined in `CMakePresets.json`:
 | `tsan` | `build/TSan` | ThreadSanitizer - catches data races |
 | `coverage` | `build/Coverage` | LLVM source-based coverage instrumentation |
 | `fuzz` | `build/Fuzz` | libFuzzer fuzz targets (ASan enabled) |
+| `bench` | `build/Bench` | Google Benchmark targets (Release, compile only in CI) |
 | `cross-arm64` | `build/CrossArm64` | Cross-compile for aarch64-linux-gnu |
 
 All presets use the Ninja generator and inherit from a hidden `base` preset that reads
@@ -164,6 +165,36 @@ The `coverage-report` CMake target merges the raw profiles and prints a line-cov
 stdout. CI enforces a minimum line coverage of 60% - raise the threshold in
 `.github/workflows/ci.yml` as the test suite grows. See [testing.md](testing.md) for how to read
 the report and what each coverage metric means.
+
+## Benchmarks
+
+Benchmarks live in `benchmarks/` and are only built when `ORION_BENCHMARKS=ON` (set
+automatically by the `bench` preset). The `bench` preset uses a Release build for accurate
+measurement. CI builds the binary to catch compilation errors but does **not** run it — benchmark
+results on shared CI runners are meaningless due to virtualisation and thermal throttling.
+
+```bash
+conan install . --profile=conan/profiles/x86_64/release --lockfile=conan.lock
+cmake --preset bench
+cmake --build --preset bench
+
+# Run on target hardware (Jetson Orin Nano)
+./build/Bench/benchmarks/orion_benchmarks
+
+# JSON output for baseline recording
+./build/Bench/benchmarks/orion_benchmarks --benchmark_format=json | tee bench-$(date +%Y%m%d).json
+```
+
+Two benchmark suites are defined in `benchmarks/transport_bench.cpp`, each parameterised over
+four payload sizes (16 B, 256 B, 1 KB, 64 KB):
+
+| Suite | Metric | Target (Jetson Orin Nano) |
+|---|---|---|
+| `zenohLatency` | p99 publish→callback latency | < 1 ms at all payload sizes |
+| `zenohThroughput` | sustained messages/sec | informational baseline |
+
+Results outside the latency target are not a build failure — they are a signal to investigate
+the transport configuration or reconsider the transport choice (see ADR-0018).
 
 ## Fuzz targets
 

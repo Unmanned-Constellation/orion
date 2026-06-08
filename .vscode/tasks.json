@@ -154,10 +154,21 @@
       }
     },
     {
+      "label": "Benchmark: Run",
+      "detail": "Build the bench preset then run orion_benchmarks (all suites, all payload sizes)",
+      "type": "shell",
+      "command": "bash scripts/environment/conan_install_preset.sh release && /usr/bin/cmake --preset bench --no-warn-unused-cli && /usr/bin/cmake --build --preset bench && ./build/Bench/benchmarks/orion_benchmarks",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "CI: Check Format (C++)",
       "detail": "Dry-run clang-format — fails if any file needs reformatting",
       "type": "shell",
-      "command": "find libs proto tests -type f \\( -name '*.cpp' -o -name '*.hpp' \\) | xargs -r clang-format-18 --dry-run --Werror",
+      "command": "find benchmarks libs proto tests -type f \\( -name '*.cpp' -o -name '*.hpp' \\) | xargs -r clang-format-18 --dry-run --Werror",
       "group": "test",
       "presentation": {
         "reveal": "always",

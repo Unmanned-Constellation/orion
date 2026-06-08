@@ -86,6 +86,19 @@
             }
         },
         {
+            "name": "bench",
+            "displayName": "Benchmark (Release + ORION_BENCHMARKS)",
+            "inherits": "base",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Bench",
+            "toolchainFile": "${sourceDir}/build/Release/generators/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_BUILD_TYPE": "Release",
+                "ORION_BENCHMARKS": "ON"
+            }
+        },
+        {
             "name": "cross-arm64",
             "displayName": "Cross-compile (ARM64)",
             "generator": "Ninja",
@@ -128,6 +141,11 @@
         {
             "name": "fuzz",
             "configurePreset": "fuzz",
+            "jobs": 8
+        },
+        {
+            "name": "bench",
+            "configurePreset": "bench",
             "jobs": 8
         },
         {

@@ -32,7 +32,7 @@ jobs:
 
       - name: Check C++ formatting
         run: |
-          find libs proto tests -type f \( -name '*.cpp' -o -name '*.hpp' \) \
+          find benchmarks libs proto tests -type f \( -name '*.cpp' -o -name '*.hpp' \) \
             | xargs -r clang-format-18 --dry-run --Werror
 
       - name: Check CMake formatting
@@ -333,6 +333,39 @@ jobs:
 
       - name: Test
         run: ctest --preset debug
+
+      - name: Save ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.setup.outputs.ccache-key }}
+
+  # ── Benchmark build (compile only — do not run on CI) ────────────────────
+  bench:
+    name: Benchmark build
+    needs: [build]
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/unmanned-constellation/orion/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 30
+    env:
+      CC: clang-18
+      CXX: clang++-18
+    steps:
+      - uses: actions/checkout@v6
+      - id: setup
+        uses: ./.github/actions/setup-builder
+        with:
+          conan-profile: conan/profiles/x86_64/release
+
+      - name: Configure
+        run: cmake --preset bench --no-warn-unused-cli
+
+      - name: Build benchmark binary
+        run: cmake --build --preset bench
 
       - name: Save ccache
         uses: actions/cache/save@v5

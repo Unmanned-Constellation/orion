@@ -19,6 +19,7 @@ class OrionConan(ConanFile):
     def build_requirements(self):
         self.tool_requires("protobuf/5.29.3")
         self.test_requires("gtest/1.17.0")
+        self.test_requires("benchmark/1.9.5")
 
     def layout(self):
         cmake_layout(self)
