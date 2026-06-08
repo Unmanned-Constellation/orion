@@ -47,11 +47,13 @@ For first-time setup on a Jetson Orin Nano, see [docs/orin-setup.md](docs/orin-s
 |------|----------|
 | `cmake/` | CMake helper modules - `tools.cmake` (format, lint, coverage, docs targets), `toolchains/` (cross-compile toolchain files) |
 | `conan/` | Conan profiles and custom recipes for zenoh-c and zenoh-cpp |
+| `deploy/` | Docker Compose stack and per-service Dockerfiles for Jetson deployment |
 | `docker/` | Unified Dockerfile (selects base image by architecture) |
 | `docs/` | Process documentation and architecture decision records |
-| `libs/` | C++ library targets (transport, …) |
+| `libs/` | C++ library targets (transport, clock, app, …) |
 | `proto/` | Protobuf schema definitions |
 | `scripts/` | Environment setup scripts (`initialize_conan.sh`) |
+| `services/` | Standalone service executables (`clock_service`, `perception_service`) |
 | `tests/` | GoogleTest unit tests and libFuzzer fuzz targets (`tests/fuzz/`) |
 
 ## Documentation
@@ -60,6 +62,8 @@ For first-time setup on a Jetson Orin Nano, see [docs/orin-setup.md](docs/orin-s
   mounts, VS Code tasks, pre-commit hooks
 - [Building and testing](docs/building-and-testing.md) - CMake presets, proto codegen, formatting,
   linting, sanitizers, coverage, fuzzing, Doxygen
+- [Perception service](docs/libs/orion-perception.md) - DeepStream pipeline topology, latency
+  measurement, multi-camera support, RT-DETR parser, build configuration
 - [Testing](docs/testing.md) - unit tests, sanitizers (ASan/UBSan/TSan), coverage, fuzzing with
   libFuzzer: philosophy, writing targets, interpreting output
 - [Coding standards](docs/coding-standards.md) - C++ Core Guidelines, HiCPP, CERT, naming
@@ -71,6 +75,8 @@ For first-time setup on a Jetson Orin Nano, see [docs/orin-setup.md](docs/orin-s
   linking constraints
 - [Versioning](docs/versioning.md) - git-tag-based semantic versioning, CHANGELOG generation
 - [Orin setup](docs/orin-setup.md) - one-time Jetson configuration after flashing JetPack
+- [Deployment](docs/deployment.md) - Docker Compose stack, building service images, running on
+  the Nano, multi-camera setup, video stream reception
 - [Architecture decisions](docs/adr/) - ADR-0001 Zenoh transport, ADR-0002 DeepStream,
   ADR-0003 multi-platform build strategy, ADR-0004 transport abstraction layer,
   ADR-0005 topic naming scheme, ADR-0006 edge network service (multi-protocol gateway),
@@ -78,4 +84,5 @@ For first-time setup on a Jetson Orin Nano, see [docs/orin-setup.md](docs/orin-s
   ADR-0009 sim clock, ADR-0010 crash handler, ADR-0011 logging and health reporting,
   ADR-0012 gimbal signal routing, ADR-0013 gimbal control loop separation,
   ADR-0014 gimbal kinematics, ADR-0015 gimbal FC integration,
-  ADR-0016 reactive vs. periodic execution model, ADR-0017 simulation driving model
+  ADR-0016 reactive vs. periodic execution model, ADR-0017 simulation driving model,
+  ADR-0020 perception service architecture

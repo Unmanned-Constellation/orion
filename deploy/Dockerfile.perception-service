@@ -1,0 +1,27 @@
+# Jetson / arm64 only. Build the orion/builder base image first:
+#   docker buildx build --platform linux/arm64 \
+#     -f docker/Dockerfile -t orion/builder:latest .
+#
+# Then build this image:
+#   docker buildx build --platform linux/arm64 \
+#     -f deploy/Dockerfile.perception-service -t orion/perception-service:latest .
+
+FROM orion/builder:latest
+
+WORKDIR /workspace
+COPY . .
+
+RUN conan install . \
+        --output-folder=build/Release \
+        --build=missing \
+        -s build_type=Release \
+    && cmake --preset release -DORION_ENABLE_DEEPSTREAM=ON \
+    && cmake --build --preset release --target perception_service rtdetr_parser
+
+# rtdetr_parser.so is loaded by nvinfer at runtime via dlopen.
+# Place it alongside the model assets at /opt/orion/lib.
+RUN mkdir -p /opt/orion/lib \
+    && cp build/Release/services/perception_service/librtdetr_parser.so \
+          /opt/orion/lib/rtdetr_parser.so
+
+ENTRYPOINT ["build/Release/services/perception_service/perception_service"]

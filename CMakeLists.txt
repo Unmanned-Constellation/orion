@@ -61,6 +61,7 @@ add_subdirectory(libs/app)
 add_subdirectory(libs/main)
 add_subdirectory(libs/transport)
 add_subdirectory(services/clock_service)
+add_subdirectory(services/perception_service)
 
 enable_testing()
 add_subdirectory(tests)

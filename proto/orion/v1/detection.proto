@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package orion.v1;
+
+message BoundingBox {
+  float cx = 1; // center x, normalized [0, 1]
+  float cy = 2; // center y, normalized [0, 1]
+  float w  = 3; // width,    normalized [0, 1]
+  float h  = 4; // height,   normalized [0, 1]
+}
+
+message Detection {
+  BoundingBox bbox       = 1;
+  uint32      class_id   = 2;
+  float       confidence = 3; // [0, 1]
+  uint64      track_id   = 4; // persistent ID assigned by nvtracker; 0 = untracked
+}
+
+message DetectionFrame {
+  uint32            frame_width          = 1;
+  uint32            frame_height         = 2;
+  string            camera_id            = 3;
+  uint64            pipeline_latency_ns  = 4; // appsink callback time - captured_at_ns
+  repeated Detection detections          = 5;
+}

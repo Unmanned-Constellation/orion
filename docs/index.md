@@ -15,6 +15,7 @@ coding-standards
 cross-compilation
 versioning
 orin-setup
+deployment
 architecture
 ```
 
@@ -48,5 +49,6 @@ api/library_root
 libs/orion-app
 libs/orion-clock
 libs/orion-main
+libs/orion-perception
 libs/orion-transport
 ```
