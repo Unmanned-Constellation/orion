@@ -39,6 +39,7 @@ option(
     OFF
 )
 option(ORION_FUZZING "Build libFuzzer fuzz targets (implies ASan)" OFF)
+option(ORION_BENCHMARKS "Build Google Benchmark targets" OFF)
 
 find_program(CCACHE ccache)
 if(CCACHE)
@@ -63,6 +64,10 @@ add_subdirectory(services/clock_service)
 
 enable_testing()
 add_subdirectory(tests)
+
+if(ORION_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()
 
 find_package(Doxygen QUIET)
 find_program(SPHINX_BUILD_EXECUTABLE sphinx-build)

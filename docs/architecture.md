@@ -23,6 +23,7 @@ flowchart LR
         zenohcpp(["zenoh-cpp/1.9.0 ①"]):::external
         abseil(["abseil/20240722.0"]):::external
         gtest(["gtest/1.17.0"]):::external
+        gbench(["benchmark/1.9.5"]):::external
         backwardcpp(["backward-cpp/1.6"]):::external
 
         libdw(["libdw (M2) ②"]):::planned
@@ -42,6 +43,7 @@ flowchart LR
     subgraph Executables ["Executables"]
         orion_tests{{"orion_tests"}}:::executable
         clock_service{{"clock_service"}}:::executable
+        orion_benchmarks{{"orion_benchmarks<br/>(ORION_BENCHMARKS=ON)"}}:::executable
     end
 
     %% External to Module Edges
@@ -73,6 +75,10 @@ flowchart LR
     orion_proto          --> orion_clock_service
     orion_clock_service  --> clock_service
     orion_main           --> clock_service
+
+    gbench          --> orion_benchmarks
+    orion_transport --> orion_benchmarks
+    orion_proto     --> orion_benchmarks
 ```
 
 ① `zenoh-c` and `zenoh-cpp` are not in ConanCenter. They are maintained as

@@ -116,12 +116,13 @@ flowchart LR
     BldDbg --> TSan["ThreadSanitizer"]:::container
     BldDbg --> Cov["Coverage<br/>(Min 80%)"]:::container
     BldDbg --> Fuz["Fuzz<br/>(Smoke Test)"]:::container
+    BldDbg --> Bnch["Benchmark<br/>(Compile Only)"]:::container
 ```
 
 `format`, `docs`, and `proto` run in parallel. `build` and `build-release` start once all
-three pass. `sanitize`, `tsan`, `coverage`, and `fuzz` all `needs: [build]` — they start
-after the debug build completes and restore its warm Conan cache, avoiding a cold dependency
-rebuild on every run.
+three pass. `sanitize`, `tsan`, `coverage`, `fuzz`, and `bench` all `needs: [build]` — they
+start after the debug build completes and restore its warm Conan cache, avoiding a cold
+dependency rebuild on every run.
 
 Every build job sets `CC=clang-18` and `CXX=clang++-18` so Conan and CMake use clang rather
 than the runner's default GCC - required because Conan injects `-stdlib=libstdc++` and GCC
@@ -138,7 +139,7 @@ Runs in the CI container; clang-format-18 and gersemi are pre-installed.
 
 | Check | Tool | Command |
 |---|---|---|
-| C++ formatting | clang-format-18 | `--dry-run --Werror` on `*.cpp`/`*.hpp` in `libs/`, `proto/`, `tests/` |
+| C++ formatting | clang-format-18 | `--dry-run --Werror` on `*.cpp`/`*.hpp` in `benchmarks/`, `libs/`, `proto/`, `tests/` |
 | CMake formatting | gersemi | `--check .` |
 
 If this job fails, run **Format: C++** and **Format: CMake** locally, then push again.
@@ -221,6 +222,23 @@ Runs on a native `ubuntu-22.04-arm` runner inside the arm64 variant of the CI co
 (L4T base). Uses `conan/profiles/arm64/debug` and `cmake --preset debug`. Native execution means
 tests actually run on ARM64 hardware. Conan packages and ccache are cached separately under keys
 prefixed `conan-arm64-` to keep them isolated from the x86_64 caches.
+
+### Benchmark build
+
+Runs after `build` (`needs: [build]`). Uses `conan/profiles/x86_64/release` and the `bench`
+CMake preset (`ORION_BENCHMARKS=ON`, Release build type). Compiles `orion_benchmarks` but does
+not execute it — benchmark results on shared CI runners are meaningless due to virtualisation
+and thermal throttling. The job exists to catch compilation errors early.
+
+To run benchmarks, use the **Benchmark: Run** VS Code task or:
+
+```bash
+cmake --preset bench && cmake --build --preset bench
+./build/Bench/benchmarks/orion_benchmarks
+```
+
+See [building-and-testing.md](building-and-testing.md) for payload sizes and the p99 < 1 ms
+latency target (Jetson Orin Nano).
 
 ### Fuzz (smoke test)
 
