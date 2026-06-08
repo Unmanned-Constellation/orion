@@ -15,7 +15,9 @@ cp "${PROFILES_DIR}/${ARCH}/release" "$(conan config home)/profiles/default"
 # in conan.lock is achieved by passing --lockfile as input to conan lock create
 # (see the Conan: Create Lockfile VS Code task).
 RECIPES_PATH="$(cd "$(dirname "$0")/../../conan" && pwd)"
-if ! conan remote list | grep -q "^orion-local:"; then
+if conan remote list | grep -q "^orion-local:"; then
+    conan remote update orion-local --url "$RECIPES_PATH"
+else
     conan remote add orion-local "$RECIPES_PATH" -t local-recipes-index --index 0
 fi
 

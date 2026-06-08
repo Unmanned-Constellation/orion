@@ -32,9 +32,9 @@ subsequent services schedule their work on the FrameScheduler and derive time fr
 
 ---
 
-## M2 — Observability 🔄
+## M2 — Observability ✅
 
-**Status:** In progress  
+**Status:** Complete  
 **GitHub milestone:** [M2](https://github.com/Unmanned-Constellation/orion/milestone/2)
 
 Gives operators and developers the tools to diagnose failures in the field. A symbolized stack
@@ -47,9 +47,9 @@ trace on crash and structured log output are the minimum bar before deploying to
 
 ---
 
-## M3 — Simulation 🔄
+## M3 — Simulation ✅
 
-**Status:** In progress  
+**Status:** Complete  
 **GitHub milestone:** [M3](https://github.com/Unmanned-Constellation/orion/milestone/3)
 
 Extends the clock subsystem to support replay-driven simulation. An `ExternalClock` stub
@@ -63,9 +63,9 @@ runtime at arbitrary speeds.
 
 ---
 
-## M3.5 — Service Infrastructure ⏳
+## M3.5 — Service Infrastructure ✅
 
-**Status:** Deferred — architecture decided, implementation not yet scheduled
+**Status:** Complete
 
 Cross-cutting infrastructure that every microservice needs before deployment to
 hardware. Benchmarking validates the transport; CLI11 replaces the hand-rolled
@@ -136,8 +136,8 @@ microservice and the build is verified on the target hardware. It does not requi
 application-level subsystem (gimbal, perception, etc.) to be complete.
 
 - [x] M1 — Core Runtime (FrameScheduler + SimClock Phase 1)
-- [ ] M2 — Observability (CrashHandler + structured logging)
-- [ ] M3 — Simulation (ExternalClock + Clock Service publisher)
+- [x] M2 — Observability (CrashHandler + structured logging)
+- [x] M3 — Simulation (ExternalClock + Clock Service publisher)
 - [ ] ARM64 build compiles and tests pass on the Jetson Orin Nano
 
 M4 (Gimbal), M5 (External Interfaces), and M6 (Reactive Execution) are post-1.0 scope.

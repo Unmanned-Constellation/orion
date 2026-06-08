@@ -17,7 +17,7 @@
     "source=orion-claude-profile,target=/root/.claude,type=volume",
     "source=orion-agents-profile,target=/root/.agents,type=volume",
     "source=orion-gh-profile,target=/root/.config/gh,type=volume",
-    "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,readonly"
+    "source=${localEnv:HOME}/.ssh,target=/tmp/host-ssh,type=bind,readonly"
   ],
   "remoteEnv": {
     "GIT_AUTHOR_NAME": "${localEnv:GIT_AUTHOR_NAME}",
@@ -72,5 +72,6 @@
   // unconfined instead because it requires embedding and maintaining Docker's full ~300-entry
   // allowlist, which is not worth the cost for a dev container running only trusted tooling.
   "runArgs": ["--security-opt", "seccomp=unconfined"],
-  "postCreateCommand": "bash .devcontainer/post-create.sh"
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "mkdir -p /root/.ssh && cp -r /tmp/host-ssh/. /root/.ssh/ && chown -R root:root /root/.ssh && chmod 700 /root/.ssh && chmod 600 /root/.ssh/*"
 }
