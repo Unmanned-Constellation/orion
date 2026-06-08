@@ -47,6 +47,7 @@ endif()
 
 include(cmake/tools.cmake)
 include(cmake/DebugSymbols.cmake)
+include(cmake/Version.cmake)
 
 find_package(protobuf CONFIG REQUIRED)
 find_package(zenohcxx REQUIRED)
@@ -56,6 +57,7 @@ orion_suppress_dep_warnings(protobuf::libprotobuf zenohc::lib zenohcxx::zenohc)
 add_subdirectory(proto)
 add_subdirectory(libs/clock)
 add_subdirectory(libs/app)
+add_subdirectory(libs/main)
 add_subdirectory(libs/transport)
 add_subdirectory(services/clock_service)
 

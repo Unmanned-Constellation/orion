@@ -13,4 +13,6 @@ add_executable(clock_service src/main.cpp)
 
 target_compile_features(clock_service PRIVATE cxx_std_20)
 
-target_link_libraries(clock_service PRIVATE orion_clock_service)
+target_include_directories(clock_service PRIVATE ${CMAKE_BINARY_DIR}/generated)
+
+target_link_libraries(clock_service PRIVATE orion_clock_service orion_main)
