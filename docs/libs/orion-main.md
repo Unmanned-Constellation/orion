@@ -45,6 +45,7 @@ Since both are stack variables in `main()`, this lifetime is guaranteed.
 |---|---|
 | `ServiceBootstrapper(service_name)` | Sets the CLI app name, logger name, and log directory. |
 | `withOptions(fn)` | Registers a callback invoked before parse to add service-specific options. Returns `*this` for chaining. |
+| `withLogger(logger)` | Injects a pre-built logger instead of creating one during `run()`. Intended for tests — pass a null-sink logger to avoid file I/O and global state. Returns `*this` for chaining. |
 | `run(argc, argv)` | Parses arguments, initialises the logger, returns a ready `ServiceContext`. Calls `std::exit()` on `--help`, `--version`, or parse error. |
 
 ### Typical usage
@@ -94,38 +95,6 @@ void addServiceConfig(CLI::App& app, ServiceConfig& cfg);
 
 Registers `--vehicle-id` / `VEHICLE_ID` and `--log-level` / `LOG_LEVEL` on `app`. Used
 internally by `ServiceBootstrapper`. Call directly only when bypassing the bootstrapper.
-
----
-
-## Manual wiring (without ServiceBootstrapper)
-
-For services or tests that need direct control over individual components:
-
-```cpp
-auto main(int argc, char** argv) -> int
-{
-    auto latch = orion::app::ShutdownLatch{};
-    auto crash = orion::app::CrashHandler{};
-
-    auto app = CLI::App{"my-service"};
-    app.set_version_flag("--version", ORION_VERSION_STRING);
-
-    auto cfg    = orion::app::ServiceConfig{};
-    auto my_opt = 42;
-
-    orion::app::addServiceConfig(app, cfg);
-    app.add_option("--my-opt", my_opt, "Service-specific option")->envname("MY_OPT");
-
-    CLI11_PARSE(app, argc, argv);
-
-    orion::app::LoggerFactory::init("my-service", spdlog::level::from_str(cfg.log_level));
-    // ... set up session, scheduler, services ...
-}
-```
-
-`CLI11_PARSE` exits with code 1 on any parse error (missing required option, type mismatch),
-printing a clear message to stderr. This runs before `LoggerFactory::init` — config errors are
-always visible regardless of log level.
 
 ---
 

@@ -64,6 +64,13 @@ class ServiceBootstrapper
     /// @return *this for chaining.
     auto withOptions(std::function<void(CLI::App&)> opt_fn) -> ServiceBootstrapper&;
 
+    /// Injects a pre-built logger instead of creating one during run().
+    ///
+    /// Intended for tests: pass a null-sink logger to avoid file I/O and global state.
+    /// @param logger  Logger to surface in ServiceContext::log.
+    /// @return *this for chaining.
+    auto withLogger(std::shared_ptr<spdlog::logger> logger) -> ServiceBootstrapper&;
+
     /// Parses arguments, initialises the logger, and returns a ready ServiceContext.
     ///
     /// Calls std::exit() if --help, --version, or a parse error is encountered
@@ -82,10 +89,13 @@ class ServiceBootstrapper
     auto run(int argc, char** argv) -> ServiceContext;
 
   private:
-    std::string                    service_name_;
-    std::function<void(CLI::App&)> options_fn_;
-    ShutdownLatch                  latch_;
-    CrashHandler                   crash_;
+    auto buildLogger(spdlog::level::level_enum level) -> std::shared_ptr<spdlog::logger>;
+
+    std::string                     service_name_;
+    std::function<void(CLI::App&)>  options_fn_;
+    std::shared_ptr<spdlog::logger> logger_;
+    ShutdownLatch                   latch_;
+    CrashHandler                    crash_;
 };
 
 } // namespace orion::app

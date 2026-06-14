@@ -19,9 +19,8 @@ int main()
 {
     orion::app::ShutdownLatch latch;               // 1. block SIGINT/SIGTERM before any threads
     orion::app::CrashHandler  crash;               // 2. register crash signal actions
-    orion::app::LoggerFactory::init("my_service"); // 3. open log file and sinks
     auto clock = std::make_shared<orion::clock::WallClock>();
-    orion::app::FrameScheduler sched(100.0, clock, &latch); // 4. time-triggered loop
+    orion::app::FrameScheduler sched(100.0, clock, &latch); // 3. time-triggered loop
     // ... register callbacks, construct session ...
     sched.run();
 }
@@ -36,7 +35,6 @@ sequenceDiagram
     participant main
     participant Latch as ShutdownLatch
     participant Crash as CrashHandler
-    participant Log as LoggerFactory
     participant Sched as FrameScheduler
     participant OS
 
@@ -44,8 +42,6 @@ sequenceDiagram
     Note over Latch: pthread_sigmask blocks SIGINT/SIGTERM<br/>on main thread; watcher thread spawned
     main->>Crash: CrashHandler()
     Note over Crash: installs handlers for SIGSEGV/SIGABRT/etc<br/>on an mmap'd alternate stack
-    main->>Log: init("service-name", level)
-    Note over Log: opens stderr sink + rotating file sink
     main->>Sched: FrameScheduler(rate_hz, clock, &latch)
     main->>Sched: every(N, callback) ...
     main->>Sched: run()
@@ -56,7 +52,6 @@ sequenceDiagram
     Latch->>Latch: stop() → stopped_ = true, cv notified
     Sched->>Sched: observes latch.stopped() after next sleepUntil
     Sched-->>main: run() returns
-    main->>Log: flush()
     Note over main: ~FrameScheduler, ~CrashHandler, ~ShutdownLatch<br/>restore signal handlers, join watcher thread
 ```
 
@@ -176,96 +171,6 @@ Blocks `main()` until SIGTERM or SIGINT is received, or until `stop()` is
 called programmatically. Also acts as the run-loop exit signal for
 `FrameScheduler`. See [`orion_clock`](orion-clock.md) for the full
 `ShutdownLatch` reference.
-
----
-
-## `LoggerFactory`
-
-```cpp
-#include "orion/app/logger_factory.hpp"
-namespace orion::app
-```
-
-Process-wide factory for named, hierarchical loggers backed by **spdlog**. All
-loggers write to a shared stderr sink and a rotating file at
-`/var/log/orion/<service>/<service>.log`.
-
-### Logger naming
-
-Logger names encode component hierarchy using dot-separated segments. All
-components of a service write to the same file; the name is the filter key:
-
-```
-autonomy
-autonomy.stabilizer
-autonomy.stabilizer.pid
-```
-
-### Usage
-
-```cpp
-int main()
-{
-    orion::app::ShutdownLatch latch;
-    orion::app::CrashHandler  crash;
-    orion::app::LoggerFactory::init("autonomy");
-
-    auto log = orion::app::LoggerFactory::get("autonomy");
-    log->info("service started");
-
-    auto stabilizer = Stabilizer("autonomy.stabilizer");
-    // ...
-}
-```
-
-Each class receives its fully-qualified logger name as a constructor argument,
-calls `get()` to obtain its logger, and appends suffixes for its children:
-
-```cpp
-class Stabilizer {
-public:
-    explicit Stabilizer(std::string_view name)
-        : log_(orion::app::LoggerFactory::get(name))
-        , pid_(std::string(name) + ".pid")
-    {}
-private:
-    std::shared_ptr<spdlog::logger> log_;
-    PidController pid_;
-};
-```
-
-### Log levels
-
-| Level | Use |
-|---|---|
-| `trace` | Per-frame internal state |
-| `debug` | Lifecycle events, configuration dumps |
-| `info` | Startup / shutdown, significant state transitions |
-| `warn` | Recoverable anomalies (missed deadline, dropped message) |
-| `error` | Non-fatal failures that degrade functionality |
-| `critical` | Fatal conditions — log then let `CrashHandler` fire |
-
-Default level is `info`. Override at startup with `ORION_LOG_LEVEL`.
-
-### Output format
-
-```
-[2024-01-15 10:23:45.123] [autonomy.stabilizer.pid] [warn] derivative term saturated
-```
-
-Written to both stderr (captured by systemd journal) and the rotating file.
-Rotate policy: 10 MB per file, 3 files retained (30 MB max per service).
-
-### Method reference
-
-| Method | Description |
-|---|---|
-| `init(service_name, level)` | Create log directory and sinks. Call once, after `ShutdownLatch` and `CrashHandler`. |
-| `initForTest(sink, level)` | Inject a custom sink (e.g. `ostream_sink`) for deterministic test output. |
-| `get(name)` | Return an existing logger by name, or create one. Asserts if called before `init`. |
-| `setLevel(level)` | Update the log level on all registered loggers. |
-| `flush()` | Drain pending messages synchronously. Called by `ShutdownLatch` on exit. |
-| `shutdown()` | Drop all loggers and sinks. Used by tests to reset between cases. |
 
 ---
 

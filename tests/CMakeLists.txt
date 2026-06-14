@@ -7,7 +7,6 @@ add_executable(
     clock_service_test.cpp
     crash_handler_test.cpp
     frame_scheduler_test.cpp
-    logger_factory_test.cpp
     perception_test.cpp
     service_bootstrapper_test.cpp
     service_config_test.cpp

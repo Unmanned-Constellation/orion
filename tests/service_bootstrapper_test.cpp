@@ -1,4 +1,5 @@
 #include <array>
+#include <memory>
 #include <string>
 
 #include <unistd.h>
@@ -6,17 +7,22 @@
 #include <CLI/CLI.hpp>
 #include <gtest/gtest.h>
 #include <limits.h>
+#include <spdlog/sinks/null_sink.h>
 #include <spdlog/spdlog.h>
 
-#include "orion/app/logger_factory.hpp"
 #include "orion/app/service_bootstrapper.hpp"
 
 namespace
 {
 
+auto nullLogger() -> std::shared_ptr<spdlog::logger>
+{
+    return std::make_shared<spdlog::logger>("null",
+                                            std::make_shared<spdlog::sinks::null_sink_st>());
+}
+
 struct ServiceBootstrapperFixture : ::testing::Test
 {
-    void TearDown() override { orion::app::LoggerFactory::shutdown(); }
 };
 
 } // namespace
@@ -30,7 +36,7 @@ TEST_F(ServiceBootstrapperFixture, VehicleIdDefaultsToHostname)
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     unsetenv("VEHICLE_ID");
-    auto ctx = bootstrap.run(static_cast<int>(args.size()), args.data());
+    auto ctx = bootstrap.withLogger(nullLogger()).run(static_cast<int>(args.size()), args.data());
 
     auto buf = std::array<char, HOST_NAME_MAX + 1>{};
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
@@ -42,7 +48,7 @@ TEST_F(ServiceBootstrapperFixture, VehicleIdFromFlag)
 {
     auto bootstrap = orion::app::ServiceBootstrapper{"test-service"};
     auto args      = std::array<const char*, 3>{"test-service", "--vehicle-id", "alpha"};
-    auto ctx       = bootstrap.run(static_cast<int>(args.size()), args.data());
+    auto ctx = bootstrap.withLogger(nullLogger()).run(static_cast<int>(args.size()), args.data());
 
     EXPECT_EQ(ctx.vehicle_id, "alpha");
 }
@@ -54,7 +60,7 @@ TEST_F(ServiceBootstrapperFixture, VehicleIdFromEnv)
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     setenv("VEHICLE_ID", "bravo", 1);
-    auto ctx = bootstrap.run(static_cast<int>(args.size()), args.data());
+    auto ctx = bootstrap.withLogger(nullLogger()).run(static_cast<int>(args.size()), args.data());
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     unsetenv("VEHICLE_ID");
 
@@ -68,7 +74,7 @@ TEST_F(ServiceBootstrapperFixture, VehicleIdFlagOverridesEnv)
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     setenv("VEHICLE_ID", "bravo", 1);
-    auto ctx = bootstrap.run(static_cast<int>(args.size()), args.data());
+    auto ctx = bootstrap.withLogger(nullLogger()).run(static_cast<int>(args.size()), args.data());
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     unsetenv("VEHICLE_ID");
 
@@ -81,7 +87,7 @@ TEST_F(ServiceBootstrapperFixture, LatchIsNotStoppedAfterRun)
 {
     auto bootstrap = orion::app::ServiceBootstrapper{"test-service"};
     auto args      = std::array<const char*, 3>{"test-service", "--vehicle-id", "alpha"};
-    auto ctx       = bootstrap.run(static_cast<int>(args.size()), args.data());
+    auto ctx = bootstrap.withLogger(nullLogger()).run(static_cast<int>(args.size()), args.data());
 
     EXPECT_FALSE(ctx.latch->stopped());
 }
@@ -90,7 +96,7 @@ TEST_F(ServiceBootstrapperFixture, LatchRefIsBootstrappersLatch)
 {
     auto bootstrap = orion::app::ServiceBootstrapper{"test-service"};
     auto args      = std::array<const char*, 3>{"test-service", "--vehicle-id", "alpha"};
-    auto ctx       = bootstrap.run(static_cast<int>(args.size()), args.data());
+    auto ctx = bootstrap.withLogger(nullLogger()).run(static_cast<int>(args.size()), args.data());
 
     ctx.latch->stop();
 
@@ -103,9 +109,19 @@ TEST_F(ServiceBootstrapperFixture, LogIsNonNull)
 {
     auto bootstrap = orion::app::ServiceBootstrapper{"test-service"};
     auto args      = std::array<const char*, 3>{"test-service", "--vehicle-id", "alpha"};
-    auto ctx       = bootstrap.run(static_cast<int>(args.size()), args.data());
+    auto ctx = bootstrap.withLogger(nullLogger()).run(static_cast<int>(args.size()), args.data());
 
     EXPECT_NE(ctx.log, nullptr);
+}
+
+TEST_F(ServiceBootstrapperFixture, InjectedLoggerAppearsInContext)
+{
+    auto bootstrap = orion::app::ServiceBootstrapper{"test-service"};
+    auto args      = std::array<const char*, 3>{"test-service", "--vehicle-id", "alpha"};
+    auto injected  = nullLogger();
+    auto ctx       = bootstrap.withLogger(injected).run(static_cast<int>(args.size()), args.data());
+
+    EXPECT_EQ(ctx.log.get(), injected.get());
 }
 
 // ── log level ─────────────────────────────────────────────────────────────────
@@ -114,7 +130,8 @@ TEST_F(ServiceBootstrapperFixture, LogLevelDefaultsToInfo)
 {
     auto bootstrap = orion::app::ServiceBootstrapper{"test-service"};
     auto args      = std::array<const char*, 3>{"test-service", "--vehicle-id", "alpha"};
-    auto ctx       = bootstrap.run(static_cast<int>(args.size()), args.data());
+    auto log       = nullLogger();
+    auto ctx       = bootstrap.withLogger(log).run(static_cast<int>(args.size()), args.data());
 
     EXPECT_EQ(ctx.log->level(), spdlog::level::info);
 }
@@ -124,7 +141,8 @@ TEST_F(ServiceBootstrapperFixture, LogLevelSetFromFlag)
     auto bootstrap = orion::app::ServiceBootstrapper{"test-service"};
     auto args =
         std::array<const char*, 5>{"test-service", "--vehicle-id", "alpha", "--log-level", "debug"};
-    auto ctx = bootstrap.run(static_cast<int>(args.size()), args.data());
+    auto log = nullLogger();
+    auto ctx = bootstrap.withLogger(log).run(static_cast<int>(args.size()), args.data());
 
     EXPECT_EQ(ctx.log->level(), spdlog::level::debug);
 }
@@ -140,7 +158,7 @@ TEST_F(ServiceBootstrapperFixture, ServiceSpecificOptionParsedViaWithOptions)
 
     auto args =
         std::array<const char*, 5>{"test-service", "--vehicle-id", "alpha", "--custom", "hello"};
-    auto ctx = bootstrap.run(static_cast<int>(args.size()), args.data());
+    auto ctx = bootstrap.withLogger(nullLogger()).run(static_cast<int>(args.size()), args.data());
 
     EXPECT_EQ(custom_flag, "hello");
     EXPECT_EQ(ctx.vehicle_id, "alpha");

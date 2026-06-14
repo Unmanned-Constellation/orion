@@ -98,7 +98,7 @@ present on the Jetson deployment sysroot.
 |---|---|---|
 | `orion_clock` | INTERFACE | Abstract `TimeSource` interface + `WallClock`, `ManualClock`, `SimClock`, `CoordinatedClock`. Zero deps beyond stdlib. |
 | `orion_proto` | STATIC | Compiled protobuf message bindings for all `.proto` files under `proto/orion/v1/`. |
-| `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`, `LoggerFactory`. Depends on `orion_clock` + `backward-cpp` + `spdlog`. |
+| `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`. Depends on `orion_clock` + `backward-cpp` + `spdlog`. |
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
 | `orion_clock_service` | STATIC | `ClockService` — publishes `SimTimeUpdate` at `FrameScheduler` tick rate, backed by `SimClock`. Depends on `orion_app` + `orion_transport` + `orion_proto`. |
 | `orion_main` | STATIC | `ServiceBootstrapper`, `ServiceContext`, `ServiceConfig`, `addServiceConfig` — CLI11-backed arg/env parsing and startup wiring for service `main.cpp` files. `ServiceBootstrapper` is the preferred entry point; it owns `ShutdownLatch`, `CrashHandler`, and logger init. Linked by executables only; never by libraries. |
@@ -140,7 +140,7 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 | gtest | 1.17.0 | ConanCenter | `orion_tests` | Test only |
 | backward-cpp | 1.6 | ConanCenter | `orion_app` | Crash symbolization; `dw` backend — full DWARF (see ②) |
 | libdw | system | APT ② | `orion_app` | DWARF symbol resolution for backward-cpp |
-| spdlog | 1.17.0 | ConanCenter | `orion_app` | Async structured logging via `LoggerFactory` |
+| spdlog | 1.17.0 | ConanCenter | `orion_app`, `orion_main` | Async structured logging; logger created by `ServiceBootstrapper` |
 | cli11 | 2.6.2 | ConanCenter | `orion_main` | Header-only CLI arg + env var parsing; MIT licence |
 
 ---
@@ -151,6 +151,6 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 |---|---|---|---|
 | Baseline | Done | `orion_clock`, `orion_proto`, `orion_app`, `orion_transport` | protobuf, zenoh-c, zenoh-cpp, abseil, gtest |
 | M1 - Core Runtime | Done | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
-| M2 - Observability | Done | `CrashHandler`, `LoggerFactory` in `orion_app` | backward-cpp, libdw, spdlog |
+| M2 - Observability | Done | `CrashHandler` in `orion_app`; logger creation in `ServiceBootstrapper` (`orion_main`) | backward-cpp, libdw, spdlog |
 | M3 - Simulation | Done | `CoordinatedClock` Phase 3; `orion_clock_service` + `clock_service` executable | none |
 | M4 - Perception | In Progress | `orion_perception`, `DeepStreamBackend`, `rtdetr_parser`; RT-DETR-R18 FP16 inference on Arducam Darksee via v4l2src | GStreamer (`gstreamer-1.0`, `gstreamer-app-1.0`), DeepStream SDK (Jetson only, `ORION_ENABLE_DEEPSTREAM=ON`) |
