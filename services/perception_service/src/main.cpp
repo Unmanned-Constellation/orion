@@ -65,6 +65,13 @@ auto main(int argc, char** argv) -> int
     app.add_option("--conf-threshold", conf_threshold, "Detection confidence threshold [0,1]")
         ->envname("CONF_THRESHOLD");
 
+    auto tracker_lib_path = std::string{"/opt/nvidia/deepstream/deepstream/lib/libnvds_mot_iou.so"};
+    auto parse_bbox_func  = std::string{"NvDsInferParseRtDetr"};
+    app.add_option("--tracker-lib", tracker_lib_path, "Path to DeepStream MOT tracker .so")
+        ->envname("TRACKER_LIB");
+    app.add_option("--parse-bbox-func", parse_bbox_func, "Bbox parser symbol in custom-lib")
+        ->envname("PARSE_BBOX_FUNC");
+
     // ── Stream output ─────────────────────────────────────────────────────────
     auto stream_host = std::string{"224.1.1.1"};
     auto stream_port = uint16_t{5000};
@@ -107,8 +114,10 @@ auto main(int argc, char** argv) -> int
     ds_config.capture_fps       = capture_fps;
     ds_config.model_engine_path = std::move(model_engine_path);
     ds_config.custom_lib_path   = std::move(custom_lib_path);
+    ds_config.parse_bbox_func   = std::move(parse_bbox_func);
     ds_config.num_classes       = num_classes;
     ds_config.conf_threshold    = conf_threshold;
+    ds_config.tracker_lib_path  = std::move(tracker_lib_path);
     ds_config.stream_host       = std::move(stream_host);
     ds_config.stream_port       = stream_port;
 

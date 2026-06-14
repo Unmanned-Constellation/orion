@@ -38,9 +38,11 @@ classDiagram
         -config_ DeepStreamConfig
         -callback_ DetectionCallback
         -clock_offset_ns_ int64_t
+        -nvinfer_config_path_ string
         -pipeline_thread_ thread
         +start(callback) void
         +stop() void
+        -onBusMessage(bus, msg, user_data)$ gboolean
     }
     class DeepStreamConfig {
         +camera_devices vector~string~
@@ -49,7 +51,11 @@ classDiagram
         +capture_height uint32_t
         +capture_fps uint32_t
         +model_engine_path string
+        +custom_lib_path string
+        +parse_bbox_func string
+        +num_classes uint32_t
         +conf_threshold float
+        +tracker_lib_path string
         +stream_host string
         +stream_port uint16_t
     }
@@ -183,6 +189,16 @@ captured_at_ns  = frame_meta->buf_pts + clock_offset_ns
 The offset is stable for the lifetime of the process (both clocks advance at the same
 rate; only their epochs differ).
 
+The `nvdsosd` OSD overlay (display path) uses the same formula to compute the
+latency figure shown in the on-screen text:
+
+```
+osd_latency_ms = (CLOCK_REALTIME_now − (frame_meta->buf_pts + clock_offset_ns)) / 1e6
+```
+
+This gives an accurate end-to-pipeline latency at the point the OSD probe fires
+(i.e. including the display path after the tee).
+
 ---
 
 ## Multi-camera support
@@ -217,7 +233,14 @@ filter by `camera_id` if they only need one source.
 
 DeepStream's built-in `nvinfer` parser expects YOLO-style output. RT-DETR uses a
 different output layout. `rtdetr_parser.so` implements the
-`NvDsInferParseRtDetr` function loaded by `nvinfer` at runtime via `dlopen`.
+`NvDsInferParseRtDetr` function (or any other symbol set via
+`DeepStreamConfig::parse_bbox_func` / `--parse-bbox-func` / `PARSE_BBOX_FUNC`)
+loaded by `nvinfer` at runtime via `dlopen`.
+
+`conf_threshold` is passed into the custom parser via a temporary
+`nvinfer` config file written to `/tmp/orion_nvinfer_<pid>.cfg` at pipeline
+build time. The file is unlinked after `gst_element_set_state(GST_STATE_PLAYING)`
+— `nvinfer` reads it during the state transition and does not need it afterwards.
 
 **Expected output tensor** (Ultralytics RT-DETR-R18, `model.export(format='engine', half=True)`):
 
@@ -249,9 +272,34 @@ cmake --preset debug
 cmake --preset release -DORION_ENABLE_DEEPSTREAM=ON
 ```
 
+### Runtime configuration (CLI / env)
+
+| Flag | Env var | Default | Description |
+|---|---|---|---|
+| `--tracker-lib` | `TRACKER_LIB` | `/opt/nvidia/deepstream/deepstream/lib/libnvds_mot_iou.so` | Path to DeepStream MOT tracker `.so` |
+| `--parse-bbox-func` | `PARSE_BBOX_FUNC` | `NvDsInferParseRtDetr` | Exported symbol name for the bbox parser in `custom_lib_path` |
+| `--conf-threshold` | `CONF_THRESHOLD` | `0.5` | Detection confidence threshold `[0, 1]` |
+
 When `ORION_ENABLE_DEEPSTREAM=OFF` (the default), `orion_perception` compiles on any
 host and links only against `orion_proto` and `orion_transport`. `DeepStreamBackend`
 and `rtdetr_parser.so` are not built.
+
+---
+
+## Pipeline error handling
+
+`DeepStreamBackend` installs a GLib bus watch (`gst_bus_add_watch`) during
+`buildPipeline()`. `onBusMessage` handles two message types:
+
+| Message | Action |
+|---|---|
+| `GST_MESSAGE_ERROR` | Logs the element name, error string, and debug info via `g_printerr`; quits the GLib main loop. |
+| `GST_MESSAGE_EOS` | Quits the GLib main loop (all source streams ended). |
+
+When the main loop quits (for either reason), `pipeline_thread_` returns and
+`stop()` joins it cleanly. The `ShutdownLatch` in `main.cpp` must be triggered
+externally (e.g. SIGINT) for the service to exit after an EOS — the pipeline
+does not self-terminate the process.
 
 ---
 

@@ -12,7 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends sudo \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -s /bin/bash gandalf \
     && echo "gandalf ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/gandalf \
-    && chmod 0440 /etc/sudoers.d/gandalf
+    && chmod 0440 /etc/sudoers.d/gandalf \
+    && mkdir -p /var/log/orion \
+    && chown gandalf:gandalf /var/log/orion
 
 # Register LLVM 18 and Kitware (cmake) apt repositories.
 RUN apt-get update && apt-get install -y --no-install-recommends \

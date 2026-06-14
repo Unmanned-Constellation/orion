@@ -28,10 +28,15 @@ struct DeepStreamConfig
     uint32_t capture_fps{30};
 
     // Inference
-    std::string model_engine_path; // path to TensorRT .engine file
-    std::string custom_lib_path;   // path to rtdetr_parser.so
-    uint32_t    num_classes{80};   // COCO pretrained = 80
+    std::string model_engine_path;                       // path to TensorRT .engine file
+    std::string custom_lib_path;                         // path to rtdetr_parser.so
+    std::string parse_bbox_func{"NvDsInferParseRtDetr"}; // exported symbol in custom_lib_path
+    uint32_t    num_classes{80};                         // COCO pretrained = 80
     float       conf_threshold{0.5F};
+
+    // Tracker
+    std::string tracker_lib_path{
+        "/opt/nvidia/deepstream/deepstream/lib/libnvds_mot_iou.so"}; // IOU MOT tracker
 
     // Stream output (UDP+RTP)
     std::string stream_host{"224.1.1.1"};
@@ -76,12 +81,14 @@ class DeepStreamBackend final : public PerceptionBackend
     static auto onOsdSinkProbe(GstPad*          pad,
                                GstPadProbeInfo* info,
                                gpointer         user_data) -> GstPadProbeReturn;
+    static auto onBusMessage(GstBus* bus, GstMessage* msg, gpointer user_data) -> gboolean;
 
     void processBuffer(GstBuffer* buf, GstClockTime monotonic_pts);
 
     DeepStreamConfig  config_;
     DetectionCallback callback_;
-    int64_t           clock_offset_ns_{0}; // CLOCK_REALTIME - CLOCK_MONOTONIC at start()
+    int64_t           clock_offset_ns_{0};    // CLOCK_REALTIME - CLOCK_MONOTONIC at start()
+    std::string       nvinfer_config_path_{}; // temp file written at start(), deleted at stop()
 
     GstElement* pipeline_{nullptr};
     GstElement* mux_{nullptr};

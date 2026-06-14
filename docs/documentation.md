@@ -21,11 +21,16 @@ C++ headers → Doxygen (XML) → Breathe → Sphinx (HTML)
 | `INPUT` | `./libs ./proto` | Parse public headers and proto stubs |
 | `FILE_PATTERNS` | `*.hpp` | C++ headers only |
 | `EXCLUDE_PATTERNS` | `*/build/* *_impl.hpp` | Skip generated artefacts and PIMPL headers |
-| `GENERATE_XML` | `YES` | Breathe consumes XML, not HTML |
-| `GENERATE_HTML` | `NO` | Sphinx produces the HTML instead |
+| `EXTRACT_PRIVATE` | `NO` | Public API only — private members excluded |
+| `EXTRACT_STATIC` | `YES` | Include static members in the API reference |
+| `GENERATE_XML` | `YES` | Breathe consumes XML for Sphinx integration |
+| `GENERATE_HTML` | `YES` | Standalone Doxygen HTML site; copied into `docs/_build/html/doxygen/` by the `orion_docs` CMake target |
 | `WARN_AS_ERROR` | `FAIL_ON_WARNINGS` | Undocumented public symbols fail CI |
 | `WARN_IF_UNDOCUMENTED` | `YES` | Every public declaration needs a doc comment |
-| `OUTPUT_DIRECTORY` | `./docs/_build/doxygen` | XML lands in `docs/_build/doxygen/xml/` |
+| `OUTPUT_DIRECTORY` | `./docs/_build/doxygen` | XML in `_build/doxygen/xml/`; HTML in `_build/doxygen/html/` |
+| `HAVE_DOT` | `YES` | Graphviz enabled — generates UML class, include, and collaboration graphs |
+| `DOT_IMAGE_FORMAT` | `svg` | Scalable vector diagrams with `INTERACTIVE_SVG = YES` |
+| `UML_LOOK` | `YES` | Class diagrams rendered in UML style |
 
 `PROJECT_NUMBER` is set from the `ORION_PROJECT_VERSION` environment variable,
 which CMake captures from `git describe --tags --abbrev=0` at configure time.
@@ -65,21 +70,25 @@ pip install -r docs/requirements.txt
 The two-step sequence mirrors what CI does:
 
 ```bash
-# Step 1: generate Doxygen XML
+# Step 1: generate Doxygen XML and HTML
 doxygen docs/Doxyfile
 
 # Step 2: build the Sphinx site
 sphinx-build -W -b html docs docs/_build/html
+
+# Step 3 (optional): merge Doxygen HTML into the Sphinx output
+cp -r docs/_build/doxygen/html docs/_build/html/doxygen
 ```
 
 `-W` promotes Sphinx warnings to errors, consistent with CI. Open
-`docs/_build/html/index.html` in a browser to review the output.
+`docs/_build/html/index.html` in a browser to review the output; the standalone
+Doxygen site is at `docs/_build/html/doxygen/index.html`.
 
 Both output directories are gitignored (`docs/_build/`).
 
-The **Docs: Build** VS Code task runs the full pipeline (Doxygen then Sphinx) but does not
-set `ORION_PROJECT_VERSION`. To include the correct version string in the generated pages,
-set the variable before running Doxygen manually:
+The `cmake --build --preset debug --target orion_docs` command runs the full
+three-step pipeline automatically. The **Docs: Build** VS Code task does the same
+but does not set `ORION_PROJECT_VERSION`. To include the correct version string:
 
 ```bash
 export ORION_PROJECT_VERSION=$(git describe --tags --abbrev=0)
@@ -131,11 +140,12 @@ for the full list.
 ## CI enforcement
 
 The `docs` CI job runs on every push and PR, in parallel with the `format` and
-`commitlint` jobs:
+`commitlint` jobs, via the `orion_docs` CMake target:
 
 ```
-doxygen docs/Doxyfile
-sphinx-build -W -b html docs docs/_build/html
+doxygen docs/Doxyfile                          # XML + HTML
+sphinx-build -W -b html docs docs/_build/html  # Sphinx site
+cp -r docs/_build/doxygen/html docs/_build/html/doxygen
 ```
 
 All downstream build, test, sanitizer, coverage, and fuzz jobs have `docs` as a
