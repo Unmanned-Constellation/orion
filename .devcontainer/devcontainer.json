@@ -11,12 +11,12 @@
   "initializeCommand": "mkdir -p ${localEnv:HOME}/.cache/orion-ccache ${localEnv:HOME}/.cache/orion-deps && touch ${localEnv:HOME}/.gitconfig",
   "mounts": [
     "source=${localEnv:HOME}/.cache/orion-ccache,target=/ccache,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.cache/orion-deps,target=/root/.conan2,type=bind,consistency=cached",
-    "source=orion-vscode-server,target=/root/.vscode-server,type=volume",
-    "source=orion-cmake-tools,target=/root/.local/share/CMakeTools,type=volume",
-    "source=orion-claude-profile,target=/root/.claude,type=volume",
-    "source=orion-agents-profile,target=/root/.agents,type=volume",
-    "source=orion-gh-profile,target=/root/.config/gh,type=volume",
+    "source=${localEnv:HOME}/.cache/orion-deps,target=/home/gandalf/.conan2,type=bind,consistency=cached",
+    "source=orion-vscode-server,target=/home/gandalf/.vscode-server,type=volume",
+    "source=orion-cmake-tools,target=/home/gandalf/.local/share/CMakeTools,type=volume",
+    "source=orion-claude-profile,target=/home/gandalf/.claude,type=volume",
+    "source=orion-agents-profile,target=/home/gandalf/.agents,type=volume",
+    "source=orion-gh-profile,target=/home/gandalf/.config/gh,type=volume",
     "source=${localEnv:HOME}/.ssh,target=/tmp/host-ssh,type=bind,readonly"
   ],
   "remoteEnv": {
@@ -26,7 +26,7 @@
     "GIT_COMMITTER_EMAIL": "${localEnv:GIT_COMMITTER_EMAIL}"
   },
   "containerEnv": {
-    "CLAUDE_CONFIG_DIR": "/root/.claude"
+    "CLAUDE_CONFIG_DIR": "/home/gandalf/.claude"
   },
   "customizations": {
     "vscode": {
@@ -72,6 +72,7 @@
   // unconfined instead because it requires embedding and maintaining Docker's full ~300-entry
   // allowlist, which is not worth the cost for a dev container running only trusted tooling.
   "runArgs": ["--security-opt", "seccomp=unconfined"],
+  "remoteUser": "gandalf",
   "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "postStartCommand": "mkdir -p /root/.ssh && cp -r /tmp/host-ssh/. /root/.ssh/ && chown -R root:root /root/.ssh && chmod 700 /root/.ssh && chmod 600 /root/.ssh/*"
+  "postStartCommand": "mkdir -p /home/gandalf/.ssh && cp -r /tmp/host-ssh/. /home/gandalf/.ssh/ && chmod 700 /home/gandalf/.ssh && chmod 600 /home/gandalf/.ssh/* 2>/dev/null || true"
 }

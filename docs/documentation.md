@@ -23,7 +23,7 @@ C++ headers → Doxygen (XML) → Breathe → Sphinx (HTML)
 | `EXCLUDE_PATTERNS` | `*/build/* *_impl.hpp` | Skip generated artefacts and PIMPL headers |
 | `GENERATE_XML` | `YES` | Breathe consumes XML, not HTML |
 | `GENERATE_HTML` | `NO` | Sphinx produces the HTML instead |
-| `WARN_AS_ERROR` | `YES` | Undocumented public symbols fail CI |
+| `WARN_AS_ERROR` | `FAIL_ON_WARNINGS` | Undocumented public symbols fail CI |
 | `WARN_IF_UNDOCUMENTED` | `YES` | Every public declaration needs a doc comment |
 | `OUTPUT_DIRECTORY` | `./docs/_build/doxygen` | XML lands in `docs/_build/doxygen/xml/` |
 
@@ -34,13 +34,16 @@ which CMake captures from `git describe --tags --abbrev=0` at configure time.
 
 | Setting | Value |
 |---|---|
-| Extensions | `breathe`, `myst_parser` |
+| Extensions | `breathe`, `myst_parser`, `exhale`, `sphinxcontrib.mermaid` |
 | Theme | `furo` |
 | `breathe_projects["orion"]` | `_build/doxygen/xml` |
 | `breathe_default_project` | `orion` |
 
 `myst_parser` allows the Markdown guides (`.md`) in `docs/` to be included in
-the Sphinx toctree alongside `.rst` files.
+the Sphinx toctree alongside `.rst` files. `exhale` auto-generates the
+`docs/api/` tree from the Doxygen XML — that directory is gitignored and
+regenerated on every build. `sphinxcontrib.mermaid` renders `{mermaid}` fenced
+blocks in Markdown as SVG diagrams.
 
 ### Python dependencies (`docs/requirements.txt`)
 
@@ -101,27 +104,27 @@ Key rules enforced by the Doxyfile:
 - `WARN_IF_UNDOCUMENTED = YES` - every public class, function, and field needs
   at minimum a brief description.
 - `WARN_NO_PARAMDOC = YES` - every parameter must have a `@param` annotation.
-- `WARN_AS_ERROR = YES` - missing docs fail the CI `docs` job.
+- `WARN_AS_ERROR = FAIL_ON_WARNINGS` - missing docs fail the CI `docs` job.
 - `EXCLUDE_PATTERNS = *_impl.hpp` - PIMPL implementation headers are excluded;
   document the public interface headers only.
 
-## Exposing symbols in RST
+## API reference generation
 
-`docs/api.rst` uses the `doxygennamespace` Breathe directive to pull in all
-symbols under `orion::transport`:
+`exhale` reads the Doxygen XML and auto-generates one `.rst` file per
+namespace, class, struct, function, and file under `docs/api/`. The root page
+is `docs/api/library_root.rst`, linked from the `index.md` toctree.
+
+You can also embed individual symbols inline in any Markdown guide using
+Breathe directives:
 
 ```rst
-.. doxygennamespace:: orion::transport
+.. doxygenclass:: orion::transport::Session
    :project: orion
    :members:
-   :undoc-members:
 ```
 
-To document additional namespaces, add more directives to `api.rst` or create
-new `.rst` files and add them to the toctree in `index.rst`.
-
-Available Breathe directives include `doxygenclass`, `doxygenstruct`,
-`doxygenfunction`, and `doxygentypedef`. See the
+Available directives: `doxygennamespace`, `doxygenclass`, `doxygenstruct`,
+`doxygenfunction`, `doxygentypedef`. See the
 [Breathe directive reference](https://breathe.readthedocs.io/en/latest/directives.html)
 for the full list.
 

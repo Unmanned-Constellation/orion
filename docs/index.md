@@ -42,6 +42,13 @@ adr/*
 api/library_root
 ```
 
+```{admonition} UML class diagrams
+:class: note
+Per-class UML inheritance and collaboration diagrams are in the
+[Doxygen class reference](doxygen/annotated.html) (available after a full
+`cmake --build --preset debug --target orion_docs` build).
+```
+
 ```{toctree}
 :maxdepth: 1
 :caption: Libraries

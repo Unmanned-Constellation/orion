@@ -38,6 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libclang-rt-18-dev \
         llvm-18 \
         doxygen \
+        graphviz \
         openssh-client \
         libdw-dev \
     && rm -rf /var/lib/apt/lists/* \
@@ -84,5 +85,12 @@ RUN mkdir -p /opt/conan && chmod 777 /opt/conan \
              --lockfile=/workspace/conan.lock; \
        fi \
     && rm -rf /workspace/*
+
+# Create gandalf user with passwordless sudo
+RUN apt-get update && apt-get install -y --no-install-recommends sudo \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -m -s /bin/bash gandalf \
+    && echo "gandalf ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/gandalf \
+    && chmod 0440 /etc/sudoers.d/gandalf
 
 WORKDIR /workspace

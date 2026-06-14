@@ -20,6 +20,48 @@ of `orion_clock` and is documented in the same section below.
 
 ---
 
+## Class hierarchy
+
+```{mermaid}
+classDiagram
+    class TimeSource {
+        <<abstract>>
+        +nowNs() uint64_t
+        +sleepUntil(target_ns) void
+    }
+    class WallClock {
+        +nowNs() uint64_t
+        +sleepUntil(target_ns) void
+    }
+    class ManualClock {
+        -now_ns_ uint64_t
+        -stopped_ bool
+        +nowNs() uint64_t
+        +sleepUntil(target_ns) void
+        +advance(delta_ns) void
+        +setNow(now_ns) void
+        +wake() void
+    }
+    class SimClock {
+        -scale_ double
+        -sim_start_ns_ uint64_t
+        -wall_start_ns_ uint64_t
+        +nowNs() uint64_t
+        +sleepUntil(target_ns) void
+    }
+    class CoordinatedClock {
+        -sim_time_ns_ uint64_t
+        +nowNs() uint64_t
+        +sleepUntil(target_ns) void
+        +update(sim_time_ns) void
+        +wake() void
+    }
+    TimeSource <|-- WallClock : production
+    TimeSource <|-- ManualClock : tests
+    TimeSource <|-- SimClock : scaled real-time
+    TimeSource <|-- CoordinatedClock : lockstep sim
+```
+
 ## Design
 
 ### Why dependency injection?

@@ -75,21 +75,26 @@ find_program(SPHINX_BUILD_EXECUTABLE sphinx-build)
 if(DOXYGEN_FOUND AND SPHINX_BUILD_EXECUTABLE)
     add_custom_target(
         orion_docs
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/docs/_build/doxygen
         COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_SOURCE_DIR}/docs/Doxyfile
         COMMAND
             ${CMAKE_COMMAND} -E env LC_ALL=C.UTF-8 LANG=C.UTF-8
             ${SPHINX_BUILD_EXECUTABLE} -b html ${CMAKE_SOURCE_DIR}/docs
             ${CMAKE_SOURCE_DIR}/docs/_build/html
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/docs/_build/doxygen/html
+            ${CMAKE_SOURCE_DIR}/docs/_build/html/doxygen
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Building Doxygen XML then Sphinx HTML documentation"
+        COMMENT "Building Doxygen (XML + HTML) then Sphinx HTML documentation"
         VERBATIM
     )
 elseif(DOXYGEN_FOUND)
     add_custom_target(
         orion_docs
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/docs/_build/doxygen
         COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_SOURCE_DIR}/docs/Doxyfile
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Building Doxygen XML (sphinx-build not found, skipping HTML)"
+        COMMENT "Building Doxygen XML and HTML (sphinx-build not found)"
         VERBATIM
     )
 endif()

@@ -4,6 +4,70 @@
 underlying pub/sub backend (currently Zenoh) behind a backend-agnostic C++ API so that
 service code never imports backend headers directly.
 
+## Component relationships
+
+```{mermaid}
+classDiagram
+    class Session {
+        +create(SessionConfig) Session$
+        +advertise~T~(topic) Publisher~T~
+        +subscribe~T~(topic, callback) Subscriber~T~
+    }
+    class Publisher~T~ {
+        +publish(msg, captured_at_ns) void
+    }
+    class Subscriber~T~ {
+        +~Subscriber()
+    }
+    class PublisherBackend {
+        <<interface>>
+        +send(bytes) void
+    }
+    class SubscriberBackend {
+        <<interface>>
+    }
+    class SessionImpl {
+        <<pimpl>>
+    }
+    Session --> Publisher~T~ : advertise
+    Session --> Subscriber~T~ : subscribe
+    Session *-- SessionImpl
+    Publisher~T~ *-- PublisherBackend
+    Subscriber~T~ *-- SubscriberBackend
+```
+
+## Publish flow
+
+```{mermaid}
+sequenceDiagram
+    participant Service
+    participant Clock as TimeSource
+    participant Pub as Publisher&lt;T&gt;
+    participant Backend as ZenohBackend
+
+    Service->>Clock: nowNs()
+    Clock-->>Service: captured_at_ns
+
+    Service->>Pub: publish(msg, captured_at_ns)
+    Pub->>Pub: serialize msg → payload bytes
+    Pub->>Backend: send(Envelope{header, type_url, payload})
+    Backend->>Backend: transmit over Zenoh
+```
+
+## Subscribe flow
+
+```{mermaid}
+sequenceDiagram
+    participant Backend as ZenohBackend
+    participant Sub as Subscriber&lt;T&gt;
+    participant Service
+
+    Backend->>Sub: raw bytes received
+    Sub->>Sub: deserialize Envelope
+    Sub->>Sub: check type_url matches T
+    Sub->>Service: callback(msg, MessageHeader)
+```
+
 ## Responsibilities
 
 - Open and manage a transport session (one per microservice process).
