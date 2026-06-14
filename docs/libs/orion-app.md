@@ -23,6 +23,37 @@ int main()
 
 `orion_app` is a **STATIC** library. It depends on `orion_clock` and `backward-cpp`.
 
+## Service startup and shutdown sequence
+
+```{mermaid}
+sequenceDiagram
+    participant main
+    participant Latch as ShutdownLatch
+    participant Crash as CrashHandler
+    participant Log as LoggerFactory
+    participant Sched as FrameScheduler
+    participant OS
+
+    main->>Latch: ShutdownLatch()
+    Note over Latch: pthread_sigmask blocks SIGINT/SIGTERM<br/>on main thread; watcher thread spawned
+    main->>Crash: CrashHandler()
+    Note over Crash: installs handlers for SIGSEGV/SIGABRT/etc<br/>on an mmap'd alternate stack
+    main->>Log: init("service-name", level)
+    Note over Log: opens stderr sink + rotating file sink
+    main->>Sched: FrameScheduler(rate_hz, clock, &latch)
+    main->>Sched: every(N, callback) ...
+    main->>Sched: run()
+    Note over Sched: tick loop begins; main thread blocks here
+
+    OS-->>Latch: SIGTERM or SIGINT
+    Note over Latch: watcher thread receives signal via sigwait()
+    Latch->>Latch: stop() → stopped_ = true, cv notified
+    Sched->>Sched: observes latch.stopped() after next sleepUntil
+    Sched-->>main: run() returns
+    main->>Log: flush()
+    Note over main: ~FrameScheduler, ~CrashHandler, ~ShutdownLatch<br/>restore signal handlers, join watcher thread
+```
+
 ---
 
 ## `CrashHandler`

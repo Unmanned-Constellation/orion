@@ -8,6 +8,11 @@ service code never imports backend headers directly.
 
 ```{mermaid}
 classDiagram
+    class SessionConfig {
+        +vehicle_id string
+        +service_name string
+        +config_path optional~string~
+    }
     class Session {
         +create(SessionConfig) Session$
         +advertise~T~(topic) Publisher~T~
@@ -19,6 +24,10 @@ classDiagram
     class Subscriber~T~ {
         +~Subscriber()
     }
+    class MessageHeader {
+        +captured_at_ns uint64_t
+        +source_id string
+    }
     class PublisherBackend {
         <<interface>>
         +send(bytes) void
@@ -29,11 +38,13 @@ classDiagram
     class SessionImpl {
         <<pimpl>>
     }
+    Session ..> SessionConfig : create
     Session --> Publisher~T~ : advertise
     Session --> Subscriber~T~ : subscribe
     Session *-- SessionImpl
     Publisher~T~ *-- PublisherBackend
     Subscriber~T~ *-- SubscriberBackend
+    Subscriber~T~ ..> MessageHeader : callback delivers
 ```
 
 ## Publish flow

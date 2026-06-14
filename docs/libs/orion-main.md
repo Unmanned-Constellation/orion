@@ -59,7 +59,7 @@ auto main(int argc, char** argv) -> int
 
     CLI11_PARSE(app, argc, argv);
 
-    orion::app::LoggerFactory::init(cfg.log_level);
+    orion::app::LoggerFactory::init("my-service", spdlog::level::from_str(cfg.log_level));
     // ... set up session, scheduler, services ...
 }
 ```

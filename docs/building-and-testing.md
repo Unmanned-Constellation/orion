@@ -179,13 +179,13 @@ cmake --preset bench
 cmake --build --preset bench
 
 # Run on target hardware (Jetson Orin Nano)
-./build/Bench/benchmarks/orion_benchmarks
+./build/Bench/benchmarks/orion_transport_benchmarks
 
 # JSON output for baseline recording
-./build/Bench/benchmarks/orion_benchmarks --benchmark_format=json | tee bench-$(date +%Y%m%d).json
+./build/Bench/benchmarks/orion_transport_benchmarks --benchmark_format=json | tee bench-$(date +%Y%m%d).json
 ```
 
-Two benchmark suites are defined in `benchmarks/transport_bench.cpp`, each parameterised over
+Two benchmark suites are defined in `benchmarks/transport_benchmarks.cpp`, each parameterised over
 four payload sizes (16 B, 256 B, 1 KB, 64 KB):
 
 | Suite | Metric | Target (Jetson Orin Nano) |

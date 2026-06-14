@@ -154,10 +154,10 @@
       }
     },
     {
-      "label": "Benchmark: Run",
-      "detail": "Build the bench preset then run orion_benchmarks (all suites, all payload sizes)",
+      "label": "Benchmark: Transport",
+      "detail": "Build the bench preset then run orion_transport_benchmarks (all suites, all payload sizes)",
       "type": "shell",
-      "command": "bash scripts/environment/conan_install_preset.sh release && /usr/bin/cmake --preset bench --no-warn-unused-cli && /usr/bin/cmake --build --preset bench && ./build/Bench/benchmarks/orion_benchmarks",
+      "command": "bash scripts/environment/conan_install_preset.sh release && /usr/bin/cmake --preset bench --no-warn-unused-cli && /usr/bin/cmake --build --preset bench && ./build/Bench/benchmarks/orion_transport_benchmarks",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
@@ -242,7 +242,9 @@
       "description": "Select a build type",
       "options": [
         "debug",
-        "release"
+        "release",
+        "sanitize",
+        "tsan"
       ],
       "default": "debug"
     },

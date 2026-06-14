@@ -6,6 +6,89 @@ it also builds `DeepStreamBackend` and the `rtdetr_parser` shared library.
 
 ---
 
+## Class hierarchy
+
+```{mermaid}
+classDiagram
+    class PerceptionBackend {
+        <<abstract>>
+        +start(callback) void
+        +stop() void
+    }
+    class PerceptionService {
+        -backend_ PerceptionBackend*
+        -publisher_ Publisher~DetectionFrame~
+        +start() void
+        +stop() void
+    }
+    class FakePerceptionBackend {
+        -script_ vector~ScriptedFrame~
+        -callback_ DetectionCallback
+        +start(callback) void
+        +stop() void
+        +emit(frame, captured_at_ns) void
+    }
+    class ScriptedFrame {
+        <<nested>>
+        +frame DetectionFrame
+        +captured_at_ns uint64_t
+    }
+    class DeepStreamBackend {
+        <<ORION_ENABLE_DEEPSTREAM=ON>>
+        -config_ DeepStreamConfig
+        -callback_ DetectionCallback
+        -clock_offset_ns_ int64_t
+        -pipeline_thread_ thread
+        +start(callback) void
+        +stop() void
+    }
+    class DeepStreamConfig {
+        +camera_devices vector~string~
+        +camera_ids vector~string~
+        +capture_width uint32_t
+        +capture_height uint32_t
+        +capture_fps uint32_t
+        +model_engine_path string
+        +conf_threshold float
+        +stream_host string
+        +stream_port uint16_t
+    }
+    PerceptionBackend <|-- FakePerceptionBackend : tests
+    PerceptionBackend <|-- DeepStreamBackend : Jetson hardware
+    FakePerceptionBackend *-- ScriptedFrame : script_
+    DeepStreamBackend *-- DeepStreamConfig : config_
+    PerceptionService --> PerceptionBackend : backend_
+    PerceptionService --> Publisher~DetectionFrame~ : publisher_
+```
+
+## Service lifecycle
+
+```{mermaid}
+sequenceDiagram
+    participant main
+    participant Svc as PerceptionService
+    participant Backend as PerceptionBackend
+    participant Pub as Publisher~DetectionFrame~
+    participant Zenoh as Zenoh Bus
+
+    main->>Svc: start()
+    Svc->>Backend: start(callback)
+    Note over Backend: pipeline starts (or script replay fires synchronously)
+    Backend-->>Svc: returns immediately
+
+    main->>main: latch.wait() blocks
+
+    Backend->>Svc: callback(DetectionFrame, captured_at_ns)
+    Svc->>Pub: publish(frame, captured_at_ns)
+    Pub->>Zenoh: transmit Envelope
+
+    main->>Svc: stop()
+    Svc->>Backend: stop()
+    Note over Backend: pipeline EOS, GLib main loop quits, thread joined
+```
+
+---
+
 ## Pipeline topology
 
 The `DeepStreamBackend` builds the following GStreamer pipeline programmatically

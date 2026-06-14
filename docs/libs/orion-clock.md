@@ -45,12 +45,12 @@ classDiagram
     class SimClock {
         -scale_ double
         -sim_start_ns_ uint64_t
-        -wall_start_ns_ uint64_t
+        -wall_start_ uint64_t
         +nowNs() uint64_t
         +sleepUntil(target_ns) void
     }
     class CoordinatedClock {
-        -sim_time_ns_ uint64_t
+        -now_ns_ uint64_t
         +nowNs() uint64_t
         +sleepUntil(target_ns) void
         +update(sim_time_ns) void
@@ -267,6 +267,31 @@ Single-threaded, time-triggered executor. Runs all registered callbacks
 sequentially on one thread at integer sub-multiples of the minor frame rate
 (see ADR-0008).
 
+```{mermaid}
+classDiagram
+    class FrameScheduler {
+        -period_ns_ uint64_t
+        -frame_ticks_ uint64_t
+        -clock_ shared_ptr~TimeSource~
+        -latch_ ShutdownLatch*
+        -tick_count_ uint64_t
+        -callbacks_ vector~Entry~
+        -overrun_count_ uint64_t
+        +every(divisor, callback) void
+        +run() void
+        +overrunCount() uint64_t
+        +rtPriorityApplied() bool
+    }
+    class Entry {
+        <<nested>>
+        +divisor uint64_t
+        +callback function~void()~
+    }
+    FrameScheduler *-- Entry : callbacks_
+    FrameScheduler --> TimeSource : clock_
+    FrameScheduler --> ShutdownLatch : latch_
+```
+
 ```cpp
 orion::app::FrameScheduler sched(
     100.0,   // minor frame rate in Hz - must be a positive integer value
@@ -312,7 +337,7 @@ advance the clock between construction and the first call to `run()`.
 
 | Method | Description |
 |--------|-------------|
-| `FrameScheduler(double rate_hz, shared_ptr<TimeSource>, ShutdownLatch*, int rt_priority = 0)` | Construct at the given rate. `rate_hz` must be a positive integer value. `clock` and `latch` must not be null. Optional `rt_priority > 0` sets `SCHED_FIFO` priority on the run thread. All preconditions are enforced with `assert()` (debug builds only). |
+| `FrameScheduler(double rate_hz, shared_ptr<TimeSource>, ShutdownLatch*, int rt_priority = 0)` | Construct at the given rate. `rate_hz` must be a positive integer value. `clock` and `latch` must not be null. Optional `rt_priority > 0` sets `SCHED_FIFO` priority on the run thread. Throws `std::invalid_argument` on invalid arguments. |
 | `void every(uint64_t divisor, Fn&& callback)` | Register a callback to run every `divisor` ticks. Must be called before `run()`. Asserts `divisor > 0` and `divisor` evenly divides `rate_hz`. |
 | `void run()` | Blocks, dispatching callbacks each tick in registration order. Returns when the latch is stopped. Asserts it has not been called previously. |
 | `uint64_t overrunCount() const` | Number of ticks where combined callback time exceeded the period. Atomic, readable from any thread. |
@@ -329,6 +354,20 @@ namespace orion::app
 
 Blocks `main()` until SIGTERM or SIGINT is received, or until `stop()` is called
 programmatically. Also acts as the run-loop exit signal for `FrameScheduler`.
+
+```{mermaid}
+classDiagram
+    class ShutdownLatch {
+        -mask_ sigset_t
+        -mu_ mutex
+        -cv_ condition_variable
+        -stopped_ bool
+        -watcher_ thread
+        +wait() bool
+        +stopped() bool
+        +stop() void
+    }
+```
 
 ```cpp
 int main()
@@ -367,7 +406,7 @@ threads are created**, so the blocked signal mask is inherited correctly.
 
 ## CMake integration
 
-`orion_clock` and `orion_app` are both `INTERFACE` (header-only) targets:
+`orion_clock` is an `INTERFACE` (header-only) target. `orion_app` is a `STATIC` library:
 
 ```cmake
 # Clock only
@@ -477,3 +516,75 @@ TEST(MyServiceTest, OverrunCatchesUp)
     runner.join();
 }
 ```
+
+---
+
+## `ClockService`
+
+```cpp
+#include "orion/app/clock_service.hpp"
+namespace orion::app
+```
+
+Publishes `SimTimeUpdate` on every `FrameScheduler` tick, driving all services that use
+`CoordinatedClock` to advance in lockstep. Backed internally by a `SimClock` so it does
+not need an external time source.
+
+```{mermaid}
+classDiagram
+    class ClockService {
+        -sim_clock_ SimClock
+        -publisher_ Publisher~SimTimeUpdate~
+        -scale_ double
+        +ClockService(scale, publisher, scheduler)
+        +create(scale, vehicle_id, session, scheduler) ClockService$
+    }
+    class SimClock {
+        -scale_ double
+        -wall_start_ uint64_t
+        -sim_start_ns_ uint64_t
+        +nowNs() uint64_t
+        +sleepUntil(target_ns) void
+    }
+    class CoordinatedClock {
+        +update(sim_time_ns) void
+        +nowNs() uint64_t
+        +sleepUntil(target_ns) void
+    }
+    ClockService *-- SimClock : sim_clock_
+    ClockService --> Publisher~SimTimeUpdate~ : publisher_
+    ClockService --> FrameScheduler : registers tick callback
+    CoordinatedClock ..> ClockService : driven by SimTimeUpdate broadcasts
+```
+
+### Sim-time broadcast flow
+
+```{mermaid}
+sequenceDiagram
+    participant FS as FrameScheduler
+    participant CS as ClockService
+    participant SC as SimClock
+    participant Pub as Publisher~SimTimeUpdate~
+    participant Zenoh as Zenoh Bus
+    participant Sub as Subscriber~SimTimeUpdate~
+    participant CC as CoordinatedClock
+
+    FS->>CS: tick callback fires
+    CS->>SC: nowNs()
+    SC-->>CS: sim_time_ns
+    CS->>Pub: publish(SimTimeUpdate{sim_time_ns}, sim_time_ns)
+    Pub->>Zenoh: transmit Envelope
+
+    Zenoh->>Sub: raw bytes received
+    Sub->>Sub: deserialize → SimTimeUpdate
+    Sub->>CC: update(msg.sim_time_ns())
+    CC->>CC: now_ns_ = sim_time_ns, cv_.notify_all()
+    Note over CC: any thread blocked in sleepUntil() is woken
+```
+
+### Method reference
+
+| Method | Description |
+|---|---|
+| `ClockService(scale, publisher, scheduler)` | Constructs from an already-created publisher. Registers the tick callback on `scheduler`. |
+| `ClockService::create(scale, vehicle_id, session, scheduler)` | Factory that calls `session.advertise<SimTimeUpdate>()` on the correct topic, then delegates to the constructor. |

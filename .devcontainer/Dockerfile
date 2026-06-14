@@ -1,4 +1,4 @@
-# Architecture-aware base selection. BuildKit sets TARGETARCH automatically
+# Architecture-aware base selection. BuildKit sets TARGETARCH automatically.
 FROM ubuntu:22.04 AS base-amd64
 FROM nvcr.io/nvidia/deepstream-l4t:7.1-triton-multiarch AS base-arm64
 
@@ -7,14 +7,21 @@ FROM base-${TARGETARCH}
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Create user early — this layer is stable and rarely invalidated.
+RUN apt-get update && apt-get install -y --no-install-recommends sudo \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -m -s /bin/bash gandalf \
+    && echo "gandalf ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/gandalf \
+    && chmod 0440 /etc/sudoers.d/gandalf
+
 # Register LLVM 18 and Kitware (cmake) apt repositories.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl \
         ca-certificates \
+        curl \
         gpg \
     && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
-        | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
+        | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null \
     && echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" \
         > /etc/apt/sources.list.d/llvm-18.list \
     && curl -fsSL https://apt.kitware.com/keys/kitware-archive-latest.asc \
@@ -23,27 +30,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main" \
         > /etc/apt/sources.list.d/kitware.list
 
-# Dev toolchain: cmake, make, ninja, clang-18, ccache, doxygen, conan, pre-commit.
+# Dev toolchain: cmake, clang-18, ccache, doxygen, conan, pre-commit.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        cmake \
         ccache \
-        make \
-        ninja-build \
-        git \
-        python3-pip \
         clang-18 \
         clang-format-18 \
         clang-tidy-18 \
         clangd-18 \
-        libclang-rt-18-dev \
-        llvm-18 \
+        cmake \
         doxygen \
+        git \
         graphviz \
-        openssh-client \
+        libclang-rt-18-dev \
         libdw-dev \
+        llvm-18 \
+        make \
+        ninja-build \
+        openssh-client \
+        python3-pip \
     && rm -rf /var/lib/apt/lists/* \
-    && pip3 install --no-cache-dir pre-commit==4.6.0 gersemi==0.27.5 conan==2.28.1 \
-            sphinx==8.1.3 breathe==4.36.0 furo==2025.12.19 myst-parser==4.0.1 exhale==0.3.7 sphinxcontrib-mermaid==1.0.0 \
+    && pip3 install --no-cache-dir \
+        breathe==4.36.0 \
+        conan==2.28.1 \
+        exhale==0.3.7 \
+        furo==2025.12.19 \
+        gersemi==0.27.5 \
+        myst-parser==4.0.1 \
+        pre-commit==4.6.0 \
+        sphinx==8.1.3 \
+        sphinxcontrib-mermaid==1.0.0 \
     && rm -rf /root/.cache/pip \
     && update-alternatives --install /usr/bin/cc cc /usr/bin/clang-18 100 \
     && update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-18 100 \
@@ -66,6 +81,7 @@ ENV PATH="/usr/lib/ccache:/usr/local/bin:${PATH}" \
 
 # Bake Conan dependency packages into the image so CI jobs never cold-build them.
 # /opt/conan is outside $HOME so GitHub Actions' home-directory mount won't shadow it.
+# chown happens in the same layer as the writes to avoid Docker layer bloat.
 ARG TARGETARCH
 COPY conanfile.py conan.lock /workspace/
 COPY conan/ /workspace/conan/
@@ -84,13 +100,7 @@ RUN mkdir -p /opt/conan && chmod 777 /opt/conan \
              -pr=/workspace/conan/profiles/arm64/debug \
              --lockfile=/workspace/conan.lock; \
        fi \
+    && chown -R gandalf:gandalf /opt/conan \
     && rm -rf /workspace/*
-
-# Create gandalf user with passwordless sudo
-RUN apt-get update && apt-get install -y --no-install-recommends sudo \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd -m -s /bin/bash gandalf \
-    && echo "gandalf ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/gandalf \
-    && chmod 0440 /etc/sudoers.d/gandalf
 
 WORKDIR /workspace

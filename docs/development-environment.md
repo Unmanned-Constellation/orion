@@ -5,7 +5,7 @@ The devcontainer is the only supported development environment. Everything below
 
 ## Base image
 
-`docker/Dockerfile` uses BuildKit's `TARGETARCH` argument to select the base image automatically:
+`.devcontainer/Dockerfile` uses BuildKit's `TARGETARCH` argument to select the base image automatically:
 
 | Architecture | Base image | Notes |
 |---|---|---|
@@ -17,7 +17,7 @@ of both bases. See [ADR-0003](adr/0003-multi-platform-build-and-deploy.md) for t
 
 ## apt packages
 
-All packages are installed in a single `RUN` layer in `docker/Dockerfile`.
+All packages are installed in a single `RUN` layer in `.devcontainer/Dockerfile`.
 
 | Package | Purpose |
 |---|---|
@@ -33,7 +33,8 @@ All packages are installed in a single `RUN` layer in `docker/Dockerfile`.
 | `libclang-rt-18-dev` | Compiler-RT runtime libraries: ASan, UBSan, TSan, and libFuzzer |
 | `llvm-18` | LLVM tools used for coverage: `llvm-profdata`, `llvm-cov` |
 | `ccache` | Compiler cache - keeps incremental rebuilds fast across container rebuilds |
-| `doxygen` | Parses C++ doc comments and emits XML consumed by Sphinx/Breathe |
+| `doxygen` | Parses C++ doc comments and emits XML and HTML |
+| `graphviz` | Generates UML class diagrams, inheritance trees, and include graphs for Doxygen HTML output |
 | `openssh-client` | Allows SSH-based git operations (push, fetch) using the host's forwarded agent |
 
 `protoc` is intentionally absent - it is managed by Conan (`tool_requires("protobuf/5.29.3")`) to guarantee the compiler version matches the runtime library exactly. The Conan-managed `protoc` is available after running `initialize_conan.sh` via the `conanbuild.sh` environment script generated into `build/Debug/generators/` and `build/Release/generators/`.
@@ -45,12 +46,12 @@ Mounts keep expensive state outside the container so it survives rebuilds and im
 | Host path | Container path | Type | Purpose |
 |---|---|---|---|
 | `~/.cache/orion-ccache` | `/ccache` | bind | Compiler cache - incremental rebuilds stay fast across container rebuilds |
-| `~/.cache/orion-deps` | `/root/.conan2` | bind | Conan package cache - avoids re-downloading dependencies |
-| `orion-vscode-server` | `/root/.vscode-server` | volume | VS Code server and installed extensions |
-| `orion-cmake-tools` | `/root/.local/share/CMakeTools` | volume | CMake Tools extension state |
-| `orion-claude-profile` | `/root/.claude` | volume | Claude Code configuration |
-| `orion-agents-profile` | `/root/.agents` | volume | Agents configuration |
-| `~/.ssh` | `/root/.ssh` | bind (read-only) | Host SSH keys forwarded into container |
+| `~/.cache/orion-deps` | `/home/gandalf/.conan2` | bind | Conan package cache - avoids re-downloading dependencies |
+| `orion-vscode-server` | `/home/gandalf/.vscode-server` | volume | VS Code server and installed extensions |
+| `orion-cmake-tools` | `/home/gandalf/.local/share/CMakeTools` | volume | CMake Tools extension state |
+| `orion-claude-profile` | `/home/gandalf/.claude` | volume | Claude Code configuration |
+| `orion-agents-profile` | `/home/gandalf/.agents` | volume | Agents configuration |
+| `~/.ssh` | `/tmp/host-ssh` | bind (read-only) | Host SSH keys staged here; `postStartCommand` copies them to `~/.ssh` |
 
 The two bind mounts under `~/.cache/` are created by `initializeCommand` before the container
 starts, so Docker never creates them as root-owned directories.
@@ -149,7 +150,7 @@ keyboard shortcut for the default build task.
 | **Format: C++** | Runs clang-format in-place on all C++ source files |
 | **Format: CMake** | Runs gersemi in-place on all CMake files |
 | **Lint: C++** | Runs `run-clang-tidy` on `libs/` and `proto/` source |
-| **Docs: Build** | Runs Doxygen then Sphinx via the `docs` CMake target - HTML site written to `docs/_build/html/` |
+| **Docs: Build** | Runs Doxygen then Sphinx via the `orion_docs` CMake target — HTML site written to `docs/_build/html/` |
 | **CI: Check Format (C++)** | Dry-run clang-format - fails if any file needs reformatting |
 | **CI: Check Format (CMake)** | Dry-run gersemi - fails if any CMake file needs reformatting |
 | **CI: Check All** | Runs both CI format checks in parallel |

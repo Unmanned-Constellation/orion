@@ -1,10 +1,10 @@
 find_package(benchmark REQUIRED CONFIG)
 
-add_executable(orion_benchmarks transport_bench.cpp)
+add_executable(orion_transport_benchmarks transport_benchmarks.cpp)
 
 target_link_libraries(
-    orion_benchmarks
+    orion_transport_benchmarks
     PRIVATE benchmark::benchmark_main orion_transport orion_proto
 )
 
-target_compile_features(orion_benchmarks PRIVATE cxx_std_20)
+target_compile_features(orion_transport_benchmarks PRIVATE cxx_std_20)
