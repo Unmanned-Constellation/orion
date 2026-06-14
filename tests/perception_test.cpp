@@ -10,11 +10,11 @@
 #include "orion/perception/perception_service.hpp"
 #include "orion/transport/publisher.hpp"
 #include "orion/v1/detection.pb.h"
-#include "orion/v1/envelope.pb.h"
 
 using orion::perception::FakePerceptionBackend;
 using orion::perception::PerceptionService;
 using orion::transport::Publisher;
+using orion::transport::test::decode;
 using orion::transport::test::FakePublisherBackend;
 
 namespace
@@ -27,15 +27,6 @@ auto makeFrame(std::string camera_id, uint32_t width, uint32_t height) -> orion:
     frame.set_camera_id(std::move(camera_id));
     frame.set_frame_width(width);
     frame.set_frame_height(height);
-    return frame;
-}
-
-auto parseDetectionFrame(const std::string& bytes) -> orion::v1::DetectionFrame
-{
-    auto env = orion::v1::Envelope{};
-    env.ParseFromString(bytes);
-    auto frame = orion::v1::DetectionFrame{};
-    frame.ParseFromString(env.payload());
     return frame;
 }
 
@@ -72,14 +63,15 @@ TEST(PerceptionServiceTest, PublishedEnvelopeDeserializesToCorrectFrame)
     backend.emit(frame, 0U);
 
     ASSERT_EQ(fix.fake_ptr->sentCount(), 1U);
-    auto received = parseDetectionFrame(fix.fake_ptr->sent()[0]);
-    EXPECT_EQ(received.camera_id(), "downward");
-    EXPECT_EQ(received.frame_width(), 960U);
-    EXPECT_EQ(received.frame_height(), 600U);
-    ASSERT_EQ(received.detections_size(), 1);
-    EXPECT_EQ(received.detections(0).class_id(), 3U);
-    EXPECT_FLOAT_EQ(received.detections(0).confidence(), 0.91F);
-    EXPECT_EQ(received.detections(0).track_id(), 42U);
+    auto received = decode<orion::v1::DetectionFrame>(fix.fake_ptr->sent()[0]);
+    ASSERT_TRUE(received.has_value());
+    EXPECT_EQ(received->msg.camera_id(), "downward");
+    EXPECT_EQ(received->msg.frame_width(), 960U);
+    EXPECT_EQ(received->msg.frame_height(), 600U);
+    ASSERT_EQ(received->msg.detections_size(), 1);
+    EXPECT_EQ(received->msg.detections(0).class_id(), 3U);
+    EXPECT_FLOAT_EQ(received->msg.detections(0).confidence(), 0.91F);
+    EXPECT_EQ(received->msg.detections(0).track_id(), 42U);
 }
 
 TEST(PerceptionServiceTest, CapturedAtNsInEnvelopeMatchesBackendTimestamp)
@@ -93,9 +85,9 @@ TEST(PerceptionServiceTest, CapturedAtNsInEnvelopeMatchesBackendTimestamp)
     backend.emit(makeFrame("forward", 960, 600), expected_ts);
 
     ASSERT_EQ(fix.fake_ptr->sentCount(), 1U);
-    auto env = orion::v1::Envelope{};
-    env.ParseFromString(fix.fake_ptr->sent()[0]);
-    EXPECT_EQ(env.header().captured_at_ns(), expected_ts);
+    auto received = decode<orion::v1::DetectionFrame>(fix.fake_ptr->sent()[0]);
+    ASSERT_TRUE(received.has_value());
+    EXPECT_EQ(received->header.captured_at_ns, expected_ts);
 }
 
 TEST(PerceptionServiceTest, EmitTriggersPublish)

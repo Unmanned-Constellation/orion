@@ -13,7 +13,6 @@
 #include "orion/clock/clock.hpp"
 #include "orion/transport/publisher.hpp"
 #include "orion/transport/session.hpp"
-#include "orion/v1/envelope.pb.h"
 #include "orion/v1/sim_time_update.pb.h"
 
 using orion::app::ClockService;
@@ -21,21 +20,13 @@ using orion::app::FrameScheduler;
 using orion::app::ShutdownLatch;
 using orion::clock::ManualClock;
 using orion::transport::Publisher;
+using orion::transport::test::decodeAll;
 using orion::transport::test::FakePublisherBackend;
 
 namespace
 {
 
 constexpr uint64_t PERIOD_NS = 10'000'000; // 100 Hz
-
-auto parseSimTimeUpdate(const std::string& bytes) -> orion::v1::SimTimeUpdate
-{
-    auto env = orion::v1::Envelope{};
-    env.ParseFromString(bytes);
-    auto msg = orion::v1::SimTimeUpdate{};
-    msg.ParseFromString(env.payload());
-    return msg;
-}
 
 struct ClockServiceFixture
 {
@@ -101,14 +92,11 @@ TEST(ClockServiceTest, PublishedTimeIsMonotonic)
     fix.clock->wake();
     runner.join();
 
-    const auto& sent = fix.fake_ptr->sent();
-    ASSERT_EQ(sent.size(), 3U);
+    auto msgs = decodeAll<orion::v1::SimTimeUpdate>(*fix.fake_ptr);
+    ASSERT_EQ(msgs.size(), 3U);
 
-    auto time_0 = parseSimTimeUpdate(sent[0]).sim_time_ns();
-    auto time_1 = parseSimTimeUpdate(sent[1]).sim_time_ns();
-    auto time_2 = parseSimTimeUpdate(sent[2]).sim_time_ns();
-    EXPECT_GT(time_1, time_0);
-    EXPECT_GT(time_2, time_1);
+    EXPECT_GT(msgs[1].msg.sim_time_ns(), msgs[0].msg.sim_time_ns());
+    EXPECT_GT(msgs[2].msg.sim_time_ns(), msgs[1].msg.sim_time_ns());
 }
 
 TEST(ClockServiceTest, PublishedScaleMatchesConstructorArg)
@@ -128,8 +116,9 @@ TEST(ClockServiceTest, PublishedScaleMatchesConstructorArg)
     fix.clock->wake();
     runner.join();
 
-    const auto msg = parseSimTimeUpdate(fix.fake_ptr->sent()[0]);
-    EXPECT_DOUBLE_EQ(msg.scale(), 4.0);
+    auto msgs = decodeAll<orion::v1::SimTimeUpdate>(*fix.fake_ptr);
+    ASSERT_EQ(msgs.size(), 1U);
+    EXPECT_DOUBLE_EQ(msgs[0].msg.scale(), 4.0);
 }
 
 // ── Zenoh integration test ────────────────────────────────────────────────────

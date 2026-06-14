@@ -11,6 +11,7 @@ add_executable(
     service_bootstrapper_test.cpp
     service_config_test.cpp
     shutdown_latch_test.cpp
+    topic_test.cpp
     transport_test.cpp
 )
 
@@ -22,6 +23,7 @@ target_link_libraries(
         orion_app
         orion_clock
         orion_clock_service
+        orion_topic
         orion_transport
         orion_proto
         orion_perception

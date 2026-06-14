@@ -9,6 +9,7 @@
 #include "orion/app/service_bootstrapper.hpp"
 #include "orion/perception/deepstream_backend.hpp"
 #include "orion/perception/perception_service.hpp"
+#include "orion/topic/topic.hpp"
 #include "orion/transport/session.hpp"
 #include "orion/v1/detection.pb.h"
 
@@ -72,7 +73,7 @@ auto main(int argc, char** argv) -> int
         });
     });
     auto ctx   = bootstrap.run(argc, argv);
-    auto topic = "orion/" + ctx.vehicle_id + "/sensing/detections";
+    auto topic = orion::topic::sensing::detections(ctx.vehicle_id);
 
     ctx.log->info("starting — vehicle={} cameras={} model={}",
                   ctx.vehicle_id,

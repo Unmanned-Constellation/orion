@@ -1,9 +1,11 @@
 #pragma once
 
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "orion/transport/message_header.hpp"
 #include "orion/transport/publisher.hpp"
 #include "orion/transport/subscriber.hpp"
 
@@ -51,5 +53,39 @@ class FakeSubscriptionHandle final : public SubscriptionHandle
   private:
     RawCallback callback_;
 };
+
+/// Typed result of decoding a single serialized message from the transport.
+template <typename T>
+struct Received
+{
+    T             msg;
+    MessageHeader header;
+};
+
+/// Decodes one serialized envelope into a typed message and MessageHeader.
+/// Returns nullopt if the bytes are unparseable or the type_url does not match T.
+template <typename T>
+auto decode(std::string_view bytes) -> std::optional<Received<T>>
+{
+    auto result   = std::optional<Received<T>>{};
+    auto callback = makeRawCallback<T>(
+        [&](const T& msg, const MessageHeader& hdr) { result = Received<T>{msg, hdr}; });
+    callback(bytes);
+    return result;
+}
+
+/// Decodes all envelopes captured by a FakePublisherBackend into typed messages.
+template <typename T>
+auto decodeAll(const FakePublisherBackend& backend) -> std::vector<Received<T>>
+{
+    auto results  = std::vector<Received<T>>{};
+    auto callback = makeRawCallback<T>(
+        [&](const T& msg, const MessageHeader& hdr) { results.push_back({msg, hdr}); });
+    for (const auto& bytes : backend.sent())
+    {
+        callback(bytes);
+    }
+    return results;
+}
 
 } // namespace orion::transport::test

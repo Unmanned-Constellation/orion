@@ -57,6 +57,7 @@ orion_suppress_dep_warnings(protobuf::libprotobuf zenohc::lib zenohcxx::zenohc)
 
 add_subdirectory(proto)
 add_subdirectory(libs/clock)
+add_subdirectory(libs/topic)
 add_subdirectory(libs/app)
 add_subdirectory(libs/main)
 add_subdirectory(libs/transport)

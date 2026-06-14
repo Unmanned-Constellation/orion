@@ -58,6 +58,6 @@ if(ORION_ENABLE_DEEPSTREAM)
 
     target_link_libraries(
         perception_service
-        PRIVATE orion_perception orion_main
+        PRIVATE orion_perception orion_main orion_topic
     )
 endif()

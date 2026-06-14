@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include "orion/topic/topic.hpp"
+
 namespace orion::app
 {
 
@@ -23,7 +25,7 @@ auto ClockService::create(double                     scale,
                           orion::transport::Session& session,
                           FrameScheduler&            scheduler) -> ClockService
 {
-    auto topic     = "orion/" + std::string{vehicle_id} + "/clock/sim_time";
+    auto topic     = orion::topic::clock::simTime(vehicle_id);
     auto publisher = session.advertise<orion::v1::SimTimeUpdate>(topic);
     return ClockService{scale, std::move(publisher), scheduler};
 }
