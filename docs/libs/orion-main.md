@@ -32,7 +32,7 @@ after bootstrap completes.
 
 | Field | Type | Description |
 |---|---|---|
-| `vehicle_id` | `std::string` | Parsed from `--vehicle-id` / `VEHICLE_ID`. |
+| `vehicle_id` | `std::string` | Resolved vehicle identifier. Defaults to the system hostname; overridable via `--vehicle-id` / `VEHICLE_ID`. |
 | `log` | `std::shared_ptr<spdlog::logger>` | Logger initialised for this service. Non-null. |
 | `latch` | `ShutdownLatch*` | Non-owning pointer into the bootstrapper's latch. Never null. |
 

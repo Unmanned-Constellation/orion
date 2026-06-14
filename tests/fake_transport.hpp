@@ -41,10 +41,10 @@ class FakePublisherBackend final : public PublisherBackend
 
 /// Holds a RawCallback and lets tests inject raw Envelope bytes to trigger it.
 /// Construct with makeRawCallback<T>() to get typed delivery without a real session.
-class FakeSubscriberBackend final : public SubscriberBackend
+class FakeSubscriptionHandle final : public SubscriptionHandle
 {
   public:
-    explicit FakeSubscriberBackend(RawCallback callback) : callback_(std::move(callback)) {}
+    explicit FakeSubscriptionHandle(RawCallback callback) : callback_(std::move(callback)) {}
 
     void inject(std::string_view bytes) { callback_(bytes); }
 

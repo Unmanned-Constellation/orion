@@ -67,13 +67,13 @@ class Session
     /// @return Heap-allocated PublisherBackend bound to the topic.
     auto makePublisherBackend(std::string_view topic) -> std::unique_ptr<PublisherBackend>;
 
-    /// @brief Creates a SubscriberBackend for @p topic with the given raw callback; implemented in
+    /// @brief Creates a SubscriptionHandle for @p topic with the given raw callback; implemented in
     /// session_impl.cpp.
     /// @param topic     Full topic key expression.
     /// @param callback  Type-erased callback invoked on each received message.
-    /// @return Heap-allocated SubscriberBackend holding the active subscription.
-    auto makeSubscriberBackend(std::string_view topic,
-                               RawCallback      callback) -> std::unique_ptr<SubscriberBackend>;
+    /// @return Heap-allocated SubscriptionHandle holding the active subscription.
+    auto makeSubscriptionHandle(std::string_view topic,
+                                RawCallback      callback) -> std::unique_ptr<SubscriptionHandle>;
 
     /// @brief Pimpl holding the transport backend state.
     std::unique_ptr<SessionImpl> impl_;

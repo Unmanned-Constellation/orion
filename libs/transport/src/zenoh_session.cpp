@@ -55,12 +55,12 @@ class ZenohPublisherBackend final : public PublisherBackend
     zenoh::Publisher publisher_;
 };
 
-// ── ZenohSubscriberBackend ────────────────────────────────────────────────────
+// ── ZenohSubscriptionHandle ────────────────────────────────────────────────────
 
-class ZenohSubscriberBackend final : public SubscriberBackend
+class ZenohSubscriptionHandle final : public SubscriptionHandle
 {
   public:
-    ZenohSubscriberBackend(zenoh::Subscriber<void> subscriber, RawCallback callback)
+    ZenohSubscriptionHandle(zenoh::Subscriber<void> subscriber, RawCallback callback)
         : subscriber_(std::move(subscriber)), callback_(std::move(callback))
     {
     }
@@ -113,9 +113,9 @@ auto Session::makePublisherBackend(
     return std::make_unique<ZenohPublisherBackend>(std::move(pub));
 }
 
-auto Session::makeSubscriberBackend( // NOLINT(readability-convert-member-functions-to-static)
+auto Session::makeSubscriptionHandle( // NOLINT(readability-convert-member-functions-to-static)
     std::string_view topic,
-    RawCallback      callback) -> std::unique_ptr<SubscriberBackend>
+    RawCallback      callback) -> std::unique_ptr<SubscriptionHandle>
 {
     auto err = zenoh::ZResult{}; // NOLINT(misc-const-correctness)
 
@@ -133,10 +133,10 @@ auto Session::makeSubscriberBackend( // NOLINT(readability-convert-member-functi
         &err);
     if (err != Z_OK)
     {
-        throw std::runtime_error("Session::makeSubscriberBackend: declare_subscriber failed");
+        throw std::runtime_error("Session::makeSubscriptionHandle: declare_subscriber failed");
     }
 
-    return std::make_unique<ZenohSubscriberBackend>(std::move(subscriber), std::move(callback));
+    return std::make_unique<ZenohSubscriptionHandle>(std::move(subscriber), std::move(callback));
 }
 
 } // namespace orion::transport

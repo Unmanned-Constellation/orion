@@ -32,8 +32,8 @@ classDiagram
         <<interface>>
         +send(bytes) void
     }
-    class SubscriberBackend {
-        <<interface>>
+    class SubscriptionHandle {
+        <<RAII handle>>
     }
     class SessionImpl {
         <<pimpl>>
@@ -43,7 +43,7 @@ classDiagram
     Session --> Subscriber~T~ : subscribe
     Session *-- SessionImpl
     Publisher~T~ *-- PublisherBackend
-    Subscriber~T~ *-- SubscriberBackend
+    Subscriber~T~ *-- SubscriptionHandle
     Subscriber~T~ ..> MessageHeader : callback delivers
 ```
 
@@ -181,5 +181,5 @@ Subscribers silently drop messages whose `type_url` does not match the expected 
   is fully time-agnostic.
 - Backend types (Zenoh session, publisher, subscriber handles) never appear in public
   headers - the pimpl pattern keeps all backend includes confined to `zenoh_session.cpp`.
-- `PublisherBackend` and `SubscriberBackend` are abstract interfaces; tests can substitute
-  fake backends without any Zenoh dependency.
+- `PublisherBackend` is an abstract interface; `SubscriptionHandle` is an abstract RAII type.
+  Tests substitute `FakePublisherBackend` and `FakeSubscriptionHandle` without any Zenoh dependency.

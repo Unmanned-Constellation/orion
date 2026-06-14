@@ -16,7 +16,7 @@ template <typename T>
 auto Session::subscribe(std::string_view                 topic,
                         typename Subscriber<T>::Callback callback) -> Subscriber<T>
 {
-    return Subscriber<T>(makeSubscriberBackend(topic, makeRawCallback<T>(std::move(callback))));
+    return Subscriber<T>(makeSubscriptionHandle(topic, makeRawCallback<T>(std::move(callback))));
 }
 
 } // namespace orion::transport
