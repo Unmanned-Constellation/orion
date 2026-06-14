@@ -10,8 +10,8 @@
 
   // seccomp=unconfined removes Docker's default syscall filter entirely.
   // The specific syscall we need is personality(ADDR_NO_RANDOMIZE), which ThreadSanitizer
-  // uses to disable ASLR. Docker's default seccomp profile blocks the arg — not the syscall
-  // itself — so TSan fails with ENOSYS inside the container.
+  // uses to disable ASLR. Docker's default seccomp profile blocks the arg, not the syscall
+  // itself, so TSan fails with ENOSYS inside the container.
   //
   // The principled fix is a custom seccomp profile that only removes the ADDR_NO_RANDOMIZE
   // argument restriction on personality while keeping all other filters intact. We chose

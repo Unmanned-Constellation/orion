@@ -28,8 +28,8 @@ struct DeepStreamConfig
     uint32_t capture_fps{30};
 
     // Inference
-    std::string model_engine_path;                       // path to TensorRT .engine file
-    std::string custom_lib_path;                         // path to rtdetr_parser.so
+    std::string model_engine_path;                                  // path to TensorRT .engine file
+    std::string custom_lib_path{"/opt/orion/lib/rtdetr_parser.so"}; // path to rtdetr_parser.so
     std::string parse_bbox_func{"NvDsInferParseRtDetr"}; // exported symbol in custom_lib_path
     uint32_t    num_classes{80};                         // COCO pretrained = 80
     float       conf_threshold{0.5F};

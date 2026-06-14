@@ -13,6 +13,61 @@ See [ADR-0019](../adr/0019-cli-and-env-config.md) for the rationale.
 
 ---
 
+## `ServiceBootstrapper`
+
+```cpp
+#include "orion/app/service_bootstrapper.hpp"
+namespace orion::app
+```
+
+Owns the shared startup sequence for every Orion microservice. Construct once as a stack
+variable at the top of `main()`. It owns `ShutdownLatch` and `CrashHandler` internally — do
+not create those separately. Call `withOptions()` to register service-specific CLI options,
+then `run()` to parse and initialise.
+
+### `ServiceContext`
+
+Returned by `ServiceBootstrapper::run()`. Carries the three resources every service needs
+after bootstrap completes.
+
+| Field | Type | Description |
+|---|---|---|
+| `vehicle_id` | `std::string` | Parsed from `--vehicle-id` / `VEHICLE_ID`. |
+| `log` | `std::shared_ptr<spdlog::logger>` | Logger initialised for this service. Non-null. |
+| `latch` | `ShutdownLatch*` | Non-owning pointer into the bootstrapper's latch. Never null. |
+
+The `latch` pointer is valid for the lifetime of the `ServiceBootstrapper` that created it.
+Since both are stack variables in `main()`, this lifetime is guaranteed.
+
+### Method reference
+
+| Method | Description |
+|---|---|
+| `ServiceBootstrapper(service_name)` | Sets the CLI app name, logger name, and log directory. |
+| `withOptions(fn)` | Registers a callback invoked before parse to add service-specific options. Returns `*this` for chaining. |
+| `run(argc, argv)` | Parses arguments, initialises the logger, returns a ready `ServiceContext`. Calls `std::exit()` on `--help`, `--version`, or parse error. |
+
+### Typical usage
+
+```cpp
+auto main(int argc, char** argv) -> int
+{
+    auto bootstrap = orion::app::ServiceBootstrapper{"my-service"};
+    auto my_opt    = 42;
+
+    auto ctx = bootstrap
+        .withOptions([&](CLI::App& app) {
+            app.add_option("--my-opt", my_opt, "Service-specific option")->envname("MY_OPT");
+        })
+        .run(argc, argv);
+
+    auto session = orion::transport::Session::create({ctx.vehicle_id, "my-service"});
+    // ... construct service, call ctx.latch->wait() ...
+}
+```
+
+---
+
 ## `ServiceConfig`
 
 ```cpp
@@ -20,11 +75,13 @@ See [ADR-0019](../adr/0019-cli-and-env-config.md) for the rationale.
 namespace orion::app
 ```
 
-Struct holding the configuration fields common to every service.
+Struct holding the configuration fields common to every service. Used internally by
+`ServiceBootstrapper`; also available for direct use when the full bootstrapper pattern is
+not appropriate.
 
 | Field | Type | Default | CLI flag | Env var |
 |---|---|---|---|---|
-| `vehicle_id` | `std::string` | *(required)* | `--vehicle-id` | `VEHICLE_ID` |
+| `vehicle_id` | `std::string` | *(hostname)* | `--vehicle-id` | `VEHICLE_ID` |
 | `log_level` | `std::string` | `"info"` | `--log-level` | `LOG_LEVEL` |
 
 ---
@@ -35,12 +92,14 @@ Struct holding the configuration fields common to every service.
 void addServiceConfig(CLI::App& app, ServiceConfig& cfg);
 ```
 
-Registers `--vehicle-id` / `VEHICLE_ID` and `--log-level` / `LOG_LEVEL` on `app`. Call before
-adding service-specific options and before `app.parse()` / `CLI11_PARSE`.
+Registers `--vehicle-id` / `VEHICLE_ID` and `--log-level` / `LOG_LEVEL` on `app`. Used
+internally by `ServiceBootstrapper`. Call directly only when bypassing the bootstrapper.
 
 ---
 
-## Typical usage
+## Manual wiring (without ServiceBootstrapper)
+
+For services or tests that need direct control over individual components:
 
 ```cpp
 auto main(int argc, char** argv) -> int

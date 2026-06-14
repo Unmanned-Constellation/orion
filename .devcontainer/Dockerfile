@@ -7,7 +7,7 @@ FROM base-${TARGETARCH}
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Create user early — this layer is stable and rarely invalidated.
+# Create user Gandalf -> arrives precisely when he means to
 RUN apt-get update && apt-get install -y --no-install-recommends sudo \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -s /bin/bash gandalf \
@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends sudo \
     && mkdir -p /var/log/orion \
     && chown gandalf:gandalf /var/log/orion
 
-# Register LLVM 18 and Kitware (cmake) apt repositories.
+# Register LLVM 18 and CMake apt repositories.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \

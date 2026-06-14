@@ -10,7 +10,8 @@ namespace orion::app
 /// Configuration common to every Orion microservice.
 struct ServiceConfig
 {
-    /// @brief Vehicle identifier (required). Maps to --vehicle-id / VEHICLE_ID.
+    /// @brief Vehicle identifier. Defaults to the system hostname; overridable via
+    ///        --vehicle-id / VEHICLE_ID for dev and testing.
     std::string vehicle_id;
     /// @brief Log level passed to LoggerFactory::init(). Defaults to "info".
     std::string log_level{"info"};

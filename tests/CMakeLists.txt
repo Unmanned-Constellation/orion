@@ -9,6 +9,7 @@ add_executable(
     frame_scheduler_test.cpp
     logger_factory_test.cpp
     perception_test.cpp
+    service_bootstrapper_test.cpp
     service_config_test.cpp
     shutdown_latch_test.cpp
     transport_test.cpp

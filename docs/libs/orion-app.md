@@ -5,8 +5,14 @@ Service lifecycle and observability primitives for Orion microservices.
 ## Overview
 
 `orion_app` provides the components every Orion service wires up at startup:
-shutdown signalling, time-triggered execution, and crash diagnostics. All three
-are independent RAII objects constructed at the top of `main()` in a fixed order:
+shutdown signalling, time-triggered execution, and crash diagnostics.
+
+For most services, `ServiceBootstrapper` (in `orion_main`) is the preferred way to wire
+these up — it owns `ShutdownLatch` and `CrashHandler` internally and returns a ready
+`ServiceContext`. See [`orion_main`](orion-main.md) for the bootstrapper pattern.
+
+When direct control is needed (tests, custom services), the components are independent
+RAII objects constructed at the top of `main()` in a fixed order:
 
 ```cpp
 int main()
