@@ -147,6 +147,17 @@ TEST_F(ServiceBootstrapperFixture, LogLevelSetFromFlag)
     EXPECT_EQ(ctx.log->level(), spdlog::level::debug);
 }
 
+// ── service_name ─────────────────────────────────────────────────────────────
+
+TEST_F(ServiceBootstrapperFixture, ServiceNameAppearsInContext)
+{
+    auto bootstrap = orion::app::ServiceBootstrapper{"my-service"};
+    auto args      = std::array<const char*, 3>{"my-service", "--vehicle-id", "alpha"};
+    auto ctx = bootstrap.withLogger(nullLogger()).run(static_cast<int>(args.size()), args.data());
+
+    EXPECT_EQ(ctx.service_name, "my-service");
+}
+
 // ── withOptions ───────────────────────────────────────────────────────────────
 
 TEST_F(ServiceBootstrapperFixture, ServiceSpecificOptionParsedViaWithOptions)

@@ -5,6 +5,6 @@
     "protobuf.buf.path": "/usr/local/bin/buf",
     "cmake.exportCompileCommandsFile": true,
     "clangd.arguments": [
-        "--compile-commands-dir=${command:cmake.buildDirectory}"
+        "--compile-commands-dir=${workspaceFolder}/build/Debug"
     ]
 }

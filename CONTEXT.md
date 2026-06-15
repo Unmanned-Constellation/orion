@@ -87,6 +87,9 @@ The standardized startup component for every Orion microservice `main()`. Owns `
 ## Vehicle ID
 A human-readable deployment name (`alpha`, `bravo`, `uav-01`) derived automatically from the system hostname. Overridable via `--vehicle-id` / `VEHICLE_ID` for development and testing. Appears as the second segment of every per-vehicle topic: `orion/{vehicle_id}/{domain}/{topic}`. The MAVLink system ID (uint8, 1–255) is a separate per-service configuration and is not the same field.
 
+## Topic Helpers
+Free functions in `orion::topic` (namespaced by domain: `sensing`, `clock`, etc.) that construct canonical Zenoh topic strings. All per-vehicle builders validate that `vehicle_id` is non-empty and contains no `/`. Services must use these helpers rather than building raw topic strings inline so that renames propagate from one location. Wildcard variants (`allDetections()`, etc.) return `constexpr string_view` and skip validation.
+
 ## Topic Domain
 The third segment of a per-vehicle topic path. Groups related topics and enables wildcard subscriptions. Initial vocabulary:
 

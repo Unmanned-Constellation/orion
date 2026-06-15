@@ -80,12 +80,12 @@ auto main(int argc, char** argv) -> int
                   ds_config.camera_devices.size(),
                   ds_config.model_engine_path);
 
-    auto session   = orion::transport::Session::create({ctx.vehicle_id, "perception-service"});
+    auto session   = orion::transport::Session::create({ctx.vehicle_id, ctx.service_name});
     auto publisher = session.advertise<orion::v1::DetectionFrame>(topic);
 
     auto backend = orion::perception::DeepStreamBackend{std::move(ds_config)};
     auto svc     = orion::perception::PerceptionService{
-        backend, std::move(publisher)}; // NOLINT(misc-const-correctness)
+        backend, std::move(publisher), ctx.log}; // NOLINT(misc-const-correctness)
 
     svc.start();
     ctx.log->info("running — topic={}", topic);

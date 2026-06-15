@@ -23,6 +23,8 @@ struct ServiceContext
 {
     /// Vehicle identifier parsed from --vehicle-id / VEHICLE_ID.
     std::string vehicle_id;
+    /// Service name passed to the ServiceBootstrapper constructor.
+    std::string service_name;
     /// Logger initialised for this service. Non-null.
     std::shared_ptr<spdlog::logger> log;
     /// Non-owning pointer to the bootstrapper's latch. Never null.
@@ -43,7 +45,7 @@ struct ServiceContext
 ///       })
 ///       .run(argc, argv);
 ///
-///   auto session = orion::transport::Session::create({ctx.vehicle_id, "perception-service"});
+///   auto session = orion::transport::Session::create({ctx.vehicle_id, ctx.service_name});
 ///   // ... construct service, call ctx.latch.wait() ...
 /// @endcode
 class ServiceBootstrapper

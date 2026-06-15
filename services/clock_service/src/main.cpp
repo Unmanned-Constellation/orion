@@ -21,7 +21,7 @@ auto main(int argc, char** argv) -> int
 
     ctx.log->info("starting — vehicle={} scale={} rate_hz={}", ctx.vehicle_id, scale, rate_hz);
 
-    auto session   = orion::transport::Session::create({ctx.vehicle_id, "clock-service"});
+    auto session   = orion::transport::Session::create({ctx.vehicle_id, ctx.service_name});
     auto clock     = std::make_shared<orion::clock::WallClock>();
     auto scheduler = orion::app::FrameScheduler{rate_hz, clock, ctx.latch};
     auto svc       = orion::app::ClockService::create( // NOLINT(misc-const-correctness)

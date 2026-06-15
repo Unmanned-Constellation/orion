@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string_view>
 
 #include "orion/app/frame_scheduler.hpp"
@@ -13,8 +14,9 @@ namespace orion::app
 
 /// Publishes SimTimeUpdate on every FrameScheduler tick, driving CoordinatedClock services.
 ///
-/// Backed internally by a SimClock — each tick broadcasts the current scaled sim time
-/// over the Zenoh bus so all services using CoordinatedClock advance in lockstep.
+/// The time source is injected — production code passes a SimClock via create();
+/// tests pass the same ManualClock that drives the FrameScheduler, making
+/// sim_time_ns deterministic and exactly assertable.
 ///
 /// @see ADR-0009
 class ClockService
@@ -22,14 +24,18 @@ class ClockService
   public:
     /// Constructs a ClockService that publishes at the FrameScheduler tick rate.
     ///
-    /// @param scale      Simulation speed relative to wall time. Must be finite and > 0.
-    /// @param publisher  Publisher bound to the sim_time topic. Takes ownership.
-    /// @param scheduler  FrameScheduler to register the tick callback on.
-    ClockService(double                                                scale,
+    /// @param time_source  Time source queried on every tick. Shared lifetime with callers.
+    /// @param scale        Simulation speed relative to wall time. Stamped on each message.
+    /// @param publisher    Publisher bound to the sim_time topic. Takes ownership.
+    /// @param scheduler    FrameScheduler to register the tick callback on.
+    ClockService(std::shared_ptr<orion::clock::TimeSource>             time_source,
+                 double                                                scale,
                  orion::transport::Publisher<orion::v1::SimTimeUpdate> publisher,
                  FrameScheduler&                                       scheduler);
 
     /// Creates a ClockService from a live Session, advertising on the vehicle's sim_time topic.
+    ///
+    /// Constructs a SimClock internally anchored to wall time at the moment of the call.
     ///
     /// @param scale       Simulation speed relative to wall time.
     /// @param vehicle_id  Vehicle identifier, used to construct the topic path.
@@ -41,7 +47,7 @@ class ClockService
                        FrameScheduler&            scheduler) -> ClockService;
 
   private:
-    orion::clock::SimClock                                sim_clock_;
+    std::shared_ptr<orion::clock::TimeSource>             time_source_;
     orion::transport::Publisher<orion::v1::SimTimeUpdate> publisher_;
     double                                                scale_;
 };

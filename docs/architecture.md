@@ -15,6 +15,7 @@ flowchart TD
     subgraph Core [Core Libraries]
         orion_clock["orion_clock<br/>INTERFACE"]:::iface
         orion_proto["orion_proto<br/>STATIC"]:::stat
+        orion_topic["orion_topic<br/>STATIC"]:::stat
     end
 
     subgraph Middleware [Application & Transport Middleware]
@@ -37,8 +38,8 @@ flowchart TD
     orion_clock --> orion_app
     orion_proto --> orion_transport
     orion_app   --> orion_main
-    orion_app & orion_proto & orion_transport --> orion_clock_service
-    orion_proto & orion_transport             --> orion_perception
+    orion_app & orion_proto & orion_transport & orion_topic --> orion_clock_service
+    orion_proto & orion_transport                           --> orion_perception
     orion_perception -.->|dlopen| rtdetr_parser
 
     orion_clock_service & orion_main --> clock_service
@@ -98,6 +99,7 @@ present on the Jetson deployment sysroot.
 |---|---|---|
 | `orion_clock` | INTERFACE | Abstract `TimeSource` interface + `WallClock`, `ManualClock`, `SimClock`, `CoordinatedClock`. Zero deps beyond stdlib. |
 | `orion_proto` | STATIC | Compiled protobuf message bindings for all `.proto` files under `proto/orion/v1/`. |
+| `orion_topic` | STATIC | Canonical Zenoh topic name builders (`sensing::detections`, `clock::simTime`, etc.). Validates `vehicle_id` at call time. Zero deps beyond stdlib. |
 | `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`. Depends on `orion_clock` + `backward-cpp` + `spdlog`. |
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
 | `orion_clock_service` | STATIC | `ClockService` — publishes `SimTimeUpdate` at `FrameScheduler` tick rate, backed by `SimClock`. Depends on `orion_app` + `orion_transport` + `orion_proto`. |
@@ -153,4 +155,4 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 | M1 - Core Runtime | Done | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
 | M2 - Observability | Done | `CrashHandler` in `orion_app`; logger creation in `ServiceBootstrapper` (`orion_main`) | backward-cpp, libdw, spdlog |
 | M3 - Simulation | Done | `CoordinatedClock` Phase 3; `orion_clock_service` + `clock_service` executable | none |
-| M4 - Perception | In Progress | `orion_perception`, `DeepStreamBackend`, `rtdetr_parser`; RT-DETR-R18 FP16 inference on Arducam Darksee via v4l2src | GStreamer (`gstreamer-1.0`, `gstreamer-app-1.0`), DeepStream SDK (Jetson only, `ORION_ENABLE_DEEPSTREAM=ON`) |
+| M4 - Perception | In Progress | `orion_perception`, `DeepStreamBackend`, `rtdetr_parser`; `orion_topic` canonical topic helpers; RT-DETR-R18 FP16 inference on Arducam Darksee via v4l2src | GStreamer (`gstreamer-1.0`, `gstreamer-app-1.0`), DeepStream SDK (Jetson only, `ORION_ENABLE_DEEPSTREAM=ON`) |

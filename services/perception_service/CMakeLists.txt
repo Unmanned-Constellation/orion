@@ -4,11 +4,16 @@ option(
     OFF
 )
 
+find_package(spdlog REQUIRED CONFIG)
+
 add_library(orion_perception STATIC src/perception_service.cpp)
 
 target_include_directories(orion_perception PUBLIC include)
 target_compile_features(orion_perception PUBLIC cxx_std_20)
-target_link_libraries(orion_perception PUBLIC orion_proto orion_transport)
+target_link_libraries(
+    orion_perception
+    PUBLIC orion_proto orion_transport spdlog::spdlog
+)
 
 if(ORION_ENABLE_DEEPSTREAM)
     find_package(PkgConfig REQUIRED)

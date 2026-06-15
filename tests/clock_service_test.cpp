@@ -40,7 +40,7 @@ struct ClockServiceFixture
         auto fake      = std::make_unique<FakePublisherBackend>();
         fake_ptr       = fake.get();
         auto publisher = Publisher<orion::v1::SimTimeUpdate>{std::move(fake), "clock-service"};
-        return ClockService{scale, std::move(publisher), scheduler};
+        return ClockService{clock, scale, std::move(publisher), scheduler};
     }
 };
 
@@ -97,6 +97,28 @@ TEST(ClockServiceTest, PublishedTimeIsMonotonic)
 
     EXPECT_GT(msgs[1].msg.sim_time_ns(), msgs[0].msg.sim_time_ns());
     EXPECT_GT(msgs[2].msg.sim_time_ns(), msgs[1].msg.sim_time_ns());
+}
+
+TEST(ClockServiceTest, PublishedSimTimeMatchesClockExactly)
+{
+    auto fix = ClockServiceFixture{};
+    auto svc = fix.makeService(1.0); // NOLINT(misc-const-correctness)
+
+    auto runner = std::thread{[&] { fix.scheduler.run(); }};
+
+    fix.clock->advance(PERIOD_NS);
+    for (int i = 0; i < 100 && fix.fake_ptr->sentCount() < 1; ++i)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{1});
+    }
+
+    fix.latch.stop();
+    fix.clock->wake();
+    runner.join();
+
+    auto msgs = decodeAll<orion::v1::SimTimeUpdate>(*fix.fake_ptr);
+    ASSERT_EQ(msgs.size(), 1U);
+    EXPECT_EQ(msgs[0].msg.sim_time_ns(), PERIOD_NS);
 }
 
 TEST(ClockServiceTest, PublishedScaleMatchesConstructorArg)

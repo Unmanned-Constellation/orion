@@ -183,3 +183,51 @@ Subscribers silently drop messages whose `type_url` does not match the expected 
   headers - the pimpl pattern keeps all backend includes confined to `zenoh_session.cpp`.
 - `PublisherBackend` is an abstract interface; `SubscriptionHandle` is an abstract RAII type.
   Tests substitute `FakePublisherBackend` and `FakeSubscriptionHandle` without any Zenoh dependency.
+
+## Testing utilities
+
+`tests/fake_transport.hpp` (in `orion::transport::test`) provides test doubles and decode helpers:
+
+### `FakePublisherBackend`
+
+Captures all bytes passed to `send()`. Access via `sent()`.
+
+```cpp
+auto fake = std::make_unique<FakePublisherBackend>();
+auto& ref = *fake;
+auto  pub = orion::transport::Publisher<orion::v1::NavState>{std::move(fake)};
+pub.publish(msg, captured_at_ns);
+// ref.sent() holds the serialized envelopes
+```
+
+### `FakeSubscriptionHandle`
+
+Holds a `RawCallback` and lets tests inject raw envelope bytes to trigger it.
+Construct with `makeRawCallback<T>()` to get typed delivery without a real session.
+
+### `Received<T>`
+
+Plain struct holding a decoded message and its header:
+
+```cpp
+template <typename T>
+struct Received {
+    T             msg;
+    MessageHeader header;
+};
+```
+
+### `decode<T>(bytes)`
+
+Decodes a single serialized envelope into `std::optional<Received<T>>`. Returns
+`std::nullopt` if the bytes are unparseable or the `type_url` does not match `T`.
+
+### `decodeAll<T>(backend)`
+
+Decodes all envelopes captured by a `FakePublisherBackend` into `std::vector<Received<T>>`.
+
+```cpp
+auto results = orion::transport::test::decodeAll<orion::v1::DetectionFrame>(fake_pub);
+ASSERT_EQ(results.size(), 3);
+EXPECT_EQ(results[0].header.source_id, "perception-service");
+```

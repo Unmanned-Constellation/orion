@@ -95,7 +95,7 @@ auto ServiceBootstrapper::run(int argc, const char* const* argv) -> ServiceConte
     auto       log   = logger_ ? logger_ : buildLogger(level);
     log->set_level(level);
 
-    return ServiceContext{std::move(cfg.vehicle_id), std::move(log), &latch_};
+    return ServiceContext{std::move(cfg.vehicle_id), service_name_, std::move(log), &latch_};
 }
 
 auto ServiceBootstrapper::run(int argc, char** argv) -> ServiceContext

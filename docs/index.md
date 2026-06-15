@@ -57,5 +57,6 @@ libs/orion-app
 libs/orion-clock
 libs/orion-main
 libs/orion-perception
+libs/orion-topic
 libs/orion-transport
 ```

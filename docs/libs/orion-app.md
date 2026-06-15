@@ -26,7 +26,7 @@ int main()
 }
 ```
 
-`orion_app` is a **STATIC** library. It depends on `orion_clock` and `backward-cpp`.
+`orion_app` is a **STATIC** library. It depends on `orion_clock` (PUBLIC) and `spdlog` (PUBLIC); `backward-cpp` is a PRIVATE dep (not transitively exposed).
 
 ## Service startup and shutdown sequence
 
@@ -180,7 +180,7 @@ called programmatically. Also acts as the run-loop exit signal for
 target_link_libraries(my_service PRIVATE orion_app)
 ```
 
-`orion_app` is a STATIC library. Linking it pulls in `orion_clock` and `spdlog` transitively.
+`orion_app` is a STATIC library. Linking it pulls in `orion_clock` and `spdlog` transitively (both PUBLIC). `backward-cpp` is linked PRIVATE and is not exposed to consumers.
 
 ### Debug symbol splitting (Release builds)
 

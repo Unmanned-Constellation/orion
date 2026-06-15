@@ -33,6 +33,7 @@ after bootstrap completes.
 | Field | Type | Description |
 |---|---|---|
 | `vehicle_id` | `std::string` | Resolved vehicle identifier. Defaults to the system hostname; overridable via `--vehicle-id` / `VEHICLE_ID`. |
+| `service_name` | `std::string` | The name passed to the `ServiceBootstrapper` constructor. Suitable for use as `SessionConfig::service_name`. |
 | `log` | `std::shared_ptr<spdlog::logger>` | Logger initialised for this service. Non-null. |
 | `latch` | `ShutdownLatch*` | Non-owning pointer into the bootstrapper's latch. Never null. |
 
@@ -62,7 +63,7 @@ auto main(int argc, char** argv) -> int
         })
         .run(argc, argv);
 
-    auto session = orion::transport::Session::create({ctx.vehicle_id, "my-service"});
+    auto session = orion::transport::Session::create({ctx.vehicle_id, ctx.service_name});
     // ... construct service, call ctx.latch->wait() ...
 }
 ```
