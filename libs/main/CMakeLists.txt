@@ -1,9 +1,18 @@
 find_package(CLI11 REQUIRED CONFIG)
 
-add_library(orion_main STATIC src/service_config.cpp)
+add_library(
+    orion_main
+    STATIC
+    src/service_config.cpp
+    src/service_bootstrapper.cpp
+)
 
-target_include_directories(orion_main PUBLIC include)
+target_include_directories(
+    orion_main
+    PUBLIC include
+    PRIVATE ${CMAKE_BINARY_DIR}/generated
+)
 
 target_compile_features(orion_main PUBLIC cxx_std_20)
 
-target_link_libraries(orion_main PUBLIC orion_app CLI11::CLI11)
+target_link_libraries(orion_main PUBLIC orion_app orion_clock CLI11::CLI11)

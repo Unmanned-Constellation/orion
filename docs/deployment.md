@@ -71,6 +71,12 @@ Required variables:
 | `VEHICLE_ID` | Unique vehicle identifier (e.g. `drone-1`) — appears in every Zenoh topic |
 | `MODEL_ENGINE` | Absolute path to the `.engine` file on the Nano host |
 
+Optional variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `CLOCK_MODE` | `wall` | Time source for periodic services. `wall` for production and HIL; `sim:<scale>` for scaled real-time SIL (e.g. `sim:2.0` runs at 2× wall speed); `coordinated` for lockstep batch simulation (requires a running `clock_service` — Phase 3). |
+
 ---
 
 ## Running services

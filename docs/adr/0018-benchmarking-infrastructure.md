@@ -35,13 +35,13 @@ problems in Google Benchmark.
 ### Location: `benchmarks/` top-level directory
 
 Benchmarks live in `benchmarks/`, parallel to `tests/`, producing a separate
-`orion_benchmarks` binary. Tests verify correctness; benchmarks measure performance.
+`orion_transport_benchmarks` binary. Tests verify correctness; benchmarks measure performance.
 Mixing them in a single binary conflates two distinct intents and makes both harder
 to invoke selectively.
 
 ### CI policy: build only, do not run
 
-CI builds `orion_benchmarks` to catch compilation errors but does not execute it.
+CI builds `orion_transport_benchmarks` to catch compilation errors but does not execute it.
 Benchmark results on shared CI runners are meaningless — virtualization, thermal
 throttling, and competing workloads produce numbers that cannot be compared across
 runs. Benchmark runs are a deliberate act on target hardware (Jetson Orin Nano).

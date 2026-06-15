@@ -1,7 +1,7 @@
 find_package(Backward REQUIRED CONFIG)
 find_package(spdlog REQUIRED CONFIG)
 
-add_library(orion_app STATIC src/crash_handler.cpp src/logger_factory.cpp)
+add_library(orion_app STATIC src/crash_handler.cpp)
 
 target_include_directories(orion_app PUBLIC include)
 

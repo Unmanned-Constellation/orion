@@ -23,7 +23,7 @@ using orion::transport::MessageHeader;
 using orion::transport::Publisher;
 using orion::transport::Subscriber;
 using orion::transport::test::FakePublisherBackend;
-using orion::transport::test::FakeSubscriberBackend;
+using orion::transport::test::FakeSubscriptionHandle;
 
 // Returns a Publisher<Header> backed by a FakePublisherBackend.
 // The raw pointer lets tests inspect captured bytes after moving the unique_ptr.
@@ -89,11 +89,11 @@ TEST(PublisherTest, EachPublishProducesOneMessage)
 
 TEST(SubscriberTest, DeliversDecodedMessage)
 {
-    orion::v1::Header received_msg;
-    auto              raw = makeRawCallback<orion::v1::Header>(
+    auto received_msg = orion::v1::Header{};
+    auto raw          = makeRawCallback<orion::v1::Header>(
         [&](const orion::v1::Header& msg, const MessageHeader& /*hdr*/) { received_msg = msg; });
 
-    auto  backend     = std::make_unique<FakeSubscriberBackend>(std::move(raw));
+    auto  backend     = std::make_unique<FakeSubscriptionHandle>(std::move(raw));
     auto* backend_ptr = backend.get();
     auto  sub         = Subscriber<orion::v1::Header>(std::move(backend));
 
@@ -109,11 +109,11 @@ TEST(SubscriberTest, DeliversDecodedMessage)
 
 TEST(SubscriberTest, ForwardsCapturedAtNs)
 {
-    MessageHeader received_hdr;
-    auto          raw = makeRawCallback<orion::v1::Header>(
+    auto received_hdr = MessageHeader{};
+    auto raw          = makeRawCallback<orion::v1::Header>(
         [&](const orion::v1::Header& /*msg*/, const MessageHeader& hdr) { received_hdr = hdr; });
 
-    auto  backend     = std::make_unique<FakeSubscriberBackend>(std::move(raw));
+    auto  backend     = std::make_unique<FakeSubscriptionHandle>(std::move(raw));
     auto* backend_ptr = backend.get();
     auto  sub         = Subscriber<orion::v1::Header>(std::move(backend));
 
@@ -127,11 +127,11 @@ TEST(SubscriberTest, ForwardsCapturedAtNs)
 
 TEST(SubscriberTest, ForwardsSourceId)
 {
-    MessageHeader received_hdr;
-    auto          raw = makeRawCallback<orion::v1::Header>(
+    auto received_hdr = MessageHeader{};
+    auto raw          = makeRawCallback<orion::v1::Header>(
         [&](const orion::v1::Header& /*msg*/, const MessageHeader& hdr) { received_hdr = hdr; });
 
-    auto  backend     = std::make_unique<FakeSubscriberBackend>(std::move(raw));
+    auto  backend     = std::make_unique<FakeSubscriptionHandle>(std::move(raw));
     auto* backend_ptr = backend.get();
     auto  sub         = Subscriber<orion::v1::Header>(std::move(backend));
 
@@ -149,7 +149,7 @@ TEST(SubscriberTest, DropsTypeMismatch)
     auto raw    = makeRawCallback<orion::v1::Envelope>(
         [&](const orion::v1::Envelope& /*msg*/, const MessageHeader& /*hdr*/) { called = true; });
 
-    auto  backend     = std::make_unique<FakeSubscriberBackend>(std::move(raw));
+    auto  backend     = std::make_unique<FakeSubscriptionHandle>(std::move(raw));
     auto* backend_ptr = backend.get();
     auto  sub         = Subscriber<orion::v1::Envelope>(std::move(backend));
 
@@ -168,7 +168,7 @@ TEST(SubscriberTest, DropsMalformedBytes)
     auto raw    = makeRawCallback<orion::v1::Header>(
         [&](const orion::v1::Header& /*msg*/, const MessageHeader& /*hdr*/) { called = true; });
 
-    auto  backend     = std::make_unique<FakeSubscriberBackend>(std::move(raw));
+    auto  backend     = std::make_unique<FakeSubscriptionHandle>(std::move(raw));
     auto* backend_ptr = backend.get();
     auto  sub         = Subscriber<orion::v1::Header>(std::move(backend));
 
@@ -182,7 +182,7 @@ TEST(SubscriberTest, DropsCorruptPayload)
     auto raw    = makeRawCallback<orion::v1::Header>(
         [&](const orion::v1::Header& /*msg*/, const MessageHeader& /*hdr*/) { called = true; });
 
-    auto  backend     = std::make_unique<FakeSubscriberBackend>(std::move(raw));
+    auto  backend     = std::make_unique<FakeSubscriptionHandle>(std::move(raw));
     auto* backend_ptr = backend.get();
     auto  sub         = Subscriber<orion::v1::Header>(std::move(backend));
 
@@ -205,8 +205,8 @@ TEST(SubscriberTest, DropsCorruptPayload)
 namespace
 {
 
-bool waitFor(const std::atomic<bool>&  flag,
-             std::chrono::milliseconds timeout = std::chrono::milliseconds{500})
+auto waitFor(const std::atomic<bool>&  flag,
+             std::chrono::milliseconds timeout = std::chrono::milliseconds{500}) -> bool
 {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     while (!flag.load())
@@ -229,9 +229,9 @@ TEST(ZenohSessionTest, RoundtripDelivery)
         .service_name = "test-service",
     });
 
-    std::atomic<bool> received{false}; // NOLINT(misc-const-correctness)
-    orion::v1::Header got;
-    MessageHeader     got_hdr;
+    auto received = std::atomic<bool>{false}; // NOLINT(misc-const-correctness)
+    auto got      = orion::v1::Header{};
+    auto got_hdr  = MessageHeader{};
 
     auto sub = session.subscribe<orion::v1::Header>(
         "orion/test-vehicle/system/roundtrip",

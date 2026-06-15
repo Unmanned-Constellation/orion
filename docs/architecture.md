@@ -1,96 +1,90 @@
 # Architecture and dependency graph
 
-## CMake target dependency graph
+## Internal architecture
 
-The diagram below shows all CMake targets, their dependency edges, and the
-external packages that feed into them. Solid arrows are current dependencies.
-Dashed arrows are planned targets not yet implemented.
+Internal CMake targets organized by layer. `orion_tests` links every library and is omitted here to avoid a fan-in spider — see the [Library responsibilities](#library-responsibilities) table below.
+
+```{mermaid}
+flowchart TD
+    classDef iface fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef stat  fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a
+    classDef share fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
+    classDef exe   fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plan  fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:5 5,color:#64748b
+
+    subgraph Core [Core Libraries]
+        orion_clock["orion_clock<br/>INTERFACE"]:::iface
+        orion_proto["orion_proto<br/>STATIC"]:::stat
+        orion_topic["orion_topic<br/>STATIC"]:::stat
+    end
+
+    subgraph Middleware [Application & Transport Middleware]
+        orion_app["orion_app<br/>STATIC"]:::stat
+        orion_transport["orion_transport<br/>SHARED"]:::share
+    end
+
+    subgraph Services [Service Libraries]
+        orion_main["orion_main<br/>STATIC"]:::stat
+        orion_clock_service["orion_clock_service<br/>STATIC"]:::stat
+        orion_perception["orion_perception<br/>STATIC"]:::stat
+        rtdetr_parser["rtdetr_parser<br/>SHARED"]:::plan
+    end
+
+    subgraph Executables [Executables]
+        clock_service{{"clock_service"}}:::exe
+        orion_transport_benchmarks{{"orion_transport_benchmarks"}}:::exe
+    end
+
+    orion_clock --> orion_app
+    orion_clock --> orion_main
+    orion_proto --> orion_transport
+    orion_app   --> orion_main
+    orion_app & orion_proto & orion_transport & orion_topic --> orion_clock_service
+    orion_proto & orion_transport                           --> orion_perception
+    orion_perception -.->|dlopen| rtdetr_parser
+
+    orion_clock_service & orion_main --> clock_service
+    orion_transport & orion_proto    --> orion_transport_benchmarks
+```
+
+## External dependencies
+
+Which Conan and system packages feed into each internal target.
 
 ```{mermaid}
 flowchart LR
-    %% Semantic Style Definitions
-    classDef external   fill:#f3f4f6,stroke:#9ca3af,stroke-width:1px,color:#111827
-    classDef interface  fill:#dcfce7,stroke:#22c55e,stroke-width:2px,color:#14532d
-    classDef staticLib  fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a
-    classDef sharedLib  fill:#fef08a,stroke:#eab308,stroke-width:2px,color:#713f12
-    classDef executable fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#7f1d1d
-    classDef planned    fill:#f8fafc,stroke:#64748b,stroke-width:2px,stroke-dasharray: 5 5,color:#475569
+    classDef ext  fill:#f3f4f6,stroke:#9ca3af,stroke-width:1px,color:#374151
+    classDef plan fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:5 5,color:#64748b
+    classDef tgt  fill:#ffffff,stroke:#4b5563,stroke-width:2px,color:#1f2937
 
-    subgraph External ["System & Conan Dependencies"]
-        direction TB
-        protobuf(["protobuf/5.29.3"]):::external
-        zenohc(["zenoh-c/1.9.0 ①"]):::external
-        zenohcpp(["zenoh-cpp/1.9.0 ①"]):::external
-        abseil(["abseil/20240722.0"]):::external
-        gtest(["gtest/1.17.0"]):::external
-        gbench(["benchmark/1.9.5"]):::external
-        backwardcpp(["backward-cpp/1.6"]):::external
+    protobuf(["protobuf"]):::ext
+    abseil(["abseil"]):::ext
+    zenoh(["zenoh-c / zenoh-cpp ①"]):::ext
+    backwardcpp(["backward-cpp"]):::ext
+    libdw(["libdw ②"]):::plan
+    spdlog(["spdlog"]):::ext
+    cli11(["cli11"]):::ext
+    gtest(["gtest"]):::ext
+    gbench(["benchmark"]):::ext
 
-        libdw(["libdw (M2) ②"]):::planned
-        spdlog(["spdlog/1.17.0"]):::external
-    end
+    orion_proto["orion_proto"]:::tgt
+    orion_transport["orion_transport"]:::tgt
+    orion_app["orion_app"]:::tgt
+    orion_main["orion_main"]:::tgt
+    orion_tests["orion_tests"]:::tgt
+    orion_transport_benchmarks["orion_transport_benchmarks"]:::tgt
 
-    subgraph Modules ["CMake Targets"]
-        direction TB
-        orion_clock["orion_clock<br/>(INTERFACE)"]:::interface
-        orion_proto["orion_proto<br/>(STATIC)"]:::staticLib
-        orion_app["orion_app<br/>(STATIC)"]:::staticLib
-        orion_transport["orion_transport<br/>(SHARED)"]:::sharedLib
-        orion_clock_service["orion_clock_service<br/>(STATIC)"]:::staticLib
-        orion_main["orion_main<br/>(STATIC)"]:::staticLib
-        orion_perception["orion_perception<br/>(STATIC)"]:::staticLib
-        rtdetr_parser["rtdetr_parser<br/>(SHARED, DEEPSTREAM=ON)"]:::sharedLib
-    end
-
-    subgraph Executables ["Executables"]
-        orion_tests{{"orion_tests"}}:::executable
-        clock_service{{"clock_service"}}:::executable
-        orion_benchmarks{{"orion_benchmarks<br/>(ORION_BENCHMARKS=ON)"}}:::executable
-    end
-
-    %% External to Module Edges
-    protobuf    --> orion_proto
-    abseil      --> orion_proto
-    zenohc      --> orion_transport
-    zenohcpp    --> orion_transport
-
-    backwardcpp --> orion_app
-    libdw       -.-> orion_app
-    spdlog      --> orion_app
-    cli11(["cli11/2.6.2"]):::external --> orion_main
-
-    %% Internal Module Edges
-    orion_proto --> orion_transport
-    orion_clock --> orion_app
-    orion_app   --> orion_main
-
-    %% Executable Edges
-    orion_clock     --> orion_tests
-    orion_app       --> orion_tests
-    orion_transport --> orion_tests
-    orion_proto     --> orion_tests
-    orion_main      --> orion_tests
-    gtest           --> orion_tests
-
-    orion_app            --> orion_clock_service
-    orion_transport      --> orion_clock_service
-    orion_proto          --> orion_clock_service
-    orion_clock_service  --> clock_service
-    orion_main           --> clock_service
-
-    gbench          --> orion_benchmarks
-    orion_transport --> orion_benchmarks
-    orion_proto     --> orion_benchmarks
-
-    %% orion_perception
-    orion_proto          --> orion_perception
-    orion_transport      --> orion_perception
-    orion_perception     --> orion_tests
-    orion_perception     -.-> rtdetr_parser
+    protobuf & abseil    --> orion_proto
+    zenoh                --> orion_transport
+    backwardcpp & spdlog --> orion_app
+    libdw               -.-> orion_app
+    cli11                --> orion_main
+    gtest                --> orion_tests
+    gbench               --> orion_transport_benchmarks
 ```
 
 ① `zenoh-c` and `zenoh-cpp` are not in ConanCenter. They are maintained as
-local recipes under `conan/recipes/` - see
+local recipes under `conan/recipes/` — see
 [Dependency Management](dependency-management.md).
 
 ② `libdw` (from `libdw-dev`) is a system library used by `backward-cpp` for
@@ -106,10 +100,11 @@ present on the Jetson deployment sysroot.
 |---|---|---|
 | `orion_clock` | INTERFACE | Abstract `TimeSource` interface + `WallClock`, `ManualClock`, `SimClock`, `CoordinatedClock`. Zero deps beyond stdlib. |
 | `orion_proto` | STATIC | Compiled protobuf message bindings for all `.proto` files under `proto/orion/v1/`. |
-| `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`, `LoggerFactory`. Depends on `orion_clock` + `backward-cpp` + `spdlog`. |
+| `orion_topic` | STATIC | Canonical Zenoh topic name builders (`sensing::detections`, `clock::simTime`, etc.). Validates `vehicle_id` at call time. Zero deps beyond stdlib. |
+| `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`. Depends on `orion_clock` + `backward-cpp` + `spdlog`. |
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
-| `orion_clock_service` | STATIC | `ClockService` — publishes `SimTimeUpdate` at `FrameScheduler` tick rate, backed by `SimClock`. Depends on `orion_app` + `orion_transport` + `orion_proto`. |
-| `orion_main` | STATIC | `ServiceConfig`, `addServiceConfig` — CLI11-backed arg/env parsing for service `main.cpp` files. Provides `--help` and `--version`. Linked by executables only; never by libraries. |
+| `orion_clock_service` | STATIC | `ClockService` — publishes `SimTimeUpdate` at `FrameScheduler` tick rate, backed by `SimClock`. Depends on `orion_app` + `orion_transport` + `orion_proto` + `orion_topic`. |
+| `orion_main` | STATIC | `ServiceBootstrapper`, `ServiceContext`, `ServiceConfig`, `addServiceConfig` — CLI11-backed arg/env parsing and startup wiring for service `main.cpp` files. `ServiceBootstrapper` is the preferred entry point; it owns `ShutdownLatch`, `CrashHandler`, logger init, and clock construction (`--clock wall\|sim:<scale>\|coordinated`). Linked by executables only; never by libraries. Depends on `orion_app` + `orion_clock` + `CLI11`. |
 | `orion_perception` | STATIC | `PerceptionService`, `PerceptionBackend` interface, `FakePerceptionBackend`. With `ORION_ENABLE_DEEPSTREAM=ON`: `DeepStreamBackend` (GStreamer/DeepStream pipeline). Depends on `orion_proto` + `orion_transport`. |
 | `rtdetr_parser` | SHARED | Custom `nvinfer` bounding-box parser for Ultralytics RT-DETR-R18 FP16. Loaded by DeepStream at runtime via `dlopen`. Only built when `ORION_ENABLE_DEEPSTREAM=ON`. |
 
@@ -148,7 +143,7 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 | gtest | 1.17.0 | ConanCenter | `orion_tests` | Test only |
 | backward-cpp | 1.6 | ConanCenter | `orion_app` | Crash symbolization; `dw` backend — full DWARF (see ②) |
 | libdw | system | APT ② | `orion_app` | DWARF symbol resolution for backward-cpp |
-| spdlog | 1.17.0 | ConanCenter | `orion_app` | Async structured logging via `LoggerFactory` |
+| spdlog | 1.17.0 | ConanCenter | `orion_app`, `orion_main` | Async structured logging; logger created by `ServiceBootstrapper` |
 | cli11 | 2.6.2 | ConanCenter | `orion_main` | Header-only CLI arg + env var parsing; MIT licence |
 
 ---
@@ -159,6 +154,6 @@ wires the Zenoh subscription and calls `update()` in the callback, so
 |---|---|---|---|
 | Baseline | Done | `orion_clock`, `orion_proto`, `orion_app`, `orion_transport` | protobuf, zenoh-c, zenoh-cpp, abseil, gtest |
 | M1 - Core Runtime | Done | `SimClock` + `CoordinatedClock` stub in `orion_clock`; `FrameScheduler` in `orion_app` | none |
-| M2 - Observability | Done | `CrashHandler`, `LoggerFactory` in `orion_app` | backward-cpp, libdw, spdlog |
+| M2 - Observability | Done | `CrashHandler` in `orion_app`; logger creation in `ServiceBootstrapper` (`orion_main`) | backward-cpp, libdw, spdlog |
 | M3 - Simulation | Done | `CoordinatedClock` Phase 3; `orion_clock_service` + `clock_service` executable | none |
-| M4 - Perception | In Progress | `orion_perception`, `DeepStreamBackend`, `rtdetr_parser`; RT-DETR-R18 FP16 inference on Arducam Darksee via v4l2src | GStreamer (`gstreamer-1.0`, `gstreamer-app-1.0`), DeepStream SDK (Jetson only, `ORION_ENABLE_DEEPSTREAM=ON`) |
+| M4 - Perception | In Progress | `orion_perception`, `DeepStreamBackend`, `rtdetr_parser`; `orion_topic` canonical topic helpers; RT-DETR-R18 FP16 inference on Arducam Darksee via v4l2src | GStreamer (`gstreamer-1.0`, `gstreamer-app-1.0`), DeepStream SDK (Jetson only, `ORION_ENABLE_DEEPSTREAM=ON`) |

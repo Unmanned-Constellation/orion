@@ -12,7 +12,7 @@ namespace orion::transport
 
 /// Wraps a typed Subscriber<T>::Callback in a RawCallback that decodes Envelope framing.
 ///
-/// Used internally by Session::subscribe and by FakeSubscriberBackend in tests.
+/// Used internally by Session::subscribe and by FakeSubscriptionHandle in tests.
 /// @tparam T  Protobuf message type to decode and deliver.
 template <typename T>
 auto makeRawCallback(typename Subscriber<T>::Callback callback) -> RawCallback

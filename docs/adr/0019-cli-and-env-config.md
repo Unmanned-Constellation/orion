@@ -58,61 +58,51 @@ documentation.
 ### `orion_main` — shared config library
 
 A new `orion_main` static library in `libs/main/` owns the shared startup
-scaffolding. It links `orion_app` and `CLI11::CLI11` and is the only target that
-depends on CLI11. Service libraries (`orion_clock_service`, etc.) remain CLI11-free.
+scaffolding. It links `orion_app`, `orion_clock`, and `CLI11::CLI11` and is the
+only target that depends on CLI11. Service libraries (`orion_clock_service`, etc.)
+remain CLI11-free.
 
-`orion_main` exposes a `ServiceConfig` struct and a `parseServiceConfig` function:
-
-```cpp
-namespace orion::app
-{
-
-struct ServiceConfig
-{
-    std::string vehicle_id;
-    std::string log_level{"info"};
-};
-
-auto parseServiceConfig(CLI::App& app) -> ServiceConfig;
-
-} // namespace orion::app
-```
-
-`parseServiceConfig` registers the common options on the provided `CLI::App`
-instance. The caller then adds service-specific options before calling
-`app.parse(argc, argv)`:
+`orion_main` exposes `ServiceConfig`, `addServiceConfig`, and `ServiceBootstrapper`.
+`ServiceBootstrapper` is the preferred entry point — it owns `ShutdownLatch`,
+`CrashHandler`, logger initialization, and clock construction, returning a ready
+`ServiceContext`:
 
 ```cpp
 int main(int argc, char** argv)
 {
-    auto latch = orion::app::ShutdownLatch{};
-    auto crash = orion::app::CrashHandler{};
+    auto scale   = 1.0;
+    auto rate_hz = 100.0;
 
-    auto app = CLI::App{"clock-service"};
-    app.set_version_flag("--version", ORION_VERSION_STRING);
+    auto bootstrap = orion::app::ServiceBootstrapper{"clock-service"};
+    auto ctx = bootstrap
+        .withOptions([&](CLI::App& app) {
+            app.add_option("--scale", scale, "Sim speed relative to wall time")
+               ->envname("SIM_SCALE");
+            app.add_option("--rate-hz", rate_hz, "Publish rate in Hz")
+               ->envname("SIM_RATE_HZ");
+        })
+        .run(argc, argv);
 
-    auto cfg      = orion::app::ServiceConfig{};
-    auto scale    = 1.0;
-    auto rate_hz  = 100.0;
-
-    orion::app::addServiceConfig(app, cfg);
-    app.add_option("--scale", scale, "Sim speed relative to wall time")
-       ->envname("SIM_SCALE");
-    app.add_option("--rate-hz", rate_hz, "Publish rate in Hz")
-       ->envname("SIM_RATE_HZ");
-
-    CLI11_PARSE(app, argc, argv); // prints help/error and exits on failure
-
-    orion::app::LoggerFactory::init(cfg.log_level);
+    // ctx.vehicle_id, ctx.service_name, ctx.log, ctx.latch, ctx.clock are ready
+    auto scheduler = orion::app::FrameScheduler{rate_hz, ctx.clock, ctx.latch};
     // ...
 }
 ```
 
-`CLI11_PARSE` is a CLI11 macro that calls `app.parse()`, catches `CLI::ParseError`,
-prints the message to stderr, and calls `exit()` with the appropriate code. This
-runs before `LoggerFactory::init()` — config errors are reported directly to
+`ServiceBootstrapper::run()` calls `app.parse()`, catches `CLI::ParseError`,
+prints the message to stderr, and calls `std::exit()` with the appropriate code.
+This runs before the logger is initialized — config errors are reported directly to
 stderr, not via spdlog. This is intentional: logging cannot be initialized before
 the config is known.
+
+For the rare case where direct control is needed (custom initialization order,
+tests), `addServiceConfig` and `ServiceConfig` remain available:
+
+```cpp
+auto cfg = orion::app::ServiceConfig{};
+orion::app::addServiceConfig(app, cfg);
+app.parse(argc, argv);
+```
 
 ### `--version` output
 
@@ -132,7 +122,22 @@ The version string is constructed in `cmake/Version.cmake` from `ORION_VERSION`
 CLI11 default error handling is used without modification. On a missing required
 option or type mismatch, CLI11 writes to stderr and exits with code 1. No custom
 error handler is registered. This is correct: config errors occur before
-`LoggerFactory` is initialized, so spdlog is not available.
+the logger is initialized (inside `ServiceBootstrapper::run()`), so spdlog is
+not available.
+
+### Shared options registered by `ServiceBootstrapper`
+
+`addServiceConfig` registers three options on every service's CLI app:
+
+| CLI flag | Env var | Default | Description |
+|---|---|---|---|
+| `--vehicle-id` | `VEHICLE_ID` | *(hostname)* | Vehicle identifier; used in Zenoh topic paths |
+| `--log-level` | `LOG_LEVEL` | `info` | spdlog level: `trace`, `debug`, `info`, `warn`, `err`, `critical` |
+| `--clock` | `CLOCK_MODE` | `wall` | Time source: `wall` (production/HIL), `sim:<scale>` (scaled SIL, e.g. `sim:2.0`), `coordinated` (lockstep batch simulation) |
+
+The constructed `TimeSource` is returned in `ServiceContext::clock` and passed
+directly to `FrameScheduler`. Services have no direct knowledge of which
+implementation was selected.
 
 ### Migrating `clock_service`
 
@@ -146,6 +151,8 @@ error handler is registered. This is correct: config errors occur before
 ## Consequences
 
 - All services get `--help` and `--version` for free from `orion_main`.
+- All services get `--clock` / `CLOCK_MODE` for free; the constructed `TimeSource`
+  arrives in `ServiceContext::clock` without any per-service wiring.
 - Config errors produce a clear, consistent message before any application code
   runs — no cryptic exceptions from deep in initialization.
 - CLI flags override env vars — operators can override systemd unit file config
@@ -155,4 +162,6 @@ error handler is registered. This is correct: config errors occur before
 - `orion_main` is a new CMake target — service `main.cpp` files link it instead
   of `orion_app` directly. Libraries never link `orion_main`.
 - CLI11 is a Conan dependency of `orion_main` only; no other library sees it.
+- `orion_clock` is now a transitive dependency of `orion_main` (for clock
+  construction). Services do not link `orion_clock` directly.
 - The `ORION_LOG_LEVEL` reference in ADR-0011 is superseded by `LOG_LEVEL`.

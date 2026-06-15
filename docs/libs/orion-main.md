@@ -6,10 +6,69 @@ Shared CLI parsing and configuration scaffolding for all Orion microservice `mai
 
 `orion_main` is a **STATIC** library that owns the common startup wiring every Orion service needs:
 CLI argument parsing, environment variable fallbacks, `--help`, and `--version`. It depends on
-`orion_app` and `CLI11`. Service libraries (`orion_clock_service`, etc.) never link `orion_main`
-— only service executable targets do.
+`orion_app`, `orion_clock`, and `CLI11`. Service libraries (`orion_clock_service`, etc.) never
+link `orion_main` — only service executable targets do.
 
 See [ADR-0019](../adr/0019-cli-and-env-config.md) for the rationale.
+
+---
+
+## `ServiceBootstrapper`
+
+```cpp
+#include "orion/app/service_bootstrapper.hpp"
+namespace orion::app
+```
+
+Owns the shared startup sequence for every Orion microservice. Construct once as a stack
+variable at the top of `main()`. It owns `ShutdownLatch` and `CrashHandler` internally — do
+not create those separately. Call `withOptions()` to register service-specific CLI options,
+then `run()` to parse and initialise.
+
+### `ServiceContext`
+
+Returned by `ServiceBootstrapper::run()`. Carries the three resources every service needs
+after bootstrap completes.
+
+| Field | Type | Description |
+|---|---|---|
+| `vehicle_id` | `std::string` | Resolved vehicle identifier. Defaults to the system hostname; overridable via `--vehicle-id` / `VEHICLE_ID`. |
+| `service_name` | `std::string` | The name passed to the `ServiceBootstrapper` constructor. Suitable for use as `SessionConfig::service_name`. |
+| `log` | `std::shared_ptr<spdlog::logger>` | Logger initialised for this service. Non-null. |
+| `latch` | `ShutdownLatch*` | Non-owning pointer into the bootstrapper's latch. Never null. |
+| `clock` | `std::shared_ptr<orion::clock::TimeSource>` | Time source constructed from `--clock` / `CLOCK_MODE`. Non-null. Pass directly to `FrameScheduler`. |
+
+The `latch` pointer is valid for the lifetime of the `ServiceBootstrapper` that created it.
+Since both are stack variables in `main()`, this lifetime is guaranteed.
+
+### Method reference
+
+| Method | Description |
+|---|---|
+| `ServiceBootstrapper(service_name)` | Sets the CLI app name, logger name, and log directory. |
+| `withOptions(fn)` | Registers a callback invoked before parse to add service-specific options. Returns `*this` for chaining. |
+| `withLogger(logger)` | Injects a pre-built logger instead of creating one during `run()`. Intended for tests — pass a null-sink logger to avoid file I/O and global state. Returns `*this` for chaining. |
+| `run(argc, argv)` | Parses arguments, initialises the logger, returns a ready `ServiceContext`. Calls `std::exit()` on `--help`, `--version`, or parse error. |
+
+### Typical usage
+
+```cpp
+auto main(int argc, char** argv) -> int
+{
+    auto bootstrap = orion::app::ServiceBootstrapper{"my-service"};
+    auto my_opt    = 42;
+
+    auto ctx = bootstrap
+        .withOptions([&](CLI::App& app) {
+            app.add_option("--my-opt", my_opt, "Service-specific option")->envname("MY_OPT");
+        })
+        .run(argc, argv);
+
+    auto session   = orion::transport::Session::create({ctx.vehicle_id, ctx.service_name});
+    auto scheduler = orion::app::FrameScheduler{rate_hz, ctx.clock, ctx.latch};
+    // ... construct service, call scheduler.run() ...
+}
+```
 
 ---
 
@@ -20,12 +79,15 @@ See [ADR-0019](../adr/0019-cli-and-env-config.md) for the rationale.
 namespace orion::app
 ```
 
-Struct holding the configuration fields common to every service.
+Struct holding the configuration fields common to every service. Used internally by
+`ServiceBootstrapper`; also available for direct use when the full bootstrapper pattern is
+not appropriate.
 
 | Field | Type | Default | CLI flag | Env var |
 |---|---|---|---|---|
-| `vehicle_id` | `std::string` | *(required)* | `--vehicle-id` | `VEHICLE_ID` |
+| `vehicle_id` | `std::string` | *(hostname)* | `--vehicle-id` | `VEHICLE_ID` |
 | `log_level` | `std::string` | `"info"` | `--log-level` | `LOG_LEVEL` |
+| `clock_mode` | `std::string` | `"wall"` | `--clock` | `CLOCK_MODE` |
 
 ---
 
@@ -35,38 +97,8 @@ Struct holding the configuration fields common to every service.
 void addServiceConfig(CLI::App& app, ServiceConfig& cfg);
 ```
 
-Registers `--vehicle-id` / `VEHICLE_ID` and `--log-level` / `LOG_LEVEL` on `app`. Call before
-adding service-specific options and before `app.parse()` / `CLI11_PARSE`.
-
----
-
-## Typical usage
-
-```cpp
-auto main(int argc, char** argv) -> int
-{
-    auto latch = orion::app::ShutdownLatch{};
-    auto crash = orion::app::CrashHandler{};
-
-    auto app = CLI::App{"my-service"};
-    app.set_version_flag("--version", ORION_VERSION_STRING);
-
-    auto cfg    = orion::app::ServiceConfig{};
-    auto my_opt = 42;
-
-    orion::app::addServiceConfig(app, cfg);
-    app.add_option("--my-opt", my_opt, "Service-specific option")->envname("MY_OPT");
-
-    CLI11_PARSE(app, argc, argv);
-
-    orion::app::LoggerFactory::init(cfg.log_level);
-    // ... set up session, scheduler, services ...
-}
-```
-
-`CLI11_PARSE` exits with code 1 on any parse error (missing required option, type mismatch),
-printing a clear message to stderr. This runs before `LoggerFactory::init` — config errors are
-always visible regardless of log level.
+Registers `--vehicle-id` / `VEHICLE_ID`, `--log-level` / `LOG_LEVEL`, and `--clock` / `CLOCK_MODE`
+on `app`. Used internally by `ServiceBootstrapper`. Call directly only when bypassing the bootstrapper.
 
 ---
 
@@ -91,5 +123,5 @@ target_include_directories(my_service PRIVATE ${CMAKE_BINARY_DIR}/generated)
 target_link_libraries(my_service PRIVATE orion_main)
 ```
 
-`orion_main` transitively pulls in `orion_app` and `CLI11::CLI11`. Never link `orion_main` from
-a library target — CLI11 is an executable-only concern.
+`orion_main` transitively pulls in `orion_app`, `orion_clock`, and `CLI11::CLI11`. Never link
+`orion_main` from a library target — CLI11 is an executable-only concern.

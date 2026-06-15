@@ -11,18 +11,18 @@ namespace orion::transport
 
 using RawCallback = std::function<void(std::string_view)>;
 
-/// Non-template backend — holds the transport subscription handle and the type-erased raw callback.
-/// Implemented in session_impl.cpp. Kept alive as long as Subscriber<T> lives.
-class SubscriberBackend
+/// RAII handle that keeps a transport subscription alive for the lifetime of Subscriber<T>.
+/// No behavioral interface — destroying this cancels the underlying Zenoh subscription.
+class SubscriptionHandle
 {
   public:
     /// @cond
-    SubscriberBackend()                                            = default;
-    SubscriberBackend(const SubscriberBackend&)                    = default;
-    auto operator=(const SubscriberBackend&) -> SubscriberBackend& = default;
-    SubscriberBackend(SubscriberBackend&&)                         = default;
-    auto operator=(SubscriberBackend&&) -> SubscriberBackend&      = default;
-    virtual ~SubscriberBackend()                                   = default;
+    SubscriptionHandle()                                             = default;
+    SubscriptionHandle(const SubscriptionHandle&)                    = default;
+    auto operator=(const SubscriptionHandle&) -> SubscriptionHandle& = default;
+    SubscriptionHandle(SubscriptionHandle&&)                         = default;
+    auto operator=(SubscriptionHandle&&) -> SubscriptionHandle&      = default;
+    virtual ~SubscriptionHandle()                                    = default;
     /// @endcond
 };
 
@@ -41,7 +41,7 @@ class Subscriber
     using Callback = std::function<void(const T&, const MessageHeader&)>;
 
     /// @cond
-    explicit Subscriber(std::unique_ptr<SubscriberBackend> backend) : backend_(std::move(backend))
+    explicit Subscriber(std::unique_ptr<SubscriptionHandle> backend) : backend_(std::move(backend))
     {
     }
 
@@ -54,7 +54,7 @@ class Subscriber
 
   private:
     /// @brief Transport backend holding the subscription handle and raw callback.
-    std::unique_ptr<SubscriberBackend> backend_;
+    std::unique_ptr<SubscriptionHandle> backend_;
 };
 
 } // namespace orion::transport

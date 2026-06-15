@@ -162,11 +162,11 @@ are pre-installed. All downstream jobs gate on `format`, `docs`, and `proto` via
 
 | Step | Command |
 |---|---|
-| Run Doxygen | `doxygen docs/Doxyfile` - emits XML to `docs/_build/doxygen/xml/` |
+| Run Doxygen | `doxygen docs/Doxyfile` - emits XML to `docs/_build/doxygen/xml/` and HTML to `docs/_build/doxygen/html/` |
 | Build Sphinx site | `sphinx-build -W -b html docs docs/_build/html` |
 
 `-W` promotes any Sphinx warning to an error. The Doxyfile sets
-`WARN_AS_ERROR = YES`, so an undocumented public symbol also fails the job.
+`WARN_AS_ERROR = FAIL_ON_WARNINGS`, so an undocumented public symbol also fails the job.
 
 See [documentation.md](documentation.md) for what must be documented and how to
 write Doxygen comments.
@@ -226,15 +226,15 @@ prefixed `conan-arm64-` to keep them isolated from the x86_64 caches.
 ### Benchmark build
 
 Runs after `build` (`needs: [build]`). Uses `conan/profiles/x86_64/release` and the `bench`
-CMake preset (`ORION_BENCHMARKS=ON`, Release build type). Compiles `orion_benchmarks` but does
+CMake preset (`ORION_BENCHMARKS=ON`, Release build type). Compiles `orion_transport_benchmarks` but does
 not execute it — benchmark results on shared CI runners are meaningless due to virtualisation
 and thermal throttling. The job exists to catch compilation errors early.
 
-To run benchmarks, use the **Benchmark: Run** VS Code task or:
+To run benchmarks, use the **Benchmark: Transport** VS Code task or:
 
 ```bash
 cmake --preset bench && cmake --build --preset bench
-./build/Bench/benchmarks/orion_benchmarks
+./build/Bench/benchmarks/orion_transport_benchmarks
 ```
 
 See [building-and-testing.md](building-and-testing.md) for payload sizes and the p99 < 1 ms

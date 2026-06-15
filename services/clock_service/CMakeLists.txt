@@ -6,7 +6,7 @@ target_compile_features(orion_clock_service PUBLIC cxx_std_20)
 
 target_link_libraries(
     orion_clock_service
-    PUBLIC orion_clock orion_app orion_transport orion_proto
+    PUBLIC orion_clock orion_app orion_topic orion_transport orion_proto
 )
 
 add_executable(clock_service src/main.cpp)

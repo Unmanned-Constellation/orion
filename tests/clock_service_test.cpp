@@ -11,31 +11,26 @@
 #include "orion/app/frame_scheduler.hpp"
 #include "orion/app/shutdown_latch.hpp"
 #include "orion/clock/clock.hpp"
+#include "orion/topic/topic.hpp"
 #include "orion/transport/publisher.hpp"
 #include "orion/transport/session.hpp"
-#include "orion/v1/envelope.pb.h"
+#include "orion/transport/subscriber.hpp"
 #include "orion/v1/sim_time_update.pb.h"
 
 using orion::app::ClockService;
 using orion::app::FrameScheduler;
 using orion::app::ShutdownLatch;
+using orion::clock::CoordinatedClock;
 using orion::clock::ManualClock;
+using orion::clock::WallClock;
 using orion::transport::Publisher;
+using orion::transport::test::decodeAll;
 using orion::transport::test::FakePublisherBackend;
 
 namespace
 {
 
 constexpr uint64_t PERIOD_NS = 10'000'000; // 100 Hz
-
-auto parseSimTimeUpdate(const std::string& bytes) -> orion::v1::SimTimeUpdate
-{
-    auto env = orion::v1::Envelope{};
-    env.ParseFromString(bytes);
-    auto msg = orion::v1::SimTimeUpdate{};
-    msg.ParseFromString(env.payload());
-    return msg;
-}
 
 struct ClockServiceFixture
 {
@@ -49,7 +44,7 @@ struct ClockServiceFixture
         auto fake      = std::make_unique<FakePublisherBackend>();
         fake_ptr       = fake.get();
         auto publisher = Publisher<orion::v1::SimTimeUpdate>{std::move(fake), "clock-service"};
-        return ClockService{scale, std::move(publisher), scheduler};
+        return ClockService{clock, scale, std::move(publisher), scheduler};
     }
 };
 
@@ -101,14 +96,33 @@ TEST(ClockServiceTest, PublishedTimeIsMonotonic)
     fix.clock->wake();
     runner.join();
 
-    const auto& sent = fix.fake_ptr->sent();
-    ASSERT_EQ(sent.size(), 3U);
+    auto msgs = decodeAll<orion::v1::SimTimeUpdate>(*fix.fake_ptr);
+    ASSERT_EQ(msgs.size(), 3U);
 
-    auto time_0 = parseSimTimeUpdate(sent[0]).sim_time_ns();
-    auto time_1 = parseSimTimeUpdate(sent[1]).sim_time_ns();
-    auto time_2 = parseSimTimeUpdate(sent[2]).sim_time_ns();
-    EXPECT_GT(time_1, time_0);
-    EXPECT_GT(time_2, time_1);
+    EXPECT_GT(msgs[1].msg.sim_time_ns(), msgs[0].msg.sim_time_ns());
+    EXPECT_GT(msgs[2].msg.sim_time_ns(), msgs[1].msg.sim_time_ns());
+}
+
+TEST(ClockServiceTest, PublishedSimTimeMatchesClockExactly)
+{
+    auto fix = ClockServiceFixture{};
+    auto svc = fix.makeService(1.0); // NOLINT(misc-const-correctness)
+
+    auto runner = std::thread{[&] { fix.scheduler.run(); }};
+
+    fix.clock->advance(PERIOD_NS);
+    for (int i = 0; i < 100 && fix.fake_ptr->sentCount() < 1; ++i)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{1});
+    }
+
+    fix.latch.stop();
+    fix.clock->wake();
+    runner.join();
+
+    auto msgs = decodeAll<orion::v1::SimTimeUpdate>(*fix.fake_ptr);
+    ASSERT_EQ(msgs.size(), 1U);
+    EXPECT_EQ(msgs[0].msg.sim_time_ns(), PERIOD_NS);
 }
 
 TEST(ClockServiceTest, PublishedScaleMatchesConstructorArg)
@@ -128,8 +142,9 @@ TEST(ClockServiceTest, PublishedScaleMatchesConstructorArg)
     fix.clock->wake();
     runner.join();
 
-    const auto msg = parseSimTimeUpdate(fix.fake_ptr->sent()[0]);
-    EXPECT_DOUBLE_EQ(msg.scale(), 4.0);
+    auto msgs = decodeAll<orion::v1::SimTimeUpdate>(*fix.fake_ptr);
+    ASSERT_EQ(msgs.size(), 1U);
+    EXPECT_DOUBLE_EQ(msgs[0].msg.scale(), 4.0);
 }
 
 // ── Zenoh integration test ────────────────────────────────────────────────────
@@ -155,6 +170,46 @@ auto waitForFlag(const std::atomic<bool>&  flag,
 }
 
 } // namespace
+
+// Verifies the coordinated clock wiring pattern: a CoordinatedClock driven by a
+// SimTimeUpdate subscriber advances when ClockService publishes.
+TEST(ClockServiceZenohTest, CoordinatedClockDrivenBySimTimeUpdate)
+{
+    auto session = orion::transport::Session::create({
+        .vehicle_id   = "test",
+        .service_name = "coord-test",
+    });
+
+    auto coord_clock = std::make_shared<CoordinatedClock>();
+    auto initialized = std::atomic<bool>{false}; // NOLINT(misc-const-correctness)
+
+    // Wiring pattern: subscriber drives coord_clock->update() on every broadcast.
+    auto sim_sub = session.subscribe<orion::v1::SimTimeUpdate>(
+        orion::topic::clock::simTime("test"),
+        [coord_clock, &initialized](const orion::v1::SimTimeUpdate& msg,
+                                    const orion::transport::MessageHeader& /*hdr*/) {
+            coord_clock->update(msg.sim_time_ns());
+            initialized.store(true);
+        });
+
+    auto wall_clock = std::make_shared<WallClock>();
+    auto latch      = orion::app::ShutdownLatch{};
+    auto scheduler  = FrameScheduler{100.0, wall_clock, &latch};
+    auto svc        = ClockService::create( // NOLINT(misc-const-correctness)
+        1.0,
+        "test",
+        session,
+        scheduler);
+
+    auto runner = std::thread{[&] { scheduler.run(); }};
+
+    ASSERT_TRUE(waitForFlag(initialized)) << "CoordinatedClock never received a SimTimeUpdate";
+    EXPECT_GT(coord_clock->nowNs(), 0U);
+
+    latch.stop();
+    coord_clock->wake();
+    runner.join();
+}
 
 TEST(ClockServiceZenohTest, SimTimeUpdateArrivesOverWire)
 {

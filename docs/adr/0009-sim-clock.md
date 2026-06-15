@@ -1,7 +1,7 @@
 # ADR 0009: SimClock and CoordinatedClock for simulation
 
 ## Status
-Accepted - phased implementation (Phase 1 complete, Phase 2 in progress, Phase 3 future)
+Accepted — complete
 
 ## Context
 `WallClock` runs services at real time. `ManualClock` is step-driven and suitable for unit tests
@@ -61,27 +61,44 @@ time (`remaining / scale_`) and sleeps, then re-checks. Callers never wake befor
 
 ---
 
-### Phase 2 - `CoordinatedClock` stub (in progress)
+### Phase 2 - `CoordinatedClock` (complete)
 
 `CoordinatedClock` is the coordinated-sim-time clock. It lives in `clock.hpp` alongside the
-other implementations - no separate CMake target needed.
+other implementations — no separate CMake target needed.
 
-**Design:** `CoordinatedClock` exposes an `update(uint64_t sim_time_ns)` method. The calling
-service subscribes to `orion/{vehicle_id}/clock/sim_time` and calls `clock->update(msg.sim_time_ns())`
-in the subscriber callback. The clock itself has no knowledge of Zenoh or transport.
+`CoordinatedClock` stores `now_ns_` and a condition variable. `update()` sets `now_ns_` under
+a mutex and notifies all `sleepUntil` waiters — identical condvar pattern to `ManualClock`.
+`nowNs()` returns the last received timestamp under the same mutex, and throws `std::logic_error`
+if called before the first `update()`.
+
+**Wiring pattern:** The service that wants coordinated simulation subscribes to
+`orion/{vehicle_id}/clock/sim_time` and calls `clock->update(msg.sim_time_ns())` in the
+callback. The clock has no knowledge of Zenoh or transport. The subscription must be kept
+alive for the service lifetime, and `clock->wake()` must be called before shutdown to
+unblock any thread sleeping in `sleepUntil`.
+
+```cpp
+// In a periodic service main.cpp (after session creation):
+auto coord_clock = std::dynamic_pointer_cast<orion::clock::CoordinatedClock>(ctx.clock);
+if (coord_clock)
+{
+    sim_sub = session.subscribe<orion::v1::SimTimeUpdate>(
+        orion::topic::clock::simTime(ctx.vehicle_id),
+        [coord_clock](const orion::v1::SimTimeUpdate& msg, const orion::transport::MessageHeader&) {
+            coord_clock->update(msg.sim_time_ns());
+        });
+}
+// Before joining the scheduler thread:
+if (coord_clock) { coord_clock->wake(); }
+```
+
+`ServiceBootstrapper` constructs a `CoordinatedClock` when `--clock coordinated` /
+`CLOCK_MODE=coordinated` is set. The wiring above is service-level code because it requires
+both the clock (from `ServiceContext`) and the session (created by the service after bootstrap).
 
 This mirrors the `ManualClock` pattern: an external driver advances time, and `sleepUntil`
 waiters unblock when time passes their target. `ManualClock` is driven by test threads;
 `CoordinatedClock` is driven by a Zenoh subscriber callback.
-
-**Phase 2 stub:** constructor compiles correctly. `update()`, `nowNs()`, and `sleepUntil()`
-all throw `std::logic_error("CoordinatedClock not yet implemented")`.
-
-**Phase 3 implementation (future):**
-
-`CoordinatedClock` stores `now_ns_` and a condition variable. `update()` sets `now_ns_` under
-a mutex and notifies all `sleepUntil` waiters - identical condvar pattern to `ManualClock`.
-`nowNs()` returns the last received timestamp under the same mutex.
 
 ---
 
@@ -105,9 +122,7 @@ message SimTimeUpdate {
 ## Consequences
 
 - `orion_clock` remains zero-dependency. No separate clock library for coordinated mode.
-- The service that uses `CoordinatedClock` owns the Zenoh subscription and calls `update()`.
+- The service that uses `CoordinatedClock` owns the Zenoh subscription and calls `update()`. The wiring is ~10 lines of service-level code (see pattern above) and is not extracted into a shared module because it requires both `orion_clock` and `orion_transport`, which must not be coupled.
 - `SimClock` and `CoordinatedClock` cover both simulation modes with no transport coupling.
-- Scaled mode introduces timing imprecision at very high scale factors (>100×) due to OS sleep
-  granularity; the correcting loop minimises but cannot eliminate jitter.
-- The Clock Service publisher (the external broadcaster of `SimTimeUpdate`) is out of scope
-  until a concrete simulation driver exists.
+- Scaled mode introduces timing imprecision at very high scale factors (>100×) due to OS sleep granularity; the correcting loop minimises but cannot eliminate jitter.
+- `ServiceBootstrapper` selects the clock implementation via `--clock` / `CLOCK_MODE`. Services receive a ready `shared_ptr<TimeSource>` in `ServiceContext::clock` and cast to `CoordinatedClock` only when wiring the subscriber.

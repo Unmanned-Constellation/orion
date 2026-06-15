@@ -10,7 +10,6 @@
 #   router       — optional Zenoh router for multi-host / cross-network setups
 #
 # Quick start (single drone, both services):
-#   VEHICLE_ID=drone-1 \
 #   MODEL_ENGINE=/opt/orion/models/rtdetr-r18.engine \
 #   docker compose --profile clock --profile perception up
 #
@@ -41,8 +40,9 @@ services:
     network_mode: host
     restart: unless-stopped
     environment:
-      VEHICLE_ID: ${VEHICLE_ID:?VEHICLE_ID is required}
+      VEHICLE_ID:                       # optional — defaults to container hostname
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      CLOCK_MODE: ${CLOCK_MODE:-wall}
       SIM_SCALE: ${SIM_SCALE:-1.0}
       SIM_RATE_HZ: ${SIM_RATE_HZ:-100}
 
@@ -67,7 +67,7 @@ services:
       #   python3 -c "from ultralytics import RTDETR; RTDETR('rtdetr-r18.pt').export(format='engine', half=True)"
       - ${MODEL_DIR:-/opt/orion/models}:/opt/orion/models:ro
     environment:
-      VEHICLE_ID: ${VEHICLE_ID:?VEHICLE_ID is required}
+      VEHICLE_ID:                       # optional — defaults to container hostname
       LOG_LEVEL: ${LOG_LEVEL:-info}
       CAMERA_DEVICE: ${CAMERA_DEVICE:-/dev/video0}
       CAMERA_ID: ${CAMERA_ID:-forward}
@@ -78,5 +78,7 @@ services:
       CUSTOM_LIB: ${CUSTOM_LIB:-/opt/orion/lib/rtdetr_parser.so}
       NUM_CLASSES: ${NUM_CLASSES:-80}
       CONF_THRESHOLD: ${CONF_THRESHOLD:-0.5}
+      PARSE_BBOX_FUNC: ${PARSE_BBOX_FUNC:-NvDsInferParseRtDetr}
+      TRACKER_LIB: ${TRACKER_LIB:-/opt/nvidia/deepstream/deepstream/lib/libnvds_mot_iou.so}
       STREAM_HOST: ${STREAM_HOST:-224.1.1.1}
       STREAM_PORT: ${STREAM_PORT:-5000}

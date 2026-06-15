@@ -16,7 +16,7 @@ CHECKS=(
 )
 
 CMDS=(
-    "find libs proto tests -type f \\( -name '*.cpp' -o -name '*.hpp' \\) | xargs -r clang-format-18 --dry-run --Werror"
+    "find benchmarks libs proto tests -type f \\( -name '*.cpp' -o -name '*.hpp' \\) | xargs -r clang-format-18 --dry-run --Werror"
     "gersemi --check ."
     "buf lint"
     "if git ls-remote --exit-code origin main 2>/dev/null && git ls-tree -r origin/main --name-only | grep -q '\\.proto\$'; then buf breaking --against '.git#branch=origin/main'; else echo 'No proto files on origin/main — skipping.'; fi"

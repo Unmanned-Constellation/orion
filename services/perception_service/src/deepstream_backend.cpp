@@ -3,9 +3,12 @@
 #include "orion/perception/deepstream_backend.hpp"
 
 #include <ctime>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+
+#include <unistd.h>
 
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
@@ -76,13 +79,20 @@ void DeepStreamBackend::start(DetectionCallback callback)
 
     gst_element_set_state(pipeline_, GST_STATE_PLAYING);
 
+    // nvinfer reads config-file-path during state transition above — safe to unlink now.
+    if (!nvinfer_config_path_.empty())
+    {
+        ::unlink(nvinfer_config_path_.c_str());
+        nvinfer_config_path_.clear();
+    }
+
     loop_            = g_main_loop_new(nullptr, FALSE);
     pipeline_thread_ = std::thread{[this] { g_main_loop_run(loop_); }};
 }
 
 void DeepStreamBackend::stop()
 {
-    if (loop_ && g_main_loop_is_running(loop_))
+    if (loop_)
     {
         g_main_loop_quit(loop_);
     }
@@ -130,7 +140,7 @@ void DeepStreamBackend::buildPipeline()
                  "height",
                  static_cast<guint>(config_.capture_height),
                  "batched-push-timeout",
-                 33'000, // 33 ms in microseconds ≈ 30fps
+                 static_cast<guint>(1'000'000U / config_.capture_fps), // µs per frame
                  nullptr);
     gst_bin_add(GST_BIN(pipeline_), mux_);
 
@@ -142,14 +152,25 @@ void DeepStreamBackend::buildPipeline()
     }
 
     // ── Inference ─────────────────────────────────────────────────────────────
+    // Write a minimal nvinfer config to pass conf_threshold into the custom parser
+    // via NvDsInferParseDetectionParams.perClassThreshold. GObject property sets
+    // below override all other fields from this file.
+    nvinfer_config_path_ = "/tmp/orion_nvinfer_" + std::to_string(::getpid()) + ".cfg";
+    {
+        auto cfg = std::ofstream{nvinfer_config_path_};
+        cfg << "[class-attrs-all]\nthreshold=" << config_.conf_threshold << "\n";
+    }
+
     auto* infer = checkedMake<GstElement>("nvinfer", "infer");
     g_object_set(infer,
+                 "config-file-path",
+                 nvinfer_config_path_.c_str(),
                  "model-engine-file",
                  config_.model_engine_path.c_str(),
                  "custom-lib-path",
                  config_.custom_lib_path.c_str(),
                  "parse-bbox-func-name",
-                 "NvDsInferParseRtDetr",
+                 config_.parse_bbox_func.c_str(),
                  "batch-size",
                  static_cast<guint>(num_cameras),
                  "network-mode",
@@ -165,7 +186,7 @@ void DeepStreamBackend::buildPipeline()
     auto* tracker = checkedMake<GstElement>("nvtracker", "tracker");
     g_object_set(tracker,
                  "ll-lib-file",
-                 "/opt/nvidia/deepstream/deepstream/lib/libnvds_mot_iou.so",
+                 config_.tracker_lib_path.c_str(),
                  "tracker-width",
                  static_cast<guint>(config_.capture_width),
                  "tracker-height",
@@ -224,6 +245,11 @@ void DeepStreamBackend::buildPipeline()
     auto* osd_sink_pad = gst_element_get_static_pad(osd_, "sink");
     gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, onOsdSinkProbe, this, nullptr);
     gst_object_unref(osd_sink_pad);
+
+    // ── Bus watch — quit the main loop on pipeline error or EOS ──────────────
+    auto* bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline_));
+    gst_bus_add_watch(bus, onBusMessage, this);
+    gst_object_unref(bus);
 }
 
 void DeepStreamBackend::addSourceBin(uint32_t index)
@@ -394,7 +420,9 @@ auto DeepStreamBackend::onOsdSinkProbe(GstPad* /*pad*/,
             ++det_count;
         }
 
-        const auto latency_ms  = static_cast<double>(frame_meta->ntp_timestamp) / 1e6; // approx
+        const auto captured_at_ns =
+            static_cast<int64_t>(frame_meta->buf_pts) + self->clock_offset_ns_;
+        const auto latency_ms  = static_cast<double>(getRealtimeNs() - captured_at_ns) / 1e6;
         auto&      text_params = display_meta->text_params[0];
         // Format: "FPS: 29.8 | Latency: 22ms | Det: 3"
         const auto stats_text = std::string{"FPS: "} +
@@ -417,6 +445,37 @@ auto DeepStreamBackend::onOsdSinkProbe(GstPad* /*pad*/,
     }
 
     return GST_PAD_PROBE_OK;
+}
+
+// ── Bus message handler ───────────────────────────────────────────────────────
+
+auto DeepStreamBackend::onBusMessage(GstBus* /*bus*/,
+                                     GstMessage* msg,
+                                     gpointer    user_data) -> gboolean
+{
+    auto* self = static_cast<DeepStreamBackend*>(user_data);
+    switch (GST_MESSAGE_TYPE(msg))
+    {
+    case GST_MESSAGE_ERROR: {
+        GError* err = nullptr;
+        gchar*  dbg = nullptr;
+        gst_message_parse_error(msg, &err, &dbg);
+        g_printerr("orion-perception pipeline error from %s: %s\n%s\n",
+                   GST_OBJECT_NAME(GST_MESSAGE_SRC(msg)),
+                   err->message,
+                   dbg != nullptr ? dbg : "");
+        g_error_free(err);
+        g_free(dbg);
+        g_main_loop_quit(self->loop_);
+        break;
+    }
+    case GST_MESSAGE_EOS:
+        g_main_loop_quit(self->loop_);
+        break;
+    default:
+        break;
+    }
+    return TRUE;
 }
 
 } // namespace orion::perception

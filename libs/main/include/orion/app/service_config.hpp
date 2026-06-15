@@ -10,10 +10,13 @@ namespace orion::app
 /// Configuration common to every Orion microservice.
 struct ServiceConfig
 {
-    /// @brief Vehicle identifier (required). Maps to --vehicle-id / VEHICLE_ID.
+    /// @brief Vehicle identifier. Defaults to the system hostname; overridable via
+    ///        --vehicle-id / VEHICLE_ID for dev and testing.
     std::string vehicle_id;
-    /// @brief Log level passed to LoggerFactory::init(). Defaults to "info".
+    /// @brief Minimum log level for the service logger. Defaults to "info".
     std::string log_level{"info"};
+    /// @brief Clock implementation selected via --clock. Defaults to "wall".
+    std::string clock_mode{"wall"};
 };
 
 /// Registers --vehicle-id / VEHICLE_ID and --log-level / LOG_LEVEL on @p app.

@@ -10,11 +10,11 @@
 #include "orion/perception/perception_service.hpp"
 #include "orion/transport/publisher.hpp"
 #include "orion/v1/detection.pb.h"
-#include "orion/v1/envelope.pb.h"
 
 using orion::perception::FakePerceptionBackend;
 using orion::perception::PerceptionService;
 using orion::transport::Publisher;
+using orion::transport::test::decode;
 using orion::transport::test::FakePublisherBackend;
 
 namespace
@@ -30,25 +30,17 @@ auto makeFrame(std::string camera_id, uint32_t width, uint32_t height) -> orion:
     return frame;
 }
 
-auto parseDetectionFrame(const std::string& bytes) -> orion::v1::DetectionFrame
-{
-    auto env = orion::v1::Envelope{};
-    env.ParseFromString(bytes);
-    auto frame = orion::v1::DetectionFrame{};
-    frame.ParseFromString(env.payload());
-    return frame;
-}
-
 struct ServiceFixture
 {
     FakePublisherBackend* fake_ptr{nullptr};
 
-    auto makeService(FakePerceptionBackend& backend) -> PerceptionService
+    auto makeService(FakePerceptionBackend& backend,
+                     uint64_t               budget_ns = 33'000'000ULL) -> PerceptionService
     {
         auto fake      = std::make_unique<FakePublisherBackend>();
         fake_ptr       = fake.get();
         auto publisher = Publisher<orion::v1::DetectionFrame>{std::move(fake), "perception"};
-        return PerceptionService{backend, std::move(publisher)};
+        return PerceptionService{backend, std::move(publisher), nullptr, budget_ns};
     }
 };
 
@@ -56,7 +48,7 @@ struct ServiceFixture
 
 // ── PerceptionService ─────────────────────────────────────────────────────────
 
-TEST(PerceptionServiceTest, PublishedEnvelopeDeserializesToCorrectFrame)
+TEST(PerceptionServiceTest, RoundTripPreservesDetectionFrame)
 {
     auto backend = FakePerceptionBackend{};
     auto fix     = ServiceFixture{};
@@ -72,17 +64,19 @@ TEST(PerceptionServiceTest, PublishedEnvelopeDeserializesToCorrectFrame)
     backend.emit(frame, 0U);
 
     ASSERT_EQ(fix.fake_ptr->sentCount(), 1U);
-    auto received = parseDetectionFrame(fix.fake_ptr->sent()[0]);
-    EXPECT_EQ(received.camera_id(), "downward");
-    EXPECT_EQ(received.frame_width(), 960U);
-    EXPECT_EQ(received.frame_height(), 600U);
-    ASSERT_EQ(received.detections_size(), 1);
-    EXPECT_EQ(received.detections(0).class_id(), 3U);
-    EXPECT_FLOAT_EQ(received.detections(0).confidence(), 0.91F);
-    EXPECT_EQ(received.detections(0).track_id(), 42U);
+    auto received = decode<orion::v1::DetectionFrame>(fix.fake_ptr->sent()[0]);
+    ASSERT_TRUE(received.has_value());
+    const auto& result = *received; // NOLINT(bugprone-unchecked-optional-access)
+    EXPECT_EQ(result.msg.camera_id(), "downward");
+    EXPECT_EQ(result.msg.frame_width(), 960U);
+    EXPECT_EQ(result.msg.frame_height(), 600U);
+    ASSERT_EQ(result.msg.detections_size(), 1);
+    EXPECT_EQ(result.msg.detections(0).class_id(), 3U);
+    EXPECT_FLOAT_EQ(result.msg.detections(0).confidence(), 0.91F);
+    EXPECT_EQ(result.msg.detections(0).track_id(), 42U);
 }
 
-TEST(PerceptionServiceTest, CapturedAtNsInEnvelopeMatchesBackendTimestamp)
+TEST(PerceptionServiceTest, CapturedAtNsMatchesBackendTimestamp)
 {
     auto backend = FakePerceptionBackend{};
     auto fix     = ServiceFixture{};
@@ -93,10 +87,59 @@ TEST(PerceptionServiceTest, CapturedAtNsInEnvelopeMatchesBackendTimestamp)
     backend.emit(makeFrame("forward", 960, 600), expected_ts);
 
     ASSERT_EQ(fix.fake_ptr->sentCount(), 1U);
-    auto env = orion::v1::Envelope{};
-    env.ParseFromString(fix.fake_ptr->sent()[0]);
-    EXPECT_EQ(env.header().captured_at_ns(), expected_ts);
+    auto received = decode<orion::v1::DetectionFrame>(fix.fake_ptr->sent()[0]);
+    ASSERT_TRUE(received.has_value());
+    const auto& result = *received; // NOLINT(bugprone-unchecked-optional-access)
+    EXPECT_EQ(result.header.captured_at_ns, expected_ts);
 }
+
+// ── Observability ─────────────────────────────────────────────────────────────
+
+TEST(PerceptionServiceTest, FrameCountIsZeroBeforeAnyEmit)
+{
+    auto backend = FakePerceptionBackend{};
+    auto fix     = ServiceFixture{};
+    auto svc     = fix.makeService(backend); // NOLINT(misc-const-correctness)
+    svc.start();
+    EXPECT_EQ(svc.frameCount(), 0U);
+}
+
+TEST(PerceptionServiceTest, FrameCountIncrementsPerEmit)
+{
+    auto backend = FakePerceptionBackend{};
+    auto fix     = ServiceFixture{};
+    auto svc     = fix.makeService(backend); // NOLINT(misc-const-correctness)
+    svc.start();
+    backend.emit(makeFrame("cam", 960, 600), 0U);
+    backend.emit(makeFrame("cam", 960, 600), 0U);
+    EXPECT_EQ(svc.frameCount(), 2U);
+}
+
+TEST(PerceptionServiceTest, OverrunCountedWhenLatencyExceedsBudget)
+{
+    auto backend = FakePerceptionBackend{};
+    auto fix     = ServiceFixture{};
+    auto svc     = fix.makeService(backend, /*budget_ns=*/10U); // NOLINT(misc-const-correctness)
+    svc.start();
+    auto frame = makeFrame("cam", 960, 600);
+    frame.set_pipeline_latency_ns(100U);
+    backend.emit(frame, 0U);
+    EXPECT_EQ(svc.overrunCount(), 1U);
+}
+
+TEST(PerceptionServiceTest, NoOverrunWhenFrameWithinBudget)
+{
+    auto backend = FakePerceptionBackend{};
+    auto fix     = ServiceFixture{};
+    auto svc     = fix.makeService(backend, /*budget_ns=*/1000U); // NOLINT(misc-const-correctness)
+    svc.start();
+    auto frame = makeFrame("cam", 960, 600);
+    frame.set_pipeline_latency_ns(5U);
+    backend.emit(frame, 0U);
+    EXPECT_EQ(svc.overrunCount(), 0U);
+}
+
+// ── Basic wiring ──────────────────────────────────────────────────────────────
 
 TEST(PerceptionServiceTest, EmitTriggersPublish)
 {

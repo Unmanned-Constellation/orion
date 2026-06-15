@@ -59,7 +59,8 @@ for Orion flight testing. The full build manual is available at
 | Motors | T-Motor F60 1750KV or T-Motor F90 1300KV | One per wing |
 | Propellers | 7×4 / 7×5 / 7×6 — one CW, one CCW | Match to motor KV |
 | ESC | 2× BlHeliS 30–40A | One per motor |
-| Flight controller | Speedybee F405 Wing or any MAVLink-capable FC | |
+| Flight controller | Holybro Pixhawk 6C Mini | |
+| Power module | Holybro PM06 | Powers FC and provides voltage/current telemetry |
 | GPS | Matek M10Q or similar with compass | |
 | Servos | 4× EMAX ES08 MAII metal gear or equivalent | |
 | Battery | 4S max 4S6P 21Ah Li-Ion, or 3S pack | |

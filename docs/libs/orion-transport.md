@@ -4,6 +4,81 @@
 underlying pub/sub backend (currently Zenoh) behind a backend-agnostic C++ API so that
 service code never imports backend headers directly.
 
+## Component relationships
+
+```{mermaid}
+classDiagram
+    class SessionConfig {
+        +vehicle_id string
+        +service_name string
+        +config_path optional~string~
+    }
+    class Session {
+        +create(SessionConfig) Session$
+        +advertise~T~(topic) Publisher~T~
+        +subscribe~T~(topic, callback) Subscriber~T~
+    }
+    class Publisher~T~ {
+        +publish(msg, captured_at_ns) void
+    }
+    class Subscriber~T~ {
+        +~Subscriber()
+    }
+    class MessageHeader {
+        +captured_at_ns uint64_t
+        +source_id string
+    }
+    class PublisherBackend {
+        <<interface>>
+        +send(bytes) void
+    }
+    class SubscriptionHandle {
+        <<RAII handle>>
+    }
+    class SessionImpl {
+        <<pimpl>>
+    }
+    Session ..> SessionConfig : create
+    Session --> Publisher~T~ : advertise
+    Session --> Subscriber~T~ : subscribe
+    Session *-- SessionImpl
+    Publisher~T~ *-- PublisherBackend
+    Subscriber~T~ *-- SubscriptionHandle
+    Subscriber~T~ ..> MessageHeader : callback delivers
+```
+
+## Publish flow
+
+```{mermaid}
+sequenceDiagram
+    participant Service
+    participant Clock as TimeSource
+    participant Pub as Publisher&lt;T&gt;
+    participant Backend as ZenohBackend
+
+    Service->>Clock: nowNs()
+    Clock-->>Service: captured_at_ns
+
+    Service->>Pub: publish(msg, captured_at_ns)
+    Pub->>Pub: serialize msg → payload bytes
+    Pub->>Backend: send(Envelope{header, type_url, payload})
+    Backend->>Backend: transmit over Zenoh
+```
+
+## Subscribe flow
+
+```{mermaid}
+sequenceDiagram
+    participant Backend as ZenohBackend
+    participant Sub as Subscriber&lt;T&gt;
+    participant Service
+
+    Backend->>Sub: raw bytes received
+    Sub->>Sub: deserialize Envelope
+    Sub->>Sub: check type_url matches T
+    Sub->>Service: callback(msg, MessageHeader)
+```
+
 ## Responsibilities
 
 - Open and manage a transport session (one per microservice process).
@@ -106,5 +181,53 @@ Subscribers silently drop messages whose `type_url` does not match the expected 
   is fully time-agnostic.
 - Backend types (Zenoh session, publisher, subscriber handles) never appear in public
   headers - the pimpl pattern keeps all backend includes confined to `zenoh_session.cpp`.
-- `PublisherBackend` and `SubscriberBackend` are abstract interfaces; tests can substitute
-  fake backends without any Zenoh dependency.
+- `PublisherBackend` is an abstract interface; `SubscriptionHandle` is an abstract RAII type.
+  Tests substitute `FakePublisherBackend` and `FakeSubscriptionHandle` without any Zenoh dependency.
+
+## Testing utilities
+
+`tests/fake_transport.hpp` (in `orion::transport::test`) provides test doubles and decode helpers:
+
+### `FakePublisherBackend`
+
+Captures all bytes passed to `send()`. Access via `sent()`.
+
+```cpp
+auto fake = std::make_unique<FakePublisherBackend>();
+auto& ref = *fake;
+auto  pub = orion::transport::Publisher<orion::v1::NavState>{std::move(fake)};
+pub.publish(msg, captured_at_ns);
+// ref.sent() holds the serialized envelopes
+```
+
+### `FakeSubscriptionHandle`
+
+Holds a `RawCallback` and lets tests inject raw envelope bytes to trigger it.
+Construct with `makeRawCallback<T>()` to get typed delivery without a real session.
+
+### `Received<T>`
+
+Plain struct holding a decoded message and its header:
+
+```cpp
+template <typename T>
+struct Received {
+    T             msg;
+    MessageHeader header;
+};
+```
+
+### `decode<T>(bytes)`
+
+Decodes a single serialized envelope into `std::optional<Received<T>>`. Returns
+`std::nullopt` if the bytes are unparseable or the `type_url` does not match `T`.
+
+### `decodeAll<T>(backend)`
+
+Decodes all envelopes captured by a `FakePublisherBackend` into `std::vector<Received<T>>`.
+
+```cpp
+auto results = orion::transport::test::decodeAll<orion::v1::DetectionFrame>(fake_pub);
+ASSERT_EQ(results.size(), 3);
+EXPECT_EQ(results[0].header.source_id, "perception-service");
+```
