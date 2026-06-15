@@ -36,6 +36,7 @@ flowchart TD
     end
 
     orion_clock --> orion_app
+    orion_clock --> orion_main
     orion_proto --> orion_transport
     orion_app   --> orion_main
     orion_app & orion_proto & orion_transport & orion_topic --> orion_clock_service
@@ -102,8 +103,8 @@ present on the Jetson deployment sysroot.
 | `orion_topic` | STATIC | Canonical Zenoh topic name builders (`sensing::detections`, `clock::simTime`, etc.). Validates `vehicle_id` at call time. Zero deps beyond stdlib. |
 | `orion_app` | STATIC | `ShutdownLatch`, `FrameScheduler`, `CrashHandler`. Depends on `orion_clock` + `backward-cpp` + `spdlog`. |
 | `orion_transport` | SHARED | `Session`, `Publisher<T>`, `Subscriber<T>`. Time-agnostic - services supply `captured_at_ns` to `publish()`. Depends on `orion_proto` + Zenoh only. |
-| `orion_clock_service` | STATIC | `ClockService` — publishes `SimTimeUpdate` at `FrameScheduler` tick rate, backed by `SimClock`. Depends on `orion_app` + `orion_transport` + `orion_proto`. |
-| `orion_main` | STATIC | `ServiceBootstrapper`, `ServiceContext`, `ServiceConfig`, `addServiceConfig` — CLI11-backed arg/env parsing and startup wiring for service `main.cpp` files. `ServiceBootstrapper` is the preferred entry point; it owns `ShutdownLatch`, `CrashHandler`, and logger init. Linked by executables only; never by libraries. |
+| `orion_clock_service` | STATIC | `ClockService` — publishes `SimTimeUpdate` at `FrameScheduler` tick rate, backed by `SimClock`. Depends on `orion_app` + `orion_transport` + `orion_proto` + `orion_topic`. |
+| `orion_main` | STATIC | `ServiceBootstrapper`, `ServiceContext`, `ServiceConfig`, `addServiceConfig` — CLI11-backed arg/env parsing and startup wiring for service `main.cpp` files. `ServiceBootstrapper` is the preferred entry point; it owns `ShutdownLatch`, `CrashHandler`, logger init, and clock construction (`--clock wall\|sim:<scale>\|coordinated`). Linked by executables only; never by libraries. Depends on `orion_app` + `orion_clock` + `CLI11`. |
 | `orion_perception` | STATIC | `PerceptionService`, `PerceptionBackend` interface, `FakePerceptionBackend`. With `ORION_ENABLE_DEEPSTREAM=ON`: `DeepStreamBackend` (GStreamer/DeepStream pipeline). Depends on `orion_proto` + `orion_transport`. |
 | `rtdetr_parser` | SHARED | Custom `nvinfer` bounding-box parser for Ultralytics RT-DETR-R18 FP16. Loaded by DeepStream at runtime via `dlopen`. Only built when `ORION_ENABLE_DEEPSTREAM=ON`. |
 

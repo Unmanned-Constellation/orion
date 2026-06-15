@@ -6,8 +6,8 @@ Shared CLI parsing and configuration scaffolding for all Orion microservice `mai
 
 `orion_main` is a **STATIC** library that owns the common startup wiring every Orion service needs:
 CLI argument parsing, environment variable fallbacks, `--help`, and `--version`. It depends on
-`orion_app` and `CLI11`. Service libraries (`orion_clock_service`, etc.) never link `orion_main`
-— only service executable targets do.
+`orion_app`, `orion_clock`, and `CLI11`. Service libraries (`orion_clock_service`, etc.) never
+link `orion_main` — only service executable targets do.
 
 See [ADR-0019](../adr/0019-cli-and-env-config.md) for the rationale.
 
@@ -36,6 +36,7 @@ after bootstrap completes.
 | `service_name` | `std::string` | The name passed to the `ServiceBootstrapper` constructor. Suitable for use as `SessionConfig::service_name`. |
 | `log` | `std::shared_ptr<spdlog::logger>` | Logger initialised for this service. Non-null. |
 | `latch` | `ShutdownLatch*` | Non-owning pointer into the bootstrapper's latch. Never null. |
+| `clock` | `std::shared_ptr<orion::clock::TimeSource>` | Time source constructed from `--clock` / `CLOCK_MODE`. Non-null. Pass directly to `FrameScheduler`. |
 
 The `latch` pointer is valid for the lifetime of the `ServiceBootstrapper` that created it.
 Since both are stack variables in `main()`, this lifetime is guaranteed.
@@ -63,8 +64,9 @@ auto main(int argc, char** argv) -> int
         })
         .run(argc, argv);
 
-    auto session = orion::transport::Session::create({ctx.vehicle_id, ctx.service_name});
-    // ... construct service, call ctx.latch->wait() ...
+    auto session   = orion::transport::Session::create({ctx.vehicle_id, ctx.service_name});
+    auto scheduler = orion::app::FrameScheduler{rate_hz, ctx.clock, ctx.latch};
+    // ... construct service, call scheduler.run() ...
 }
 ```
 
@@ -85,6 +87,7 @@ not appropriate.
 |---|---|---|---|---|
 | `vehicle_id` | `std::string` | *(hostname)* | `--vehicle-id` | `VEHICLE_ID` |
 | `log_level` | `std::string` | `"info"` | `--log-level` | `LOG_LEVEL` |
+| `clock_mode` | `std::string` | `"wall"` | `--clock` | `CLOCK_MODE` |
 
 ---
 
@@ -94,8 +97,8 @@ not appropriate.
 void addServiceConfig(CLI::App& app, ServiceConfig& cfg);
 ```
 
-Registers `--vehicle-id` / `VEHICLE_ID` and `--log-level` / `LOG_LEVEL` on `app`. Used
-internally by `ServiceBootstrapper`. Call directly only when bypassing the bootstrapper.
+Registers `--vehicle-id` / `VEHICLE_ID`, `--log-level` / `LOG_LEVEL`, and `--clock` / `CLOCK_MODE`
+on `app`. Used internally by `ServiceBootstrapper`. Call directly only when bypassing the bootstrapper.
 
 ---
 
@@ -120,5 +123,5 @@ target_include_directories(my_service PRIVATE ${CMAKE_BINARY_DIR}/generated)
 target_link_libraries(my_service PRIVATE orion_main)
 ```
 
-`orion_main` transitively pulls in `orion_app` and `CLI11::CLI11`. Never link `orion_main` from
-a library target — CLI11 is an executable-only concern.
+`orion_main` transitively pulls in `orion_app`, `orion_clock`, and `CLI11::CLI11`. Never link
+`orion_main` from a library target — CLI11 is an executable-only concern.

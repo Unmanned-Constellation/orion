@@ -15,4 +15,4 @@ target_include_directories(
 
 target_compile_features(orion_main PUBLIC cxx_std_20)
 
-target_link_libraries(orion_main PUBLIC orion_app CLI11::CLI11)
+target_link_libraries(orion_main PUBLIC orion_app orion_clock CLI11::CLI11)

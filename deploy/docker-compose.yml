@@ -42,6 +42,7 @@ services:
     environment:
       VEHICLE_ID:                       # optional — defaults to container hostname
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      CLOCK_MODE: ${CLOCK_MODE:-wall}
       SIM_SCALE: ${SIM_SCALE:-1.0}
       SIM_RATE_HZ: ${SIM_RATE_HZ:-100}
 

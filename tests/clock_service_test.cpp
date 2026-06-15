@@ -11,14 +11,18 @@
 #include "orion/app/frame_scheduler.hpp"
 #include "orion/app/shutdown_latch.hpp"
 #include "orion/clock/clock.hpp"
+#include "orion/topic/topic.hpp"
 #include "orion/transport/publisher.hpp"
 #include "orion/transport/session.hpp"
+#include "orion/transport/subscriber.hpp"
 #include "orion/v1/sim_time_update.pb.h"
 
 using orion::app::ClockService;
 using orion::app::FrameScheduler;
 using orion::app::ShutdownLatch;
+using orion::clock::CoordinatedClock;
 using orion::clock::ManualClock;
+using orion::clock::WallClock;
 using orion::transport::Publisher;
 using orion::transport::test::decodeAll;
 using orion::transport::test::FakePublisherBackend;
@@ -166,6 +170,46 @@ auto waitForFlag(const std::atomic<bool>&  flag,
 }
 
 } // namespace
+
+// Verifies the coordinated clock wiring pattern: a CoordinatedClock driven by a
+// SimTimeUpdate subscriber advances when ClockService publishes.
+TEST(ClockServiceZenohTest, CoordinatedClockDrivenBySimTimeUpdate)
+{
+    auto session = orion::transport::Session::create({
+        .vehicle_id   = "test",
+        .service_name = "coord-test",
+    });
+
+    auto coord_clock = std::make_shared<CoordinatedClock>();
+    auto initialized = std::atomic<bool>{false}; // NOLINT(misc-const-correctness)
+
+    // Wiring pattern: subscriber drives coord_clock->update() on every broadcast.
+    auto sim_sub = session.subscribe<orion::v1::SimTimeUpdate>(
+        orion::topic::clock::simTime("test"),
+        [coord_clock, &initialized](const orion::v1::SimTimeUpdate& msg,
+                                    const orion::transport::MessageHeader& /*hdr*/) {
+            coord_clock->update(msg.sim_time_ns());
+            initialized.store(true);
+        });
+
+    auto wall_clock = std::make_shared<WallClock>();
+    auto latch      = orion::app::ShutdownLatch{};
+    auto scheduler  = FrameScheduler{100.0, wall_clock, &latch};
+    auto svc        = ClockService::create( // NOLINT(misc-const-correctness)
+        1.0,
+        "test",
+        session,
+        scheduler);
+
+    auto runner = std::thread{[&] { scheduler.run(); }};
+
+    ASSERT_TRUE(waitForFlag(initialized)) << "CoordinatedClock never received a SimTimeUpdate";
+    EXPECT_GT(coord_clock->nowNs(), 0U);
+
+    latch.stop();
+    coord_clock->wake();
+    runner.join();
+}
 
 TEST(ClockServiceZenohTest, SimTimeUpdateArrivesOverWire)
 {

@@ -10,6 +10,7 @@
 
 #include "orion/app/crash_handler.hpp"
 #include "orion/app/shutdown_latch.hpp"
+#include "orion/clock/clock.hpp"
 
 namespace orion::app
 {
@@ -29,6 +30,8 @@ struct ServiceContext
     std::shared_ptr<spdlog::logger> log;
     /// Non-owning pointer to the bootstrapper's latch. Never null.
     ShutdownLatch* latch;
+    /// Time source constructed from --clock / CLOCK_MODE. Non-null.
+    std::shared_ptr<orion::clock::TimeSource> clock;
 };
 
 /// Owns the shared startup sequence for every Orion microservice.

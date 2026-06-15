@@ -58,12 +58,14 @@ documentation.
 ### `orion_main` — shared config library
 
 A new `orion_main` static library in `libs/main/` owns the shared startup
-scaffolding. It links `orion_app` and `CLI11::CLI11` and is the only target that
-depends on CLI11. Service libraries (`orion_clock_service`, etc.) remain CLI11-free.
+scaffolding. It links `orion_app`, `orion_clock`, and `CLI11::CLI11` and is the
+only target that depends on CLI11. Service libraries (`orion_clock_service`, etc.)
+remain CLI11-free.
 
 `orion_main` exposes `ServiceConfig`, `addServiceConfig`, and `ServiceBootstrapper`.
 `ServiceBootstrapper` is the preferred entry point — it owns `ShutdownLatch`,
-`CrashHandler`, and logger initialization, returning a ready `ServiceContext`:
+`CrashHandler`, logger initialization, and clock construction, returning a ready
+`ServiceContext`:
 
 ```cpp
 int main(int argc, char** argv)
@@ -81,7 +83,8 @@ int main(int argc, char** argv)
         })
         .run(argc, argv);
 
-    // ctx.vehicle_id, ctx.log, ctx.latch are ready
+    // ctx.vehicle_id, ctx.service_name, ctx.log, ctx.latch, ctx.clock are ready
+    auto scheduler = orion::app::FrameScheduler{rate_hz, ctx.clock, ctx.latch};
     // ...
 }
 ```
@@ -122,6 +125,20 @@ error handler is registered. This is correct: config errors occur before
 the logger is initialized (inside `ServiceBootstrapper::run()`), so spdlog is
 not available.
 
+### Shared options registered by `ServiceBootstrapper`
+
+`addServiceConfig` registers three options on every service's CLI app:
+
+| CLI flag | Env var | Default | Description |
+|---|---|---|---|
+| `--vehicle-id` | `VEHICLE_ID` | *(hostname)* | Vehicle identifier; used in Zenoh topic paths |
+| `--log-level` | `LOG_LEVEL` | `info` | spdlog level: `trace`, `debug`, `info`, `warn`, `err`, `critical` |
+| `--clock` | `CLOCK_MODE` | `wall` | Time source: `wall` (production/HIL), `sim:<scale>` (scaled SIL, e.g. `sim:2.0`), `coordinated` (lockstep batch simulation) |
+
+The constructed `TimeSource` is returned in `ServiceContext::clock` and passed
+directly to `FrameScheduler`. Services have no direct knowledge of which
+implementation was selected.
+
 ### Migrating `clock_service`
 
 `clock_service/main.cpp` is updated as part of the implementing PR:
@@ -134,6 +151,8 @@ not available.
 ## Consequences
 
 - All services get `--help` and `--version` for free from `orion_main`.
+- All services get `--clock` / `CLOCK_MODE` for free; the constructed `TimeSource`
+  arrives in `ServiceContext::clock` without any per-service wiring.
 - Config errors produce a clear, consistent message before any application code
   runs — no cryptic exceptions from deep in initialization.
 - CLI flags override env vars — operators can override systemd unit file config
@@ -143,4 +162,6 @@ not available.
 - `orion_main` is a new CMake target — service `main.cpp` files link it instead
   of `orion_app` directly. Libraries never link `orion_main`.
 - CLI11 is a Conan dependency of `orion_main` only; no other library sees it.
+- `orion_clock` is now a transitive dependency of `orion_main` (for clock
+  construction). Services do not link `orion_clock` directly.
 - The `ORION_LOG_LEVEL` reference in ADR-0011 is superseded by `LOG_LEVEL`.

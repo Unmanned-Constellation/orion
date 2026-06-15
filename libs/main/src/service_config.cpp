@@ -38,6 +38,8 @@ void addServiceConfig(CLI::App& app, ServiceConfig& cfg)
         ->envname("VEHICLE_ID");
     app.add_option("--log-level", cfg.log_level, "Log level (trace/debug/info/warn/error)")
         ->envname("LOG_LEVEL");
+    app.add_option("--clock", cfg.clock_mode, "Time source: wall, sim:<scale>, or coordinated")
+        ->envname("CLOCK_MODE");
 }
 
 } // namespace orion::app

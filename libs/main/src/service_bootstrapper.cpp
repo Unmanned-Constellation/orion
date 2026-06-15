@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -16,6 +17,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "orion/app/service_config.hpp"
+#include "orion/clock/clock.hpp"
 #include "orion/version.hpp"
 
 namespace orion::app
@@ -27,6 +29,23 @@ namespace
 constexpr auto        LOG_PATTERN    = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v";
 constexpr std::size_t MAX_FILE_SIZE  = std::size_t{10} * 1024 * 1024;
 constexpr std::size_t MAX_FILE_COUNT = 3;
+
+auto buildClock(const std::string& mode) -> std::shared_ptr<orion::clock::TimeSource>
+{
+    if (mode == "wall")
+    {
+        return std::make_shared<orion::clock::WallClock>();
+    }
+    if (mode == "coordinated")
+    {
+        return std::make_shared<orion::clock::CoordinatedClock>();
+    }
+    if (mode.starts_with("sim:"))
+    {
+        return std::make_shared<orion::clock::SimClock>(std::stod(mode.substr(4)));
+    }
+    throw std::invalid_argument{"ServiceBootstrapper: --clock: unknown mode '" + mode + "'"};
+}
 
 } // namespace
 
@@ -95,12 +114,16 @@ auto ServiceBootstrapper::run(int argc, const char* const* argv) -> ServiceConte
     auto       log   = logger_ ? logger_ : buildLogger(level);
     log->set_level(level);
 
-    return ServiceContext{std::move(cfg.vehicle_id), service_name_, std::move(log), &latch_};
+    return ServiceContext{std::move(cfg.vehicle_id),
+                          service_name_,
+                          std::move(log),
+                          &latch_,
+                          buildClock(cfg.clock_mode)};
 }
 
 auto ServiceBootstrapper::run(int argc, char** argv) -> ServiceContext
 {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast,clang-analyzer-cplusplus.NewDeleteLeaks)
     return run(argc, (const char* const*)argv);
 }
 
